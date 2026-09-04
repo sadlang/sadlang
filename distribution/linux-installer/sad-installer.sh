@@ -103,16 +103,16 @@ gui_welcome() {
     case "$GUI_TOOL" in
         zenity)
             zenity --info --title="مثبت لغة ص" --width=500 --height=300 \
-                --text="<b>مرحباً بك في مثبت لغة ص v${VERSION}</b>\n\nلغة ص هي لغة برمجة عربية حديثة.\n\nسيتم تثبيت:\n• المفسر (sad)\n• مدير الحزم (sad-pkg)\n• خادم LSP (sad-lsp)\n• REPL التفاعلي (sad-repl)\n• منسّق الكود (sad-fmt)\n• المكتبة القياسية\n\nالناشر: Saleh Kadah" 2>/dev/null
+                --text="<b>مرحباً بك في مثبت لغة ص v${VERSION}</b>\n\nلغة ص هي لغة برمجة عربية حديثة.\n\nسيتم تثبيت:\n• مركز الأدوات (sad)\n• المترجم (sadc)\n• مدير الحزم (sad-pkg)\n• خادم LSP (sad-lsp)\n• منسّق الكود (sad-fmt)\n• المكتبة القياسية\n\nالناشر: Saleh Kadah" 2>/dev/null
             ;;
         kdialog)
-            kdialog --msgbox "مرحباً بك في مثبت لغة ص v${VERSION}\n\nسيتم تثبيت المفسر والأدوات والمكتبة القياسية." --title "مثبت لغة ص" 2>/dev/null
+            kdialog --msgbox "مرحباً بك في مثبت لغة ص v${VERSION}\n\nسيتم تثبيت المترجم والأدوات والمكتبة القياسية." --title "مثبت لغة ص" 2>/dev/null
             ;;
         dialog)
-            dialog --title "مثبت لغة ص" --msgbox "\n  مرحباً بك في مثبت لغة ص v${VERSION}\n\n  لغة ص هي لغة برمجة عربية حديثة.\n\n  سيتم تثبيت:\n  • المفسر (sad)\n  • مدير الحزم (sad-pkg)\n  • خادم LSP (sad-lsp)\n  • REPL (sad-repl)\n  • منسّق الكود (sad-fmt)\n  • المكتبة القياسية\n\n  الناشر: Saleh Kadah" 18 55
+            dialog --title "مثبت لغة ص" --msgbox "\n  مرحباً بك في مثبت لغة ص v${VERSION}\n\n  لغة ص هي لغة برمجة عربية حديثة.\n\n  سيتم تثبيت:\n  • مركز الأدوات (sad)\n  • المترجم (sadc)\n  • مدير الحزم (sad-pkg)\n  • خادم LSP (sad-lsp)\n  • منسّق الكود (sad-fmt)\n  • المكتبة القياسية\n\n  الناشر: Saleh Kadah" 18 55
             ;;
         whiptail)
-            whiptail --title "مثبت لغة ص" --msgbox "\n  مرحباً بك في مثبت لغة ص v${VERSION}\n\n  سيتم تثبيت:\n  • المفسر والأدوات\n  • المكتبة القياسية\n\n  الناشر: Saleh Kadah" 16 50
+            whiptail --title "مثبت لغة ص" --msgbox "\n  مرحباً بك في مثبت لغة ص v${VERSION}\n\n  سيتم تثبيت:\n  • المترجم والأدوات\n  • المكتبة القياسية\n\n  الناشر: Saleh Kadah" 16 50
             ;;
         cli)
             echo -e "${BOLD}${CYAN}"
@@ -123,7 +123,7 @@ gui_welcome() {
             echo "║  الناشر: Saleh Kadah                         ║"
             echo "╚═══════════════════════════════════════════════╝"
             echo -e "${NC}"
-            echo -e "سيتم تثبيت: المفسر، مدير الحزم، LSP، REPL، المنسّق"
+            echo -e "سيتم تثبيت: مركز الأدوات، المترجم، مدير الحزم، LSP، المنسّق"
             echo ""
             ;;
     esac
@@ -349,13 +349,20 @@ create_desktop_entry() {
     local desktop_dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
     mkdir -p "$desktop_dir"
     
+    # (AR) 🔑 كان `Exec` يشيرُ إلى `sad-repl` — ثنائيٍّ **لا يُشحَنُ في
+    #      الحزمة**. فيُنشَأُ مدخلُ سطحِ مكتبٍ نقرتُه لا تفعلُ شيئًا: لا رسالةَ
+    #      ولا نافذة. وهو أسوأُ من غيابِ المدخلِ لأنّه يَعِدُ ثمّ يصمت.
+    # (EN) Exec pointed at sad-repl, a binary the package does not ship, so the
+    #      desktop entry was created and its click did nothing at all — no
+    #      message, no window. Worse than no entry, because it promises and then
+    #      stays silent.
     cat > "$desktop_dir/sad-lang.desktop" <<EOF
 [Desktop Entry]
-Name=Sad Language REPL
-Name[ar]=REPL لغة ص
-Comment=Arabic Programming Language Interactive Console
-Comment[ar]=الطرفية التفاعلية للغة ص
-Exec=$INSTALL_DIR/bin/sad-repl
+Name=Sad Language
+Name[ar]=لغة ص
+Comment=Arabic Programming Language tool hub
+Comment[ar]=مركز أدوات لغة ص
+Exec=$INSTALL_DIR/bin/sad --help
 Icon=utilities-terminal
 Terminal=true
 Type=Application

@@ -17,6 +17,21 @@
 #      runtime guard) and the typed-parameter hole fix, across the D6 axis.
 #
 # الاستعمال:  bash tests/behavior/null_safety/ns08_void_crossing_stage_a2_check.sh
+#
+# ⚠️ **دَينٌ مُقيَّدٌ — هذا السكربتُ لا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل.**
+#
+#      أحدَ عشرَ نداءً للمفسّرِ وعشرةٌ للمترجم. قِيس ٢٠٢٦-٠٩-٠٤: **المترجمُ ١٨ نجح / ٠ فشل**، والمفسّرُ ٧ نجح / ٩ فشل. فنصفُه المترجِميُّ أخضرُ وجاهزٌ للوصلِ متى فُصِلَ نصفُه الآخر.
+#
+#      وسببُ التقييدِ أنّ «متجاهَل» يجبُ أن يبقى قرارًا لا نسيانًا: حارسٌ
+#      لا يُنادَى ليس حارسًا، وسكوتُه يُقرأُ خضرةً وهو صمتٌ. والوصلُ
+#      يحتاجُ فصلَ نصفِ المفسّرِ أوّلًا — وذاك عملٌ مقصودٌ لا يُقحَمُ في
+#      رقعةِ تنظيف. والنظيرُ الموصولُ: `ns03` (بوّابةٌ في `ci.yml`).
+# (EN) TRACKED DEBT — no gate or workflow invokes this script. "Ignored"
+#      must stay a decision, never an oversight: a guard nobody calls is
+#      not a guard, and its silence reads as green while it is only
+#      silence. Wiring it up requires splitting the interpreter half out
+#      first, which is deliberate work, not a cleanup patch. The wired
+#      sibling is ns03 (a gate in ci.yml).
 # ============================================================================
 set -u
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"

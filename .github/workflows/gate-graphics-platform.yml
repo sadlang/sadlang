@@ -49,7 +49,13 @@ on:
       - 'tests/unit/comprehensive/ui_tests_shared.h'
       - 'tests/unit/comprehensive/golden/pixels/**'
       - 'cmake/tests_comprehensive.cmake'
-      - '.github/workflows/graphics-platform-gate.yml'
+      # (AR) 🔑 الاسمُ الصحيحُ بعدَ إعادةِ التسميةِ إلى بادئةِ الدور.
+      #      كان يسمّي `graphics-platform-gate.yml` ولا وجودَ له، فكانت
+      #      البوّابةُ **لا توقظُها تعديلاتُ نفسِها** — رقعةٌ تُدمَجُ بلا أن تُجرَّب.
+      # (EN) Correct name after the role-prefix rename. It named a file that
+      #      does not exist, so edits to this gate did not trigger it — a fix
+      #      could merge without ever being measured.
+      - '.github/workflows/gate-graphics-platform.yml'
   pull_request:
     branches: [dev, sadlang]
     paths:
@@ -74,7 +80,13 @@ on:
       - 'tests/unit/comprehensive/ui_tests_shared.h'
       - 'tests/unit/comprehensive/golden/pixels/**'
       - 'cmake/tests_comprehensive.cmake'
-      - '.github/workflows/graphics-platform-gate.yml'
+      # (AR) 🔑 الاسمُ الصحيحُ بعدَ إعادةِ التسميةِ إلى بادئةِ الدور.
+      #      كان يسمّي `graphics-platform-gate.yml` ولا وجودَ له، فكانت
+      #      البوّابةُ **لا توقظُها تعديلاتُ نفسِها** — رقعةٌ تُدمَجُ بلا أن تُجرَّب.
+      # (EN) Correct name after the role-prefix rename. It named a file that
+      #      does not exist, so edits to this gate did not trigger it — a fix
+      #      could merge without ever being measured.
+      - '.github/workflows/gate-graphics-platform.yml'
   workflow_dispatch:
 
 # 🔑 (AR) پايثونُ على عدّاءِ ويندوزَ يكتب بترميزِ المحلّيّةِ حين يُوجَّه خرجُه،
@@ -167,9 +179,6 @@ jobs:
       - name: 🔨 بناءُ مكتبةِ الرسومات / Build graphics library
         run: cmake --build build --config Debug --target sad_graphics
 
-      - name: 🔨 بناءُ المحرّك / Build interpreter
-        run: cmake --build build --config Debug --target sad-run
-
       - name: 🔨 بناءُ الاختبارِ الذهبيّ / Build golden test
         run: cmake --build build --config Debug --target test_ui_render_displaylist
 
@@ -217,28 +226,18 @@ jobs:
           path: tests/unit/comprehensive/golden/pixels/*.actual.ppm
           if-no-files-found: ignore
 
-      # (AR) الحكمُ هنا لا في ملفِّ ص. الملفُّ اختبارُ سلوكٍ يملكه عدّاءُ
-      #      الاختبارات، وهو يقارن مخرَجَه بـ`@expected` فيكشفُ الفشل؛ أمّا هنا
-      #      فنُشغّله **مباشرةً** بلا مقارنة. ولو اكتفينا بالتشغيلِ لكانت الخطوةُ
-      #      خضراءَ ولو انكسر بابٌ: البرنامجُ يطبع «❌ باب أو أكثر معطوب» ثمّ
-      #      **يخرجُ بصفر** (`خروج` في مصدرِ الحقيقةِ بلا معاملاتٍ فلا تحمل رمزًا).
-      #      وهذا عينُ العيبِ الذي أُنشئت البوّابةُ لسدِّه، إلّا أنّه يبدو محكَمًا
-      #      لخلوِّه من `continue-on-error`. فنَعقِدُ الحكمَ على سطرِ النجاحِ نفسِه.
-      # (EN) The .ص file exits 0 even when a door breaks (the `خروج` builtin takes
-      #      no arguments), so running it is not a gate. We assert on its output.
-      - name: ✅ أبوابُ توليدِ كودِ المنصّاتِ الأربع / Four platform doors
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -x build/bin/Debug/sad-run.exe ]; then
-            RUNNER=build/bin/Debug/sad-run.exe
-          elif [ -x build/bin/Debug/sad-run ]; then
-            RUNNER=build/bin/Debug/sad-run
-          else
-            RUNNER=build/bin/sad-run
-          fi
-          OUT="$("$RUNNER" "tests/behavior/sections/12_تكامل/03_برامج_كاملة/132_ui_platform_codegen_doors.ص")"
-          printf '%s\n' "$OUT"
-          # (AR) عقدٌ مزدوج: سطرُ النجاحِ حاضرٌ **وصفرُ فشل** — فلا يكفي أحدُهما.
-          printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
-          printf '%s' "$OUT" | grep -q 'فشل: 0'
+# (AR) 🔑 خطوةُ «أبوابِ توليدِ كودِ المنصّاتِ الأربع» **نُقلت من هنا**
+#      إلى وظائفِ المنصّاتِ في `ci.yml`. كانت تطلبُ `sad-build` وهذه البوّابةُ
+#      تُهيّئُ بـ`ENABLE_LLVM_BACKEND=OFF` عمدًا — والهدفُ لا يُعرَّفُ إلّا خلفَ
+#      بوّابةِ LLVM، فأخفقت التهيئةُ على المنصّاتِ الثلاثِ بـ`No target
+#      "sad-build"` قبلَ أن تصلَ البوّابةُ إلى أيِّ اختبارِ رسومات.
+#      وهي ليست اختبارَ رسوماتٍ أصلًا: تفحصُ أبوابَ توليدِ كودِ **المترجِم**،
+#      وحلّت هنا بحكمِ الجوار. وبنقلِها تبقى هذه البوّابةُ على وعدِها المُعلَنِ:
+#      أنّ الرسوماتِ تُبنى وتُقاسُ بلا LLVM.
+# (EN) The four platform-codegen doors step MOVED from here to the platform jobs
+#      in ci.yml. It asked for sad-build while this gate configures with
+#      ENABLE_LLVM_BACKEND=OFF by design, and that target exists only behind the
+#      LLVM gate — so configure failed on all three platforms before any graphics
+#      test ran. It was never a graphics test: it exercises the COMPILER's
+#      codegen doors and lived here by proximity. Moving it lets this gate keep
+#      its stated promise — graphics builds and is measured without LLVM.

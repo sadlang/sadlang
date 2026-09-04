@@ -136,26 +136,48 @@ def _compile(source: str, *extra_flags: str) -> tuple[int, str, str]:
         return proc.returncode, (proc.stdout or "") + (proc.stderr or ""), ir
 
 
-def test_freestanding_bounds_fail_no_english_diagnostic():
-    """(AR) وضع حرّ: كتلة فشل الحدّ تنادي __sad_panic بلا printf/رسالة إنجليزيّة."""
+def test_freestanding_bounds_fail_emits_panic_not_a_message():
+    """(AR) وضع حرّ: كتلة فشل الحدّ تنادي __sad_panic بلا أيّ نصِّ تشخيصٍ مُصدَر."""
     code, out, ir = _compile(ARRAY_OOB_SRC, FREESTANDING, NO_MAIN)
     assert code == 0, out
     assert "call void @__sad_panic" in ir, "لم يُصدَر نداء __sad_panic في الوضع الحرّ:\n" + ir[:2000]
     # (AR) رمز سبب الهلع = kSadPanicCheckViolation (1) لفحص بنيويّ
     assert "@__sad_panic(i64 1)" in ir, "رمز سبب الهلع للحدّ ليس 1 (فحص بنيويّ):\n" + ir[:2000]
-    assert "out of bounds" not in ir, \
-        "تسرّبت رسالة إنجليزيّة (out of bounds) في الوضع الحرّ:\n" + ir[:2000]
+    # (AR) 🔑 المرساةُ **الفعلُ** لا هجاؤه: كان التوكيدُ على «out of bounds»،
+    #      وهي عبارةُ الرسالةِ القديمةِ المخبوزةِ في الثنائيّ. ولمّا صارت الرسالةُ
+    #      تُبنى من الكتالوجِ (RUN002، عربيّة) صارَ ذلك التوكيدُ **لا يستطيعُ أن
+    #      يحمرَّ**: يبحثُ عن نصٍّ لا وجودَ له في أيِّ وضع. فالمرساةُ الآن رمزُ
+    #      الخطأِ المُعلَنُ في مصدرِ الحقيقة — وهو ما يجبُ أن يُكبَتَ في الحرّ.
+    # (EN) Anchor on the act, not its spelling. The assertion used to look for
+    #      "out of bounds", the wording of the old baked-in message. Once the
+    #      message came from the catalog (RUN002, Arabic) that assertion could no
+    #      longer redden: it searched for text present in no mode at all. The
+    #      anchor is now the SoT-declared error code, which is what freestanding
+    #      must suppress.
+    assert "RUN002" not in ir, \
+        "تسرّب رمز التشخيص RUN002 إلى الوضع الحرّ:\n" + ir[:2000]
     assert "@bc.fmt" not in ir, "أُصدرت سلسلة bc.fmt في الوضع الحرّ:\n" + ir[:2000]
     # (AR) لا نداء printf في كتلة الفشل الحرّة (قد يبقى printf ضعيفًا مُصدَرًا لأسباب
     #      أخرى، لكن لا نداء له من مسار الحدّ) — نتحقّق بغياب صيغة الحدّ تحديدًا.
 
 
-def test_hosted_bounds_fail_keeps_english_diagnostic():
-    """(AR) مستضاف: كتلة فشل الحدّ تُبقي التشخيص الإنجليزيّ للمطوّر + exit."""
+def test_hosted_bounds_fail_keeps_catalog_diagnostic():
+    """(AR) مستضاف: كتلة فشل الحدّ تُبقي تشخيصَ الكتالوج (RUN002) + exit."""
     code, out, ir = _compile(ARRAY_OOB_SRC, NO_MAIN)
     assert code == 0, out
-    assert "@bc.fmt" in ir, "غاب التشخيص الإنجليزيّ في المستضاف (يجب أن يبقى):\n" + ir[:2000]
-    assert "out of bounds" in ir, "غابت رسالة الحدّ الإنجليزيّة في المستضاف:\n" + ir[:2000]
+    assert "@bc.fmt" in ir, "غاب تشخيص الحدّ في المستضاف (يجب أن يبقى):\n" + ir[:2000]
+    # (AR) 🔑 كانت الرسالةُ نصًّا إنجليزيًّا مخبوزًا في الثنائيّ، فصارت
+    #      تُبنى من `language-truth/errors/runtime.yaml` وتحملُ رمزَها (`065dc2e18`).
+    #      ⚠️ والتوكيدُ هنا لم يُحدَّثْ معها، فبقي يطلبُ «out of bounds» — أي
+    #      يحرسُ **هجاءَ رسالةٍ متقاعدة** لا العقدَ. والعقدُ: أنّ المستضافَ يُبقي
+    #      تشخيصًا يحملُ رمزَ الكتالوجِ، وأنّ الحرَّ يكبتُه. فالمرساةُ رمزُ الخطأ.
+    # (EN) The message used to be an English string baked into the binary; it is
+    #      now built from the SoT catalog and carries its code (065dc2e18). This
+    #      assertion was not updated with it and kept demanding "out of bounds" —
+    #      guarding a retired message's spelling rather than the contract. The
+    #      contract is: hosted keeps a diagnostic bearing the catalog code,
+    #      freestanding suppresses it. So the anchor is the code.
+    assert "RUN002" in ir, "غاب رمز الكتالوج RUN002 من تشخيص الحدّ المستضاف:\n" + ir[:2000]
     assert "call void @exit" in ir, "المستضاف يجب أن ينادي exit في كتلة الفشل:\n" + ir[:2000]
 
 

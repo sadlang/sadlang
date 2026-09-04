@@ -1,0 +1,132 @@
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# ملف: .github/actions/setup-llvm/action.yml
+# الوصف: تثبيتُ LLVM 18 وتصديرُ `LLVM_DIR` — وصفةٌ واحدةٌ للمنصّات
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# (AR) 🔑 **نسخةٌ واحدةٌ لأنّ النسختَينِ تتباعدان.**
+#      كانت وصفتا لينكس وويندوز مكتوبتَينِ داخلَ وظيفةِ المترجِمِ وحدَها. ولمّا
+#      احتاجتِ الحزمةُ القياسيّةُ إلى LLVM أيضًا (بعدَ أن صارَ المترجِمُ محرّكَ
+#      اللغةِ الوحيد) كان البديلُ نسخَهما مرّةً ثانية — وهو صنفُ العطبِ الذي
+#      كُوِيَ به هذا المستودعُ مرارًا: «ثلاثُ نسخٍ، أُصلحت اثنتان».
+#      فالوصفةُ هنا مرّةً واحدةً، وتناديها الوظيفتان.
+#
+#      ⚠️ والشرطُ `runner.os` لا `matrix.os`: الأفعالُ المركّبةُ لا ترى مصفوفةَ
+#      مُناديها.
+#
+# (EN) 🔑 One copy, because two copies drift.
+#      The Linux and Windows recipes lived inside the compiler job alone. When
+#      the standard package also came to need LLVM — the compiler being the sole
+#      engine now — the alternative was to copy them a second time, which is the
+#      very defect class this repo has been burned by repeatedly. The recipe
+#      lives here once and both jobs call it.
+#      ⚠️ The condition is `runner.os`, not `matrix.os`: a composite action
+#      cannot see its caller's matrix.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "تثبيت LLVM 18 / Setup LLVM 18"
+description: "يُثبّت LLVM 18 ويُصدّر LLVM_DIR / Installs LLVM 18 and exports LLVM_DIR"
+
+runs:
+  using: composite
+  steps:
+    # (AR) لينكس: مستودعُ apt.llvm.org الرسميّ. وسطرُ `deb` بلا قيدِ معماريّة
+    #      عمدًا، فيلتقطُ apt المعماريّةَ المضيفة — وقد قِيسَ أنّ المستودعَ يخدمُ
+    #      `binary-amd64` و`binary-arm64` كليهما لـjammy/18، فتعملُ الوصفةُ على
+    #      خانةِ aarch64 كما تعملُ على x86_64.
+    # (EN) Linux: the official apt.llvm.org repository. The `deb` line carries no
+    #      architecture restriction on purpose, so apt picks the host's — and the
+    #      repository was measured to serve both binary-amd64 and binary-arm64
+    #      for jammy/18, so this works on the aarch64 cell as it does on x86_64.
+    - name: "تثبيت LLVM / Install LLVM (Linux)"
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+          https://apt.llvm.org/llvm-snapshot.gpg.key
+        sudo apt-key add "$RUNNER_TEMP/llvm-snapshot.gpg.key"
+        echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        bash scripts/ci/apt_retry.sh update -qq
+        bash scripts/ci/apt_retry.sh install -y -qq llvm-18-dev libclang-18-dev lld-18 build-essential libssl-dev
+        echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
+
+    # ══════════════════════════════════════════════════════════════════
+    # (AR) 🔑 **المصدرُ مقيسٌ لا مفترَض.** كانت الخطوةُ تطبعُ «skipping» ثمّ
+    #      تُهيّئُ بـ`-DENABLE_LLVM_BACKEND=ON` و`LLVM_DIR` **فارغًا** — أي
+    #      تتخطّى المورِدَ ثمّ تطلبُه. وكان العلاجُ حلقةَ ثلاثِ محاولاتٍ تُنزِّلُ
+    #      `LLVM-18.1.8-win64.exe` وتشغّلُه بـ`/S`.
+    #      والمقيس: ذلك المثبِّتُ سلسلةُ أدواتِ clang **لا شجرةُ تطوير**، ولا
+    #      يحوي `lib/cmake/llvm` إطلاقًا — فيُخفِقُ البحثُ عن
+    #      `LLVMConfig.cmake` **دائمًا**، فينزلقُ المجرى إلى فرعِ «هيّئ بلا
+    #      LLVM_DIR»، فيبني بلا خلفيّةٍ فعليّة. الحزمةُ الوحيدةُ التي تحملُ
+    #      الشجرةَ هي أرشيفُ msvc، وهو المُستعمَلُ هنا.
+    #      والأطوارُ الثلاثةُ مقيسةٌ (تشغيل 30911355461): تنزيلٌ ١٠ث · فكُّ xz
+    #      ١٢ث · فكُّ tar ٤٧ث = **سبعون ثانيةً** بدل سقوطٍ عند أربعينَ دقيقة.
+    #      والفرقُ ثلاثةُ أشياء: `curl.exe` بدل `Invoke-WebRequest`، و`7z` بدل
+    #      `tar -xf` (bsdtar يفكُّ xz بخيطٍ واحد)، واستثناءُ Defender **قبلَ**
+    #      أوّلِ كتابةٍ لأنّه يفحصُ عشراتِ الآلافِ من الملفّاتِ الصغيرة.
+    #      والجذرُ **يُشتقُّ من موضعِ LLVMConfig.cmake** لا يُفترَض: 7z لا
+    #      تقشّرُ الدليلَ الأعلى.
+    # (EN) Measured source, not assumed. The step used to print "skipping" and
+    #      then configure with ENABLE_LLVM_BACKEND=ON and an EMPTY LLVM_DIR —
+    #      skip the resource, then require it. The remedy was a 3-attempt loop
+    #      installing LLVM-18.1.8-win64.exe, which is a clang TOOLCHAIN with no
+    #      lib/cmake/llvm at all, so the LLVMConfig.cmake search always failed
+    #      and the run slid into a "configure without LLVM_DIR" branch. Only
+    #      the msvc archive carries the development tree. Phases measured
+    #      (run 30911355461): download 10s, xz 12s, tar 47s = 70 seconds,
+    #      against a 40-minute timeout. curl.exe over Invoke-WebRequest, 7z
+    #      over bsdtar (single-threaded xz), Defender exclusion BEFORE the
+    #      first write, and the root DERIVED from where LLVMConfig.cmake lands.
+    # ══════════════════════════════════════════════════════════════════
+    - name: "تثبيت LLVM / Install LLVM (Windows)"
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $نسخة = "18.1.8"
+        $اسم = "clang+llvm-$نسخة-x86_64-pc-windows-msvc"
+        $عنوان = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$نسخة/$اسم.tar.xz"
+        $جذر = "C:\llvm18"
+        $أرشيف = Join-Path $env:RUNNER_TEMP "$اسم.tar.xz"
+
+        # (AR) الاستثناءُ **قبلَ** أوّلِ كتابةٍ لا بعدَها.
+        Add-MpPreference -ExclusionPath $env:RUNNER_TEMP, $جذر -ErrorAction SilentlyContinue
+
+        Write-Host "[١] تنزيل / download"
+        # (AR) 🔑 الحدُّ على الأداةِ لا على الخطوة: ﭼِتهَب **لا تقبلُ**
+        #      `timeout-minutes` في خطواتِ الأفعالِ المركّبة، وكانت الخطوةُ
+        #      الأصليّةُ تحملُ سقفَ ثلاثينَ دقيقة. فبلا هذا يرثُ التنزيلُ
+        #      المعلّقُ سقفَ الوظيفةِ كلِّها.
+        # (EN) The cap lives on the tool, not the step: GitHub does not accept
+        #      timeout-minutes on composite-action steps, and the original step
+        #      carried a 30-minute cap. Without this a hung download would
+        #      inherit the whole job's ceiling.
+        & curl.exe -L --fail --retry 3 --retry-delay 5 --max-time 1500 -o $أرشيف $عنوان
+        if ($LASTEXITCODE -ne 0) { throw "تعذّر تنزيل أرشيف LLVM" }
+
+        New-Item -ItemType Directory -Force -Path $جذر | Out-Null
+        Write-Host "[٢] فكُّ xz / decompress"
+        & 7z x $أرشيف "-o$env:RUNNER_TEMP" -y | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "تعذّر فكُّ ضغطِ xz" }
+        Write-Host "[٣] فكُّ tar / untar"
+        & 7z x (Join-Path $env:RUNNER_TEMP "$اسم.tar") "-o$جذر" -y | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "تعذّر فكُّ أرشيفِ tar" }
+
+        # (AR) الجذرُ يُشتقُّ من موضعِ الملفِّ لا يُفترَض.
+        $تهيئة = Get-ChildItem -Path $جذر -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue |
+                   Select-Object -First 1
+        if ($null -eq $تهيئة) {
+          Write-Host "::error::LLVMConfig.cmake غيرُ موجودٍ في $جذر — الأرشيفُ ليس شجرةَ تطوير"
+          exit 1
+        }
+        "LLVM_DIR=$($تهيئة.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        Write-Host "✅ LLVM_DIR = $($تهيئة.Directory.FullName)"
+
+    # (AR) ماك: Homebrew — نفسُ ما تفعلُه وظيفةُ ماك في `ci.yml`.
+    # (EN) macOS: Homebrew — the same recipe the macOS job in ci.yml uses.
+    - name: "تثبيت LLVM / Install LLVM (macOS)"
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        bash scripts/ci/net_retry.sh brew install llvm@18
+        echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> $GITHUB_ENV

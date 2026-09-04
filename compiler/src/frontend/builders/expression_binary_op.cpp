@@ -18,6 +18,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "string_runtime_ports.h"
 #include "builders/expression_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -522,16 +523,57 @@ namespace Sad
                     //      This covers: string variables + numbers, string function results + any type
                     isStringOp = true;
                 }
-                else if (leftResult.type == SadTypeKind::String && rightResult.type == SadTypeKind::String)
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 طرفان نصّيّان مُستنتَجان يُضَمّانِ ضَمًّا — لا يُجمَعانِ عَدَدًا.
+                //
+                //      كانت هنا قاعدةٌ تقول «المعامِلُ الذي نصّيّتُه مُستنتَجةٌ
+                //      مؤشّرٌ لا نصّ»، فتُسقِطُ الطرفَينِ إلى `ptrtoint · add i64 · inttoptr`:
+                //
+                //          دالة ضم(أ، ب)
+                //              ارجع أ + ب
+                //          نهاية
+                //          اطبع_سطر(ضم("مر"، "حبا"))     ⇐ بناءٌ أخضرٌ ثمّ SIGSEGV
+                //
+                //      والقاعدةُ كُتِبَتْ يومَ كانَ الاستنتاجُ غيرَ جديرٍ بالثقة؛ وقد
+                //      صارَ الاستنتاجُ مسحًا كامِلًا لمواضِعِ النداءِ على مستوى البرنامج
+                //      (`inferParamTypesFromCallSites`)، يَسبِقُ أوّلَ جسمٍ يُبنى، ويَبلُغُ
+                //      نقطةً ثابتةً في ثلاثةِ أشواط، ثمّ يُعَمِّمُ إلى `أي` عندَ الخلاف.
+                //      فإذا قالَ إنّ الخانةَ نصٌّ فهي نصٌّ، والدليلُ أنّ التوقيعَ
+                //      المُخرَجَ نفسَه `define ptr @ضم(ptr, ptr)` — التوقيعُ صدَقَ
+                //      والجسمُ وحدَهُ كذَب.
+                //
+                //      والمسارُ الوحيدُ الذي اُدُّعيَ أنّ هذا الاستثناءَ يحرُسُهُ
+                //      (`هو_رقم(الحرف)`) لا يمُرُّ به أصلًا: الترتيبُ `< <= > >=`
+                //      يرفُضُ إعادةَ استعمالِ `isStringOp` صراحةً (انظر `stringOrdering`
+                //      أدناه). ومقيسٌ: البذرةُ تعملُ قبلَ هذا التغييرِ وبعدَه.
+                //
+                //      والطرفُ الرقميُّ معَ نصٍّ مُستنتَجٍ يُضَمُّ كذلك: عقدُ
+                //      `"عمر: " + 5` مُقرَّرٌ في `operators.yaml` (`textual × numeric ⇒
+                //      type.string`)، ولا معنى لأن يَصدُقَ العقدُ على متغيّرٍ ويَكذِبَ
+                //      على معامِلٍ يحمِلُ القيمةَ عينَها.
+                // (EN) Two INFERRED string operands concatenate; they are not added numerically.
+                //
+                //      The rule that stood here said "a parameter whose string-ness is inferred is
+                //      a pointer, not a string", lowering both sides to `ptrtoint · add i64 ·
+                //      inttoptr` — a green build that segfaults on the simplest two-string concat.
+                //      It was written when inference was untrustworthy. Inference is now a
+                //      whole-program call-site scan that runs to a fixed point BEFORE any function
+                //      body is built, and widens to `أي` on disagreement. When it says the slot is
+                //      a string, it is: the emitted signature already reads `define ptr @f(ptr,
+                //      ptr)` — the signature told the truth and only the body lied.
+                //      The one case this exception was claimed to guard (`is_digit(ch)`) never
+                //      reaches it: `< <= > >=` explicitly refuse to reuse `isStringOp` (see
+                //      `stringOrdering` below), and the seed is measured working either way.
+                //      A numeric operand beside an inferred string concatenates too: `"age: " + 5`
+                //      is a contract declared in `operators.yaml` (`textual × numeric ⇒
+                //      type.string`), and a contract cannot hold for a variable yet fail for a
+                //      parameter carrying the same value.
+                // ═══════════════════════════════════════════════════════════════
+                else if (leftResult.type == SadTypeKind::String ||
+                         rightResult.type == SadTypeKind::String)
                 {
-                    // (AR) كلا المعاملين STRING وكلاهما parameter → حساب مؤشرات (لا دمج)
-                    //      هذا يحدث فقط عندما parameter نوعه مُستنتج كـ STRING لكنه فعلياً pointer
-                    // (EN) Both parameters with STRING type → pointer arithmetic (no concat)
-                    //      This only happens when parameter type is inferred as STRING but is actually a pointer
-                    isStringOp = false;
+                    isStringOp = true;
                 }
-                // (AR) الحالة المتبقية: أحد المعاملين parameter(STRING) والآخر رقمي → لا دمج نصوص (حساب مؤشرات)
-                // (EN) Remaining case: one parameter(STRING) + numeric → no string concat (pointer arithmetic)
 
                 if (isStringOp)
                 {
@@ -691,6 +733,65 @@ namespace Sad
                     !isStringOp)
                 {
                     resultType = SadTypeKind::UInt64;
+                }
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 `نص * رقم` **تكرارٌ لا ضرب** — قرارُ المالك (٢٠٢٦-٠٩-٠٣).
+                //
+                //      كان يسقطُ إلى `MUL_I64` فيضربُ **بتّاتِ مؤشّرِ النصّ**:
+                //      `"أب" * 3` يُخرِجُ `0` — لا نصًّا ولا خطأً، برمزِ خروجٍ صفر.
+                //      وأسوأُ منه أنّ بذرةَ P1 `153_stdlib_security_long_key` تكتبُ
+                //      `"ك" * 300` لتصنعَ مفتاحًا طولُه ٣٠٠ بايت، فتحصلُ على عدمٍ
+                //      **وتمرُّ خضراءَ زورًا**: الجولةُ تنجحُ ولا تقيسُ ما وُضِعت له.
+                //
+                //      والدلالةُ ليست جديدةً ولا مخترَعةً هنا: `نص.كرر(N)` معلَنةٌ في
+                //      `type_methods.yaml` بـ`status: stable` **ومصرَّفةٌ وتعمل**
+                //      (مقيسٌ: `"أب".كرر(3)` ⇒ `أبأبأب`). فالعاملُ يُوصَلُ إلى المنفذِ
+                //      القائمِ نفسِه — نداءُ `RuntimePorts::kRepeat` بعينِه — ولا
+                //      يُكتَبُ خفضٌ ثانٍ لدلالةٍ واحدة.
+                //
+                //      والاتّجاهانِ سواءٌ (`3 * "أب"` كـ`"أب" * 3`) كما في Python
+                //      وRuby، وكذلك أُعلِنَ التوقيعانِ في `operators.yaml`.
+                // (EN) `string * number` is REPETITION, not multiplication (owner's
+                //      decision). It used to fall through to MUL_I64 and multiply the
+                //      string's POINTER BITS, yielding 0 with exit code 0 — and a P1 seed
+                //      builds a 300-byte key that way, passing falsely on a null. The
+                //      semantics already exist and compile: `نص.كرر(N)` is declared stable
+                //      and lowers to RuntimePorts::kRepeat, so the operator is wired to
+                //      that same port rather than given a second lowering of one meaning.
+                // ════════════════════════════════════════════════════════════════
+                if (binOp->op == Lexer::TokenType::OP_MULTIPLY)
+                {
+                    const bool leftTextual = (leftResult.type == SadTypeKind::String);
+                    const bool rightTextual = (rightResult.type == SadTypeKind::String);
+                    const bool leftCountable = ::Sad::Types::isNumericKind(leftResult.type);
+                    const bool rightCountable = ::Sad::Types::isNumericKind(rightResult.type);
+
+                    if ((leftTextual && rightCountable) || (rightTextual && leftCountable))
+                    {
+                        const BuildResult &textSide = leftTextual ? leftResult : rightResult;
+                        const BuildResult &countSide = leftTextual ? rightResult : leftResult;
+
+                        // (AR) اسمُ المنفذِ من `string_runtime_ports.h` لا مكتوبًا هنا:
+                        //      نسختانِ من رمزٍ واحدٍ تنحرفانِ صامتًا.
+                        // (EN) The port symbol comes from string_runtime_ports.h; two
+                        //      copies of one symbol drift silently.
+                        namespace RuntimePorts = ::Sad::Compiler::StringRuntimePorts;
+
+                        std::string repeatReg = b_.newTempRegister();
+                        SIRInstruction repeatInst(SIROpcode::CALL);
+                        repeatInst.result =
+                            SIROperand::Register(repeatReg, SadTypeKind::String);
+                        repeatInst.operands.push_back(
+                            SIROperand::Label(std::string(RuntimePorts::kRepeat)));
+                        repeatInst.operands.push_back(
+                            SIROperand::Register(textSide.registerName, SadTypeKind::String));
+                        repeatInst.operands.push_back(
+                            SIROperand::Register(countSide.registerName, countSide.type));
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(repeatInst);
+                        return BuildResult(repeatReg, SadTypeKind::String);
+                    }
                 }
 
                 // (AR) العملية من expressions.h:43 - op: Lexer::TokenType

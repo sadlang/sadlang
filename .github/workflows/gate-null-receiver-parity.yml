@@ -1,7 +1,9 @@
 # (AR) ملف: .github/workflows/null-receiver-parity.yml
-# (AR) الوصف: حارسُ تكافؤِ المستقبِلِ العدميّ — يقيسُ **عائلةَ** الطرائقِ النصّيّةِ
+# (AR) الوصف: حارسُ مطابقةِ المستقبِلِ العدميّ — يقيسُ **عائلةَ** الطرائقِ النصّيّةِ
 #             كلَّها كما يقرؤها من مصدرِ الحقيقة (language-truth/type_methods.yaml)،
-#             ويقارنُ المفسّرَ بالمترجّمِ في كلِّ منفذٍ منها على خانةٍ عدميّة.
+#             ويقيسُ المترجّمَ في كلِّ منفذٍ منها على خانةٍ عدميّةٍ ضدَّ **قاعدةٍ
+#             مُعلَنةٍ في اللغة**: RUN003 يوجبُ أنّ نداءَ طريقةٍ على قيمةِ لاشيء
+#             يرفعُ هذا الخطأ.
 #
 #             ولماذا حارسٌ مستقلٌّ ولم تكفِ اختباراتُ السلوك؟ لأنّ الاختبارَ المكتوبَ
 #             يمسُّ ما كتبَه كاتبُه: وقف ٠٧٦ عند «.طول()» فلم يرَ انحدارًا مسَّ نحوَ
@@ -9,21 +11,31 @@
 #             زمنِ تشغيلٍ فبقي «س.عكس()» ينهارُ انهيارَ تجزئة. وقائمةُ هذا الحارسِ
 #             ليست مكتوبةً فيه: طريقةٌ نصّيّةٌ تُضافُ غدًا تدخلُ القياسَ من تلقائها.
 #
-#             وما يُقاس تطابقُ المحرّكَين لا «غيابُ الانهيار»: الجوابُ الكاذبُ الصامتُ
-#             لا ينهارُ أيضًا، وهو أخبثُ ممّا ينهار.
-# (EN) Null-receiver parity guard. Reads the string-method family from the SoT and compares
-#      interpreter vs compiler at every port. Hand-written tests only touch what their author
-#      touched; this list maintains itself. Parity is measured, not "absence of a crash".
-name: "🕳️ تكافؤ المستقبِل العدميّ / Null-receiver parity"
+#             وما يُقاس المطابقةُ للقاعدةِ لا «غيابُ الانهيار»: الجوابُ الكاذبُ
+#             الصامتُ لا ينهارُ أيضًا، وهو أخبثُ ممّا ينهار.
+#
+#             🔑 وكان المرجعُ قبلَ اليومِ تكافؤَ المفسّرِ والمترجّم. وهو مرجعٌ هشٌّ
+#             مرّتين: يزولُ بزوالِ أحدِ المحرّكَين (وقد زال)، ويُصادِقُ على عقدٍ
+#             مكسورٍ ما داما مكسورَين معًا. والقاعدةُ لا تفعلُ أيًّا من الاثنَين.
+#
+#             والحكمُ مُدرَّج: الجوابُ الصامتُ أو الانهيارُ **إخفاقٌ حاجب** (وهو
+#             الصنفُ الذي وُلِدَ له الحارس)، والرفعُ بلا رمزِ RUN003 **دَينٌ معدودٌ
+#             بسقفٍ** لا يتّسعُ صامتًا.
+# (EN) Null-receiver conformance guard. Reads the string-method family from the SoT and
+#      measures the compiler at every port against a DECLARED LANGUAGE RULE (RUN003).
+#      An engine reference dies with the engine and blesses a contract both engines break;
+#      a rule does neither. Verdicts are graded: a silent answer or a crash blocks; raising
+#      without the rule's code is counted debt under a ceiling that may not grow silently.
+name: "🕳️ مطابقة المستقبِل العدميّ / Null-receiver conformance"
 
 on:
   push:
     paths:
       - "language-truth/type_methods.yaml"
-      # (AR) المفسّرُ **مرجعُ** القياسِ لا طرفًا فيه: انجرافُ دلالةِ «جزء» فيه
-      #      يُغيّرُ جوابَ الحارسِ كلَّه، فلا يصحُّ ألّا يوقظَه.
-      # (EN) The interpreter is the REFERENCE, so its drift changes every verdict.
-      - "interpreter/**"
+      # (AR) كتالوجُ الأخطاءِ **مرجعُ** القياس: تبديلُ نصِّ RUN003 أو رمزِه يُغيّرُ
+      #      جوابَ الحارسِ كلَّه، فلا يصحُّ ألّا يوقظَه.
+      # (EN) The error catalog is the REFERENCE: RUN003 drift changes every verdict.
+      - "language-truth/errors/runtime.yaml"
       - "compiler/src/backend/llvm/**"
       - "compiler/src/frontend/builders/method_call_string_map.cpp"
       - "compiler/src/frontend/builders/expression_index.cpp"
@@ -37,10 +49,10 @@ on:
     branches: [ main, master, dev, sadlang ]
     paths:
       - "language-truth/type_methods.yaml"
-      # (AR) المفسّرُ **مرجعُ** القياسِ لا طرفًا فيه: انجرافُ دلالةِ «جزء» فيه
-      #      يُغيّرُ جوابَ الحارسِ كلَّه، فلا يصحُّ ألّا يوقظَه.
-      # (EN) The interpreter is the REFERENCE, so its drift changes every verdict.
-      - "interpreter/**"
+      # (AR) كتالوجُ الأخطاءِ **مرجعُ** القياس: تبديلُ نصِّ RUN003 أو رمزِه يُغيّرُ
+      #      جوابَ الحارسِ كلَّه، فلا يصحُّ ألّا يوقظَه.
+      # (EN) The error catalog is the REFERENCE: RUN003 drift changes every verdict.
+      - "language-truth/errors/runtime.yaml"
       - "compiler/src/backend/llvm/**"
       - "compiler/src/frontend/builders/method_call_string_map.cpp"
       - "compiler/src/frontend/builders/expression_index.cpp"
@@ -115,18 +127,19 @@ jobs:
           #      LLVM backend, so the sad-build target does not even exist.
           echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
 
-      # (AR) الحارسُ يحتاجُ **المحرّكَين معًا**: مقارنةُ مخرَجٍ بمخرَجٍ لا تصحُّ بواحد.
-      #      وبناءُ المفسّرِ وحدَه يجعلُ الوظيفةَ خضراءَ وهي لم تقِسْ شيئًا — ولذلك
-      #      أرضيّةُ القياسِ في السكربت تُفشِلُ هذه الحالةَ ولا تمرّرها.
-      # (EN) The guard needs BOTH engines; the script's measurement floor fails the
-      #      "built only one / linked nothing" case instead of passing it as green.
-      - name: "🔨 بناء المحرّكَين / Build both engines"
+      # (AR) الحارسُ يحتاجُ المترجّمَ وحدَه — والمرجعُ قاعدةٌ لا محرّك. وبناءٌ
+      #      يُنتِجُ ثنائيًّا لا يربطُ يجعلُ كلَّ منفذٍ «لا يبنيه المترجّم» ⇒ خضرةٌ
+      #      فارغة، ولذلك أرضيّةُ القياسِ في السكربت تُفشِلُ هذه الحالةَ ولا تمرّرها.
+      # (EN) The guard needs only the compiler; the oracle is a rule, not an engine. A
+      #      build that links nothing would mark every port "unbuildable" and read as
+      #      green, so the script's measurement floor fails that case instead.
+      - name: "🔨 بناء المترجّم / Build the compiler"
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DENABLE_LLVM_BACKEND=ON \
             -DLLVM_DIR=$LLVM_DIR
-          cmake --build build --target sad-run sad-build -j "$(nproc)"
+          cmake --build build --target sad-build -j "$(nproc)"
 
       # (AR) `sad-build` يربطُ عبر `clang` غيرِ المُصدَّر، وحزمةُ clang-18 لا تُنشئ
       #      ‎/usr/bin/clang‎. وبدونه يفشلُ الربطُ في كلِّ منفذ ⇒ «لا يبنيه المترجّم»
@@ -136,7 +149,7 @@ jobs:
       - name: "🔗 إتاحة clang للرابط / Expose clang to the linker"
         run: sudo ln -sf /usr/lib/llvm-18/bin/clang /usr/bin/clang
 
-      - name: "🕳️ قياس التكافؤ / Measure parity"
+      - name: "🕳️ قياس المطابقة للقاعدة / Measure conformance"
         env:
           SAD_CLANG: /usr/lib/llvm-18/bin/clang
         run: python scripts/codegen/check_null_receiver_parity.py --تفصيل

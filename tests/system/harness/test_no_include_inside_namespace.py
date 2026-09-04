@@ -49,7 +49,19 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # (AR) جذورُ الشيفرةِ الأصليّةِ وحدَها — لا شيفرةَ طرفٍ ثالثٍ ولا مجلّدَ بناء.
 # (EN) First-party roots only — no third-party code, no build directories.
-SOURCE_ROOTS = ["shared", "compiler", "interpreter", "tools", "apps", "runtime"]
+# (AR) 🔑 حُذفَ `interpreter`: الجذرُ زالَ من الشجرِ فعلًا (مسارُ
+#      المحرّكِ الواحد)، وهذا هو العلاجُ الذي يأمرُ به الحارسُ نصًّا: «حدِّثْ
+#      SOURCE_ROOTS» — لا إسكاتَ لصفٍّ ما يزالُ موضوعُه قائمًا.
+#      والأرضيّةُ أدناه لم تُمَسّ: المسحُ بعدَ الحذفِ **٧٣٩ ملفًّا** مقيسةً،
+#      فوقَ الأرضيّةِ ٧٠٠ بهامشِ ٣٩. وتركُها على ٧٠٠ يجعلُها أشدَّ نسبةً إلى
+#      شجرٍ أصغر، وهو الاتّجاهُ الآمن.
+# (EN) 🔑 `interpreter` removed: the root genuinely left the tree
+#      (single-engine track), and this is the remedy the guard itself prescribes
+#      — «update SOURCE_ROOTS» — not the silencing of a row whose subject stands.
+#      The floor below is untouched: 739 files are scanned after the removal,
+#      measured, against a floor of 700. Leaving the floor where it is makes it
+#      stricter relative to a smaller tree, which is the safe direction.
+SOURCE_ROOTS = ["shared", "compiler", "tools", "apps", "runtime"]
 SOURCE_SUFFIXES = {".h", ".hpp", ".hh", ".cpp", ".cc", ".cxx", ".inc"}
 
 # (AR) أرضيّةٌ تُحصي **الملفّاتِ الممسوحة** لا الانتهاكات: لو رثّت الجذورُ باسمٍ

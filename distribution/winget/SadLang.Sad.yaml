@@ -12,7 +12,7 @@
 #   4. افتح Pull Request
 #
 # أو استخدم أداة wingetcreate:
-#   wingetcreate new --url https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-windows-x64.zip
+#   wingetcreate new --url https://github.com/sadlang/sadlang/releases/download/v1.0.0/sad-v1.0.0-windows-x86_64.zip
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 

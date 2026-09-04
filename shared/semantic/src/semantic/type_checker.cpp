@@ -12,6 +12,7 @@
 
 #include "semantic/type_checker.h"
 #include "token.h"
+#include "operator_domains_generated.h"
 #include "lexer_keywords.h" // (AR) [RFC 0059] لفظُ «مقاطعة» من الجدولِ لا حرفيًّا
 #include "class_nodes.h"
 #include "pattern_nodes.h"    // (AR) [أ-م٢] ConstructorPattern / MatchStmt / CaseClause
@@ -992,6 +993,54 @@ namespace Sad
                 }
             }
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 نطاقُ المعاملات: من مصدرِ الحقيقةِ لا من جدولٍ يدويّ.
+            //
+            //      كان الجدولُ مكتوبًا أسفلَ هذا السطرِ في ذراعَي `+` و`- * / // %`،
+            //      ومصدرُ الحقيقةِ لا يعرفُ منه شيئًا: لا حقلَ لنطاقِ المعاملاتِ في
+            //      مخطَّطِ العواملِ إطلاقًا. وقِيسَ (١٩٣ قياسًا، ٢٠٢٦-٠٩-٠٣) أنّ
+            //      السبعةَ الحسابيّةَ الثنائيّةَ لا يرفضُ منها شيئًا إلّا `**`؛
+            //      والبقيّةُ تقبلُ كلَّ تركيبةٍ فتُنتِجُ قمامةً أو تنهار:
+            //      `10 - [1، 2، 3]` يطبعُ عنوانًا برمزِ خروجٍ **صفر**، و
+            //      `100 - "عشرة"` ينهارُ بإشارة — والعطبُ واحدٌ والفرقُ صدفةُ عنوان.
+            //
+            //      ⚠️ **والمِطلاقُ على اليقينِ لا على النوع.** الجدولُ اليدويُّ كان
+            //      يُطلِقُ على `!isNumeric()`، و«لا أعرف» ليس عدديًّا — فكان خلفَ
+            //      `--أنواع-صارمة` يُحمِّرُ **٣٠ بذرةً صحيحة**، أبسطُها
+            //      `ارجع أ + ب` في دالّةٍ بمعاملَين عاريَين. فـ`violates` لا تحكمُ
+            //      إلّا حين يكونُ الطرفانِ **كلاهما** مصنَّفَين في مصدرِ الحقيقة،
+            //      وما عداه (`أي` · `عدم` · `فراغ` · `مجهول` · صنفٌ · تعدادٌ ·
+            //      اختياريّ · معاملٌ عارٍ) يمرُّ بلا حكم. والرفضُ الكاذبُ أسوأُ من
+            //      الانهيارِ الذي حلَّ محلَّه.
+            //
+            //      ولذلك خرجَ الحارسُ من `strictMode_`: عَلَمٌ يعيشُ بلا مُنادٍ يبقى
+            //      **غيرَ مقيسٍ** لا أخضر — وقد عاشَ `--أنواع-صارمة` كذلك سنتَين.
+            //      والقاعدتانِ وحدَهما انتقلتا؛ وبقيّةُ الوضعِ الصارمِ (٤٨٩ تحميرةً
+            //      لا شأنَ لها بهذا الجذر) خلفَ عَلَمِها كما كانت.
+            // (EN) 🔑 Operand domains now come from the SoT, not a hand-written
+            //      table. Measured: of the seven binary arithmetic operators only `**`
+            //      rejected anything; the rest accept everything and produce garbage or
+            //      crash. The trigger is CERTAINTY, not type: `violates` judges only
+            //      when BOTH operands are classified by the SoT — anything unknown
+            //      passes. The old trigger fired on !isNumeric(), and "unknown" is not
+            //      numeric, so it reddened 30 correct seeds. Moved out of strictMode_
+            //      because a flag with no caller stays unmeasured, not green.
+            // ════════════════════════════════════════════════════════════════
+            if (leftType && rightType &&
+                Types::OperandDomains::violates(expr.op,
+                                                leftType->getKind(),
+                                                rightType->getKind()))
+            {
+                reportCatalogError(
+                    Errors::ErrorCode::SEM_OPERAND_DOMAIN,
+                    {{"op", std::string(Types::OperandDomains::symbolOf(expr.op))},
+                     {"left", Types::sadTypeKindArabicName(leftType->getKind())},
+                     {"right", Types::sadTypeKindArabicName(rightType->getKind())}},
+                    &expr);
+                lastInferredType_ = registry_.getUnknownType();
+                return;
+            }
+
             switch (expr.op)
             {
             // عمليات حسابية / Arithmetic
@@ -1017,14 +1066,17 @@ namespace Sad
                     }
                     else
                     {
+                        // (AR) 🔑 كان هنا نصٌّ إنجليزيٌّ خامٌّ خلفَ `strictMode_`
+                        //      («Cannot add incompatible types») بلا رمزٍ ولا عربيّة.
+                        //      والحكمُ انتقلَ إلى حارسِ النطاقِ أعلاه: يُبَثُّ بـ`SEM054`
+                        //      من الكتالوج، ويجري افتراضيًّا، ولا يُطلَقُ على المجهول.
+                        //      فما يبلغُ هنا اليومَ **مجهولُ الصنفِ لا محالة** — صنفٌ
+                        //      أو تعدادٌ أو اختياريّ — فلا حكمَ عليه، ونوعُه مجهول.
+                        // (EN) A raw English string behind strictMode_, with no code and
+                        //      no Arabic. The verdict moved to the domain guard above,
+                        //      which emits SEM054 from the catalog by default and never
+                        //      fires on unknowns. What reaches here is unclassified.
                         lastInferredType_ = registry_.getUnknownType();
-                        if (strictMode_)
-                        {
-                            recordTypeError("",
-                                            "numeric or string",
-                                            leftType->toString() + " + " + rightType->toString(),
-                                            &expr, "Cannot add incompatible types");
-                        }
                     }
                 }
                 else
@@ -1059,14 +1111,10 @@ namespace Sad
                     }
                     else
                     {
+                        // (AR) انظر الملحوظةَ في ذراعِ `+` أعلاه: الحكمُ صارَ في
+                        //      حارسِ النطاقِ برمزِ `SEM054`، والنصُّ الخامُّ حُذف.
+                        // (EN) See the note on the `+` arm above.
                         lastInferredType_ = registry_.getUnknownType();
-                        if (strictMode_)
-                        {
-                            recordTypeError("",
-                                            "numeric",
-                                            leftType->toString() + " op " + rightType->toString(),
-                                            &expr, "Arithmetic operation requires numeric operands");
-                        }
                     }
                 }
                 else

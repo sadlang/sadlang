@@ -386,10 +386,115 @@ namespace Sad
                         //      message — a silent wrong answer that passes green, worse than
                         //      the crash already sealed. The disagreement gate still applies:
                         //      only slots whose sites actually differ are revoked.
+                        // ════════════════════════════════════════════════════════
+                        // (AR) 🔑 **نفيٌ لا إثبات**: يُعمَّمُ كلُّ وسمٍ إلّا ما لا
+                        //      معنى لتعميمِه.
+                        //
+                        //      كان هنا سردٌ إيجابيٌّ يتّسعُ وسمًا بوسم، وكلُّ وسمٍ
+                        //      غائبٍ عنه عطبٌ صامتٌ ينتظرُ مَن يقعُ فيه. وقد سقطَ
+                        //      منه `Null` و`Class`، وأعراضُهما مقيسة:
+                        //
+                        //        دالة ض(أ، ب) ارجع أ + ب نهاية
+                        //        ض("أ:"، لاشيء)  و  ض(1، 2)
+                        //          ⇒ التوقيعُ المُخرَجُ `@ض(%SadDyn, i64)` — **ب لم
+                        //            يُعمَّمْ قطُّ** — فيُعرَضُ العدمُ حارسَه عددًا:
+                        //            `أ:-9223372036854775807` بدل `أ:لاشيء`.
+                        //
+                        //        اعرض(5)  و  اعرض(كلب())
+                        //          ⇒ مؤشّرٌ يُطبَعُ عددًا، رمزُ خروجٍ صفر.
+                        //
+                        //      والبوّابةُ فوقَه (`kinds.size() >= 2`) تعني أنّ المواقعَ
+                        //      **اختلفت فعلًا**، فلا وسمَ ساكنًا واحدًا يصدُقُ عليها.
+                        //      وهذا نصُّ العقدِ في `types.yaml` عند `type.null`:
+                        //      «الوسمُ الساكنُ لا يكفي وحدَه ولا يمكنُ أن يكفي… والسؤالُ
+                        //      نفسُه سؤالُ زمنِ تشغيل».
+                        //
+                        //      فالسقوطُ يجبُ أن يكونَ إلى **الأسلمِ لا إلى الأسرع**:
+                        //      وسمٌ منسيٌّ يصيرُ تعليبًا زائدًا (بطيءٌ وصحيح) لا خانةً
+                        //      ساكنةً كاذبة (سريعٌ وخاطئ).
+                        // (EN) 🔑 A negative list, not a positive one: widen every kind
+                        //      except those there is no meaning in widening.
+                        //
+                        //      What stood here was a positive list that grew one kind at a
+                        //      time, and every kind missing from it was a silent defect
+                        //      waiting for someone to hit it. `Null` and `Class` had both
+                        //      fallen out, and their symptoms are measured: the emitted
+                        //      signature stayed `i64` for a slot receiving null at one site
+                        //      and a number at another, printing the null sentinel as a
+                        //      number; and a slot receiving a class at one site printed a
+                        //      pointer as a number with exit code 0.
+                        //      The gate above means the sites genuinely disagree, so no single
+                        //      static tag is true of them — which is exactly what types.yaml
+                        //      says about `type.null`. The fallback must therefore be to the
+                        //      SAFER option, not the faster one: a forgotten kind becomes
+                        //      needless boxing (slow and right) rather than a lying static
+                        //      slot (fast and wrong).
+                        // ════════════════════════════════════════════════════════
                         SadTypeKind &slot = fnIt->second.parameters[index].type;
-                        if (slot == SadTypeKind::String || slot == SadTypeKind::Float ||
-                            slot == SadTypeKind::Boolean || slot == SadTypeKind::Array ||
-                            slot == SadTypeKind::Integer)
+
+                        // (AR) لا معنى للتعميم: `أي` مُعمَّمٌ سلفًا، و`مجهول` لا معلومةَ
+                        //      فيه يُعمَّمُ عنها، و`فراغ` ليس نوعَ خانةٍ أصلًا (مرفوضٌ
+                        //      بـSEM040 في المحلّلِ المشترك).
+                        // (EN) No meaning in widening: Any is already dynamic, Unknown has no
+                        //      information to widen from, and Void is not a slot type at all
+                        //      (rejected by SEM040 in the shared parser).
+                        const bool widenHasNoMeaning = (slot == SadTypeKind::Any ||
+                                                        slot == SadTypeKind::Unknown ||
+                                                        slot == SadTypeKind::Void);
+
+                        // ⚠️ (AR) استثناءٌ ثانٍ **بشرطِ خروجٍ جديدٍ مقيس**. وشرطُه
+                        //      الأوّلُ سُدَّ فعلًا: كان تعميمُ الصنفِ يبلغُ الإرسالَ
+                        //      الديناميَّ فيُجهِضُ `verifyModule` برسالةِ مدقّقِ LLVM
+                        //      إنجليزيّةً خامّة، وقد وُحِّدَ فَكُّ المُستقبِلِ في
+                        //      `objectPointerOperand` فزالَ الإجهاض.
+                        //
+                        //      🔑 غير أنّ رفعَه اليومَ يُنتِجُ **رفضًا كاذبًا**، وذلك
+                        //      قياسٌ لا ظنّ: وسمُ الكائنِ لا ينجو من التعليب — يُنزِلُ
+                        //      `astTypeToSIRType` الصنفَ إلى مقبضِ i64 فيُعلَّبُ `Int`،
+                        //      فخانةٌ عُمِّمَت إلى `أي` يصلُها كائنٌ يرفعُ حارسُ
+                        //      المُستقبِلِ عليها RUN033 «نوع المعامل INTEGER» وهو
+                        //      كائنٌ سليم. والرفضُ الكاذبُ أسوأُ ممّا يحلُّ محلَّه.
+                        //
+                        //      ⚠️ ولا يُسَدُّ ذلك برفعِ الوسمِ من `objectClassMap`:
+                        //      جُرِّبَ فقِيسَ أنّ خريطةً مفتاحُها اسمٌ بلا عزلِ كتلٍ
+                        //      تجعلُ العددَ ٥ يُوزَّعُ كائنَ صنفٍ (`مواء` · rc=0)
+                        //      والكتابةَ عبرَه `store` على `inttoptr(7)` (rc=139) —
+                        //      ISSUE-195، وحارسُه بذرتا `gr.oop.method/edge/058`
+                        //      و`gr.oop.field/edge/054`.
+                        //
+                        //      🔑 وهذا الاستثناءُ **لا أثرَ له اليومَ**: بُنيَ المترجِمُ
+                        //      بالحظرِ وبلا الحظرِ فتطابقَ المخرَجان، لأنّ
+                        //      `inferExprType` تُصنِّفُ نداءَ البانِي والمتغيّرَ
+                        //      المُصرَّحَ بصنفِه **صحيحًا** فلا يبلغُ `slot` قيمةَ
+                        //      `Class` أبدًا (ISSUE-193). فهو **مِرصادٌ لا حارسٌ عامل**:
+                        //      يُبقيه أنّ سدَّ ISSUE-193 وحدَه — بلا ISSUE-195 — يُحوِّلُ
+                        //      شرطَه من ميّتٍ إلى حيّ. ⚠️ وأنّه يمنعُ ساعتَئذٍ رفضًا كاذبًا
+                        //      **توقّعٌ لا قياس**، ولا سبيلَ إلى قياسِه قبلَ سدِّ ١٩٣؛
+                        //      فليُقَسْ عندَها ولا يُؤخَذْ من هنا مأخذَ المقيس.
+                        //      **شرطُ رفعِه**: سدُّ ISSUE-195 (برهانُ الكائنِ محمولٌ على
+                        //      المُعامِلِ لا مبحوثٌ عنه باسمِه).
+                        // ⚠️ (EN) A second exception with a NEW, measured exit condition. Its
+                        //      first condition is genuinely sealed — the verifyModule abort is
+                        //      gone now that the receiver is unwrapped through
+                        //      objectPointerOperand. But lifting it today produces a FALSE
+                        //      REJECTION: the object tag does not survive boxing (Class lowers
+                        //      to an i64 handle and is packed as Int), so a slot widened to
+                        //      «أي» that receives an object raises RUN033 «operand type
+                        //      INTEGER» on a valid object — worse than what it replaces.
+                        //      And that is NOT fixed by lifting the tag from objectClassMap:
+                        //      measured, a name-keyed map with no block isolation dispatches
+                        //      the integer 5 as a class object (rc=0) and stores through
+                        //      inttoptr(7) (rc=139) — ISSUE-195, guarded by two seeds.
+                        //      This exception has no effect today (the compiler was built with
+                        //      and without it and both outputs matched, because inferExprType
+                        //      never yields Class — ISSUE-193). It is kept as a TRIPWIRE, not a
+                        //      working guard: sealing ISSUE-193 alone, without ISSUE-195, would
+                        //      make its condition live and it would then prevent the false
+                        //      rejection. Lift it only once ISSUE-195 is sealed.
+                        const bool classWideningBlocked = (slot == SadTypeKind::Class ||
+                                                           slot == SadTypeKind::Struct);
+
+                        if (!widenHasNoMeaning && !classWideningBlocked)
                         {
                             slot = SadTypeKind::Any;
                         }

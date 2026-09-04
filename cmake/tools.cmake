@@ -120,11 +120,6 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 option(BUILD_REPL "بناء REPL / Build REPL" ON)
 
-if(BUILD_REPL AND EXISTS "${CMAKE_SOURCE_DIR}/tools/repl/CMakeLists.txt")
-    add_subdirectory(tools/repl)
-    message(STATUS "✓ REPL: sad-repl")
-endif()
-
 # ──────────────────────────────────────────────────────────────────────
 # أداة بناء APK / APK Builder Tool
 # ──────────────────────────────────────────────────────────────────────

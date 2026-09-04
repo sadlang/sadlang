@@ -1,4 +1,4 @@
-# بسم الله الرحمن الرحيم
+﻿# بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════
 # سكريبت بناء مُثبّتات لغة ص — جميع المنصات
 # Build all Sad Language installers
@@ -109,11 +109,16 @@ function Build-WindowsInstaller {
 
     # البحث عن InnoSetup
     $ISSCompiler = $null
+    # (AR) 🔑 كان هنا `(...)?.Source` — والمؤثِّرُ الشرطيُّ العدميُّ `?.`
+    #      **لا وجودَ له في Windows PowerShell 5.1**، فيُخفِقُ التحليلُ عندَه.
+    # (EN) This used (...)?.Source; the null-conditional operator does not exist
+    #      in Windows PowerShell 5.1, so parsing failed right here.
+    $IsccCommand = Get-Command ISCC.exe -ErrorAction SilentlyContinue
     $Candidates = @(
         "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-        "C:\Program Files\Inno Setup 6\ISCC.exe",
-        (Get-Command ISCC.exe -ErrorAction SilentlyContinue)?.Source
+        "C:\Program Files\Inno Setup 6\ISCC.exe"
     )
+    if ($IsccCommand) { $Candidates += $IsccCommand.Source }
     foreach ($c in $Candidates) {
         if ($c -and (Test-Path $c)) { $ISSCompiler = $c; break }
     }
@@ -151,17 +156,26 @@ function Build-WindowsInstaller {
 
     # التحقق من الملفات
     Write-Step "  التحقق من الملفات التنفيذية..."
-    $hasInterpreter = Check-Binary "sad.exe"    $true
+    $hasHub         = Check-Binary "sad.exe"    $true
     $hasCompiler    = Check-Binary "sadc.exe"   $false
     $hasLSP         = Check-Binary "sad-lsp.exe" $false
     $hasFmt         = Check-Binary "sad-fmt.exe" $false
     $hasPkg         = Check-Binary "sad-pkg.exe" $false
-    $hasREPL        = Check-Binary "sad-repl.exe" $false
+    # (AR) ⚠️ حُذف `$hasREPL`: كان يُحسَبُ ولا يُستعمَلُ في سطرٍ واحد،
+    #      ويبحثُ عن ثنائيٍّ زالَ مع المفسّر.
+    # (EN) $hasREPL removed: computed, never used in a single line, and looking
+    #      for a binary that went with the interpreter.
     $hasVSIX        = Test-Path (Join-Path $RepoRoot "tools\vscode-extension\sad-language-2.0.0.vsix")
 
-    if (-not $hasInterpreter) {
-        Write-Error2 "  المفسر sad.exe غير موجود!"
-        Write-Host "  شغّل أولاً: cmake --build build --config $Config --target sad-run" -ForegroundColor Yellow
+    if (-not $hasHub) {
+        Write-Error2 "  مركز الأدوات sad.exe غير موجود!"
+        # (AR) 🔑 الرسالةُ كانت تأمرُ المستخدمَ ببناءِ `sad-run` — هدفٍ لا
+        #      وجودَ له. والاسمُ `$hasInterpreter` كان يصفُ `sad.exe` بأنّه
+        #      المفسّر، وهو المركزُ.
+        # (EN) The message ordered the user to build sad-run, a target that does
+        #      not exist, and the variable called sad.exe "the interpreter" when
+        #      it is the tool hub.
+        Write-Host "  شغّل أولاً: cmake --build build --config $Config --target sad sad-build" -ForegroundColor Yellow
         return
     }
 
@@ -259,23 +273,43 @@ mkdir -p "$APP_DIR/usr/share/icons/hicolor/256x256/apps"
 mkdir -p "$APP_DIR/usr/share/doc/sad-lang"
 
 # نسخ الملفات التنفيذية
-for bin in sad sadc sad-lsp sad-fmt sad-pkg sad-repl; do
+# (AR) 🔑 **`sadc` لا يُنتِجُه أيُّ هدفٍ في البناء** — يقولُها
+#      `tools/build/FindSad.cmake` نصًّا. فالحلقةُ كانت تنسخُ معدومًا وتُغفِلُ
+#      `sad-build` الموجود ⇒ حزمةٌ بلا مترجّم. ومركزُ الأدواتِ يجدُ إخوتَه
+#      بمسحِ البادئةِ `sad-`، فاسمٌ بلا شرطةٍ لا يُسجَّلُ عندَه و`sad build`
+#      يصيرُ أمرًا موعودًا لا وجودَ له. والجدولُ المرجعُ `scripts/ci/release_tools.sh`:
+#      المترجّمُ يُنشَرُ باسمَين — `sad-build` للمركز و`sadc` لأنّ الوثائقَ تَعِدُ به.
+# (EN) sadc is produced by NO build target — FindSad.cmake says so verbatim.
+#      The loop copied a file that never exists and skipped sad-build, which
+#      does, so the package shipped no compiler. The hub finds its siblings by
+#      scanning for the `sad-` prefix, so a dashless name is never registered
+#      and `sad build` becomes a promised command that is absent. Per
+#      scripts/ci/release_tools.sh the compiler ships under BOTH names.
+for bin in sad sad-build sad-lsp sad-fmt sad-pkg sad-check; do
     [ -f "$BIN_DIR/$bin" ] && cp "$BIN_DIR/$bin" "$APP_DIR/usr/bin/" && chmod +x "$APP_DIR/usr/bin/$bin"
 done
+[ -f "$APP_DIR/usr/bin/sad-build" ] && cp "$APP_DIR/usr/bin/sad-build" "$APP_DIR/usr/bin/sadc"
 
 # المكتبة القياسية
 [ -d "$REPO_ROOT/stdlib" ] && cp -r "$REPO_ROOT/stdlib/"* "$APP_DIR/usr/lib/sad/stdlib/"
 [ -d "$REPO_ROOT/features/graphics/stdlib" ] && cp -r "$REPO_ROOT/features/graphics/stdlib/"* "$APP_DIR/usr/lib/sad/stdlib/"
 
 # ملف .desktop
+# (AR) 🔑 كان `Exec=sad %F` — و`sad` مركزُ أدواتٍ **يرفضُ ملفًّا عاريًا
+#      عمدًا** (يُثبِّتُ ذلك اختبارُ `HubMain_BareFileRejected`). فنقرةٌ على ملفِّ
+#      مصدرٍ كانت تفتحُ طرفيّةً تقولُ «أمر غير معروف» ثمّ تُغلَق. والفعلُ القائمُ
+#      لملفِّ مصدرٍ هو `sad build`.
+# (EN) Exec was `sad %F`, and the hub rejects a bare file BY DESIGN — pinned by
+#      HubMain_BareFileRejected — so opening a source file popped a terminal
+#      saying "unknown command" and closed. The standing act is `sad build`.
 cat > "$APP_DIR/usr/share/applications/sad-lang.desktop" << EOF
 [Desktop Entry]
 Type=Application
 Name=لغة ص
 Name[en]=Sad Programming Language
-Comment=مفسّر لغة ص البرمجية
-Comment[en]=Sad Programming Language Interpreter
-Exec=sad %F
+Comment=مترجم لغة ص البرمجية
+Comment[en]=Sad Programming Language compiler
+Exec=sad build %f
 Icon=sad-lang
 MimeType=text/x-sad;
 Categories=Development;IDE;
@@ -376,7 +410,7 @@ set -e
 update-mime-database /usr/share/mime 2>/dev/null || true
 update-desktop-database /usr/share/applications 2>/dev/null || true
 echo "تم تثبيت لغة ص بنجاح!"
-echo "الاستخدام: sad <ملف.ص>  أو  sad --repl"
+echo "الاستخدام: sad build <ملف.ص>  أو  sad --help"
 EOF
 chmod 755 "$DEB_PKG/DEBIAN/postinst"
 
@@ -388,10 +422,11 @@ echo "جاري إزالة لغة ص..."
 EOF
 chmod 755 "$DEB_PKG/DEBIAN/prerm"
 
-# نسخ الملفات
-for bin in sad sadc sad-lsp sad-fmt sad-pkg sad-repl; do
+# نسخ الملفات — انظر تعليل الاسمين أعلاه (AppImage)
+for bin in sad sad-build sad-lsp sad-fmt sad-pkg sad-check; do
     [ -f "$BIN_DIR/$bin" ] && cp "$BIN_DIR/$bin" "$DEB_PKG/usr/bin/" && chmod +x "$DEB_PKG/usr/bin/$bin"
 done
+[ -f "$DEB_PKG/usr/bin/sad-build" ] && cp "$DEB_PKG/usr/bin/sad-build" "$DEB_PKG/usr/bin/sadc"
 [ -d "$REPO_ROOT/stdlib" ] && cp -r "$REPO_ROOT/stdlib/"* "$DEB_PKG/usr/lib/sad/stdlib/"
 [ -d "$REPO_ROOT/features/graphics/stdlib" ] && cp -r "$REPO_ROOT/features/graphics/stdlib/"* "$DEB_PKG/usr/lib/sad/stdlib/"
 cp "$APP_DIR/usr/share/applications/sad-lang.desktop" "$DEB_PKG/usr/share/applications/"
@@ -454,9 +489,10 @@ if command -v rpmbuild &>/dev/null; then
     TAR_DIR="$RPM_ROOT/sad-lang-$VERSION"
     mkdir -p "$TAR_DIR/bin"
     mkdir -p "$TAR_DIR/stdlib"
-    for bin in sad sadc sad-lsp sad-fmt sad-pkg sad-repl; do
+    for bin in sad sad-build sad-lsp sad-fmt sad-pkg sad-check; do
         [ -f "$BIN_DIR/$bin" ] && cp "$BIN_DIR/$bin" "$TAR_DIR/bin/"
     done
+    [ -f "$TAR_DIR/bin/sad-build" ] && cp "$TAR_DIR/bin/sad-build" "$TAR_DIR/bin/sadc"
     [ -d "$REPO_ROOT/stdlib" ] && cp -r "$REPO_ROOT/stdlib/"* "$TAR_DIR/stdlib/"
     [ -d "$REPO_ROOT/features/graphics/stdlib" ] && cp -r "$REPO_ROOT/features/graphics/stdlib/"* "$TAR_DIR/stdlib/"
     tar czf "$OUTPUT_DIR/rpm/SOURCES/sad-lang-$VERSION.tar.gz" -C "$RPM_ROOT" "sad-lang-$VERSION"
@@ -495,7 +531,7 @@ cp -r features/graphics/stdlib/* %{buildroot}/usr/lib/sad/stdlib/
 
 %post
 echo "تم تثبيت لغة ص $VERSION بنجاح"
-echo "الاستخدام: sad <ملف.ص>  أو  sad --repl"
+echo "الاستخدام: sad build <ملف.ص>  أو  sad --help"
 
 %files
 /usr/bin/sad
@@ -584,10 +620,12 @@ mkdir -p "$PKG_ROOT/usr/local/share/doc/sad-lang"
 mkdir -p "$SCRIPTS_DIR"
 
 # ─── نسخ الملفات ───
-for bin in sad sadc sad-lsp sad-fmt sad-pkg sad-repl; do
+for bin in sad sad-build sad-lsp sad-fmt sad-pkg sad-check; do
     [ -f "$BIN_DIR/$bin" ] && cp "$BIN_DIR/$bin" "$PKG_ROOT/usr/local/bin/" && \
         chmod +x "$PKG_ROOT/usr/local/bin/$bin"
 done
+[ -f "$PKG_ROOT/usr/local/bin/sad-build" ] && \
+    cp "$PKG_ROOT/usr/local/bin/sad-build" "$PKG_ROOT/usr/local/bin/sadc"
 
 # تضمين معماريتين (Universal Binary) إذا توفرتا
 if [ -f "$BIN_DIR/../Release-arm64/sad" ] && [ -f "$BIN_DIR/sad" ]; then
@@ -605,18 +643,25 @@ fi
 cat > "$PKG_ROOT/usr/local/share/man/man1/sad.1" << 'EOF'
 .TH SAD 1 "2026" "1.0.0" "لغة ص"
 .SH الاسم
-sad \- مُفسّر لغة ص البرمجية العربية
+sad \- مركز أدوات لغة ص البرمجية العربية
 .SH الاستخدام
-\fBsad\fR [\fIخيارات\fR] [\fIملف.ص\fR]
+\fBsad\fR \fIأمر\fR [\fIخيارات\fR] [\fIملف.ص\fR]
+.SH الأوامر
+.TP
+\fBbuild\fR
+ترجمة ملف .ص إلى ملف تنفيذي
+.TP
+\fBcheck\fR
+فحص الملكية والأنواع دون توليد
 .SH الخيارات
 .TP
-\fB--repl\fR
-تشغيل بيئة REPL التفاعلية
+\fB--help\fR
+عرض الأوامر المتاحة
 .TP
 \fB--version\fR
 عرض الإصدار
 .SH مثال
-sad برنامج.ص
+sad build برنامج.ص
 EOF
 
 # ─── سكريبتات التثبيت ───
@@ -626,7 +671,7 @@ echo "تم تثبيت لغة ص بنجاح!"
 echo "أضف /usr/local/bin إلى PATH إذا لم يكن موجوداً:"
 echo "  echo 'export PATH=/usr/local/bin:\$PATH' >> ~/.zshrc"
 echo ""
-echo "تشغيل: sad <ملف.ص>  أو  sad --repl"
+echo "تشغيل: sad build <ملف.ص>  أو  sad --help"
 EOF
 chmod +x "$SCRIPTS_DIR/postinstall"
 
@@ -687,7 +732,7 @@ EOF
 cat > "$PKG_BUILD/conclusion.html" << EOF
 <html dir="rtl"><body>
 <h2>اكتمل تثبيت لغة ص!</h2>
-<p>افتح Terminal وشغّل: <code>sad --repl</code></p>
+<p>افتح Terminal وشغّل: <code>sad --help</code></p>
 </body></html>
 EOF
 
@@ -823,7 +868,14 @@ function Build-AndroidAPK {
         target_sdk     = 34
         main_file      = "main.ص"
         permissions    = @("INTERNET", "WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE")
-        features       = @("interpreter", "repl", "editor", "stdlib")
+        # (AR) ⚠️ «interpreter» و«repl» قدرتان زالتا مع المحرّك.
+        #      (اسمُ الحزمة `package_name` مُبقًى عمدًا: تغييرُه يكسرُ هويّةَ
+        #       التطبيقِ ومسارَ ترقيتِه، وهو معرِّفٌ لا وصفَ قدرة.)
+        # (EN) "interpreter" and "repl" are capabilities that went with the
+        #      engine. package_name is deliberately left alone: it is an
+        #      identity, not a capability claim, and changing it breaks the
+        #      app identity and its upgrade path.
+        features       = @("compiler", "editor", "stdlib")
     }
     $ProjectConfig | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $InstallerApp "project.json") -Encoding UTF8
 
@@ -980,11 +1032,10 @@ jobs:
       - name: "بناء sad.exe"
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --target sad-run
+          cmake --build build --config Release --target sad sad-build
           cmake --build build --config Release --target sad-lsp  2>$null || true
           cmake --build build --config Release --target sad-pkg  2>$null || true
           cmake --build build --config Release --target sad-fmt  2>$null || true
-          cmake --build build --config Release --target sad-repl 2>$null || true
 
       - name: "تثبيت InnoSetup"
         run: |
@@ -1035,11 +1086,10 @@ jobs:
       - name: "بناء sad"
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --target sad-run
+          cmake --build build --config Release --target sad sad-build
           cmake --build build --config Release --target sad-lsp  || true
           cmake --build build --config Release --target sad-pkg  || true
           cmake --build build --config Release --target sad-fmt  || true
-          cmake --build build --config Release --target sad-repl || true
 
       - name: "بناء الحزم"
         run: |
@@ -1078,7 +1128,7 @@ jobs:
             apt-get update -qq && apt-get install -y cmake g++ ninja-build dpkg-dev fakeroot wget
             cd /repo
             cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-            cmake --build build --config Release --target sad-run || true
+            cmake --build build --config Release --target sad sad-build || true
             chmod +x distribution/linux/build-linux.sh
             bash distribution/linux/build-linux.sh "$(echo $VERSION | sed 's/v//')" aarch64 build/bin/Release || true
 
@@ -1109,7 +1159,7 @@ jobs:
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
-          cmake --build build --config Release --target sad-run
+          cmake --build build --config Release --target sad sad-build
           cmake --build build --config Release --target sad-lsp  || true
           cmake --build build --config Release --target sad-pkg  || true
           cmake --build build --config Release --target sad-fmt  || true

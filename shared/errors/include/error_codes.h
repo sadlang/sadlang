@@ -54,6 +54,9 @@ namespace Sad
             LEX_INVALID_UTF8, ///< LEX006: (AR) ترميز UTF-8 غير صالح
                               ///< (EN) Invalid UTF-8 encoding
 
+            LEX_UNTERMINATED_COMMENT, ///< LEX007: (AR) تعليق كتلة غير مغلق
+                                      ///< (EN) Unterminated block comment
+
             // ====================================================================
             // (AR) أخطاء نحوية / (EN) Syntax Errors
             // Range: SYN001 - SYN099
@@ -180,8 +183,14 @@ namespace Sad
             SEM_ASM_ARCH_UNSUPPORTED,     ///< SEM044: (AR) كتلةُ «تجميع» على هدفٍ لا معجمَ لمعماريّتِه — رفضٌ صريحٌ بدل خفضٍ بمعجمِ معماريّةٍ أخرى / (EN) assembly block on a target whose architecture has no lexicon — explicit rejection instead of lowering with a foreign one
             SEM_VOID_ASSIGNED_TO_TYPED_SLOT, ///< SEM045: (AR) «فراغ» أُسند إلى خانةٍ مصنّفة — غيابُ نتيجةٍ يعبر جدارَ الأنواع (RFC عقد الغياب، المرحلة أ) / (EN) Void assigned to a typed slot — an absent result crossing the type wall (absence-contract RFC, stage A)
             SEM_INTERRUPT_HANDLER_CONTRACT, ///< SEM046: (AR) عقدُ «دالة مقاطعة» غير مستوفى — توقيعٌ أو نداءٌ أو بوّابةُ هدفٍ (RFC 0059) / (EN) interrupt-handler contract violated — signature, call, or target gate (RFC 0059)
-            SEM_BUILTIN_ABSENT_IN_COMPILER, ///< SEM047: (AR) مدمَجةٌ معلَنةٌ في مصدرِ الحقيقةِ ومسجَّلةٌ في المفسّرِ بلا توزيعٍ في المترجم — تباعدُ تغطيةٍ لا اسمٌ مجهول / (EN) builtin declared in the SoT and registered in the interpreter with no compiler dispatch — a coverage divergence, not an unknown name
+            SEM_BUILTIN_ABSENT_IN_COMPILER, ///< SEM047: (AR) مدمَجةٌ معلَنةٌ في مصدرِ الحقيقةِ بلا ذراعِ توزيعٍ في المترجم — فجوةُ تغطيةٍ لا اسمٌ مجهول / (EN) builtin declared in the SoT with no compiler dispatch arm — a coverage gap, not an unknown name
             SEM_UNSIGNED64_MIXED_WITH_SIGNED, ///< SEM048: (AR) خلطُ «طبيعي» بموقَّعٍ بعرضِه في عمليّةٍ حسابيّة — لا نوعَ يسعُ المدَيَين فيلزم تحويلٌ صريح / (EN) طبيعي mixed with a same-width signed operand in arithmetic — no type spans both ranges, so an explicit cast is required
+            SEM_ROUTE_HANDLER_NOT_LITERAL, ///< SEM049: (AR) معالجُ المسار يجب أن يكون اسمَ دالّةٍ معرَّفةٍ حرفيًّا — المعالجُ غيرُ المباشرِ غيرُ مخفَّضٍ بعد / (EN) a route handler must be the literal name of a defined function; an indirect handler is not lowered yet
+            SEM_MEMBER_RECEIVER_CLASS_UNKNOWN, ///< SEM050: (AR) تعذّر تحديدُ صنفِ المستقبِلِ وقتَ الترجمةِ عندَ الوصولِ إلى عضو — قيدٌ قائمٌ لا علّةُ مترجِم / (EN) the receiver's class is not known at compile time on member access — a standing limitation, not a compiler bug
+            SEM_ROUTE_HANDLER_HAS_PARAMS, ///< SEM051: (AR) معالجُ المسارِ مُصرَّحٌ بمعاملاتٍ والعقدُ `void()` — قيدُ شكلٍ لا علّةُ مترجِم / (EN) a route handler declared with parameters against a void() contract — an interface-shape constraint
+            SEM_TUPLE_DESTRUCTURE_UNSUPPORTED, ///< SEM052: (AR) فكُّ الصفِّ في التصريحِ غيرُ مُعلَنٍ في القواعدِ ولا يُخفَّض — والخفضُ السابقُ كان يكذبُ صامتًا / (EN) tuple destructuring in a declaration is undeclared and unlowered — the previous lowering lied silently
+            SEM_TYPE_METHOD_ABSENT_IN_COMPILER, ///< SEM053: (AR) طريقةٌ معلَنةٌ على النوعِ بلا ذراعِ توزيعٍ في المترجم — فجوةُ تغطيةٍ لا خطأٌ في البرنامج / (EN) a declared type method with no compiler dispatch arm — a coverage gap, not a program defect
+            SEM_OPERAND_DOMAIN, ///< SEM054: (AR) نطاقُ معاملٍ غيرُ مسموح — مُعلَنٌ في operators.yaml ومولَّدٌ منه الحارس / (EN) operand domain violation — declared in operators.yaml, guard generated from it
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors
@@ -304,6 +313,7 @@ namespace Sad
             RUN_PROC_CLOSE_FAILED,          ///< RUN072: (AR) فشل إغلاق الوصف / (EN) Closing the descriptor failed
             RUN_PROC_HANDLE_KIND,           ///< RUN073: (AR) نوع المقبض غير متوقّع / (EN) Wrong handle kind
             RUN_MAP_FETCH_TYPE_MISMATCH,    ///< RUN074: (AR) الجلب المصنَّف وجد قيمةً بنوعٍ مغاير أو عدمًا مخزَّنًا / (EN) Typed map fetch found a value of a different type or a stored null
+            RUN_MEMBER_ON_UNTYPED_RECEIVER, ///< RUN075: (AR) عضوٌ لا يحمله أيُّ صنفٍ معرَّف، ومستقبِلُه لا يُعرَف نوعُه إلّا زمنَ التشغيل / (EN) a member no declared class carries, on a receiver typed only at run time
 
             // ════════════════════════════════════════════════════════════════
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.

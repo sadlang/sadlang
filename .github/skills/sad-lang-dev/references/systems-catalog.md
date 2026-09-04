@@ -50,7 +50,7 @@
 | مدير الحزم | `tools/pkg/` | الحزم والاعتماديات |
 | واجهة المترجم | `tools/compiler/` | `compiler_driver_*` (واجهة sadc) |
 | REPL | `tools/repl/` | الصدفة التفاعلية |
-| الموزّع (Hub) | `tools/hub/` | `sad.exe` موزّع الأوامر (المفسر الفعلي `sad-run`) |
+| الموزّع (Hub) | `tools/hub/` | `sad.exe` موزّع الأوامر — يجد إخوتَه بمسحِ البادئة `sad-` |
 | أخرى | `tools/{analyze,check,profiler,wasm,apk_builder,installers,security-scanner}/` | تحليل/فحص/نشر |
 
 > ⚠️ **أثر التموّج:** أي تعديل على `language-truth/` (كلمة/دالة/نوع/عامل) يَمَسّ **LSP + المنسّق

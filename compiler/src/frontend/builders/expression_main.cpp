@@ -12,6 +12,9 @@
 #include "directive_nodes.h"
 #include "utf8_utils.h"
 #include "sad_debug_log.h"
+#include "lexer_keywords.h"
+#include "error_manager.h"
+#include "error_codes.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -24,6 +27,22 @@ namespace Sad
     {
         namespace SIR
         {
+            // (AR) تشخيصُ «هذا/الأساس غير متاح» (SEM015) من كتالوجِ الأخطاءِ ومعجمِ
+            //      الكلماتِ كليهما — لا نصًّا مكتوبًا هنا. فالتهجئةُ تأتي من معجمِ
+            //      مصدرِ الحقيقة كي لا يقرأَ المستعمِلُ كلمةً لا يستطيعُ كتابتَها.
+            // (EN) The SEM015 diagnostic comes from the error catalog and the keyword
+            //      lexicon alike — never hard-coded, so the reader is never shown a
+            //      spelling the language does not accept.
+            static std::string thisSuperUnavailableMessage(Lexer::TokenType keywordType)
+            {
+                const auto *entry = Lexer::KeywordTable::getEntry(keywordType);
+                Sad::Errors::RenderContext context;
+                context.placeholders = {
+                    {"keyword", entry ? entry->primaryWord : std::string()}};
+                return Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                    Sad::Errors::ErrorCode::SEM_THIS_SUPER_UNAVAILABLE, context);
+            }
+
             // ============================================================================
             // EXPRESSION BUILDING - بناء التعابير
             // ============================================================================
@@ -187,6 +206,28 @@ namespace Sad
                     return b_.buildMethodCall(methodCallExpr);
                 }
 
+                // ================================================================
+                // (AR) 🔑 SEM015 — «هذا»/«الأساس» خارجَ سياقٍ يتيحُهما.
+                //
+                //      الرمزُ **مُعلَنٌ في مصدرِ الحقيقةِ ولم يُبعَثْ قطُّ**. وكان
+                //      الفرعانِ أدناه يسقطانِ إلى `%#self` حين لا يجدانِ الخانة،
+                //      فيُبثُّ مرجعٌ إلى سجلٍّ **لا وجودَ له**، فتنهارُ الخلفيّةُ
+                //      بـ«مرجع غير معرَّف (Object not found:%#self)» — خطأٌ داخليٌّ
+                //      يطلبُ الإبلاغَ عن علّةِ مترجِمٍ، والعلّةُ في البرنامج.
+                //      وقِيسَ أنّ الخروجَ كان **صفرًا** مع ثنائيٍّ يُسلَّم.
+                //
+                //      والشرطُ مزدوجٌ عمدًا: لا خانةَ `self` **ولا اسمَ صنفٍ جارٍ**.
+                //      فالسقوطُ إلى `%#self` داخلَ صنفٍ قد يكون مشروعًا (البانيات
+                //      تُعرّفه بغيرِ تسجيلِه متغيّرًا)، وخارجَ الصنفِ لا يكون أبدًا.
+                // (EN) SEM015 — this/super outside a context that provides them. The
+                //      code was declared in the SoT and never emitted: both branches
+                //      fell back to %#self, emitting a reference to a register that
+                //      does not exist, so the backend crashed with an INTERNAL error
+                //      ("Object not found:%#self") — and exited 0 with a binary.
+                //      The condition is deliberately double: no self slot AND no
+                //      enclosing class, since the fallback can be legitimate inside a
+                //      class (constructors define it without registering a variable).
+                // ================================================================
                 // (AR) ThisExpr - مرجع ذاتي 'هذا' (class_nodes.h:288)
                 // (EN) This/self reference
                 if (auto thisExpr = dynamic_cast<Sad::AST::ThisExpr *>(expr))
@@ -197,6 +238,12 @@ namespace Sad
                     if (selfInfo)
                     {
                         return BuildResult(selfInfo->registerName, selfInfo->type);
+                    }
+                    if (b_.currentClassName_.empty())
+                    {
+                        b_.errors_.push_back(
+                            thisSuperUnavailableMessage(Lexer::TokenType::KEYWORD_THIS));
+                        return BuildResult();
                     }
                     return BuildResult(kSelfRegisterName, SadTypeKind::Integer);
                 }
@@ -211,6 +258,12 @@ namespace Sad
                     if (selfInfo)
                     {
                         return BuildResult(selfInfo->registerName, selfInfo->type);
+                    }
+                    if (b_.currentClassName_.empty())
+                    {
+                        b_.errors_.push_back(
+                            thisSuperUnavailableMessage(Lexer::TokenType::KEYWORD_SUPER));
+                        return BuildResult();
                     }
                     return BuildResult(kSelfRegisterName, SadTypeKind::Integer);
                 }

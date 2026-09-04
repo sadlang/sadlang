@@ -3,19 +3,30 @@
 # x.py — منسّق البناء الموحَّد للغة ص / Unified build orchestrator
 # ======================================================================
 # (AR) ينفّذ المرحلة 0 من RFC «قلب موحَّد بحدود داخلية صارمة» (sadlang-rfcs#10):
-#      البوّابة الوحيدة للبناء. يبني المفسّر (sad-run) والمترجم (sad-build)
-#      **ذرّيًّا في نفس التهيئة**، ثم يثبّت الثنائيَّين في `dist/<Config>/` مع
-#      بصمة SHA-256 لكلٍّ منهما. هذا يقتل عثرتين موثَّقتين:
-#        1. تذبذب Debug/Release (مفسّر بتهيئة ومترجم بأخرى) — مستحيل الآن لأن
+#      البوّابة الوحيدة للبناء. يبني خلفيّتَي المترجم — `sad-build` (بـLLVM)
+#      و`sad-build-native` (السياديّةُ بلا LLVM) — **ذرّيًّا في نفس التهيئة**، ثم
+#      يثبّت الثنائيَّين في `dist/<Config>/` مع بصمة SHA-256 لكلٍّ منهما. هذا يقتل
+#      عثرتين موثَّقتين:
+#        1. تذبذب Debug/Release (خلفيّةٌ بتهيئة وأخرى بغيرها) — مستحيل الآن لأن
 #           الأمر الواحد يبني الهدفين معًا لكل تهيئة، وإن فشل أحدهما فشل الكل.
 #        2. الثنائيّ البائت — `verify` يعيد حساب البصمة فيكشف أيّ مخرَج قديم.
 #
+#      🔑 مسارُ المحرّكِ الواحد: كان الهدفانِ هنا «المفسّر + المترجم»، وكان
+#      الحارسُ يمنعُ تباعدَ محرّكَي التنفيذ. بحذفِ المفسّر لم يمُتِ الحارسُ بل
+#      **انتقلَ محورُه** إلى المحورِ الباقي: خلفيّةُ LLVM مقابلَ الخلفيّةِ
+#      السياديّة. حارسٌ بهدفٍ واحدٍ حارسٌ بلا معنى — فلا تُنقِص القائمةَ إلى واحد.
+#
 # (EN) Implements Phase 0 of the RFC "unified core with strict internal
-#      boundaries" (sadlang-rfcs#10): the single build gateway. Builds the
-#      interpreter (sad-run) and compiler (sad-build) ATOMICALLY in the SAME
-#      configuration, then stages both binaries into `dist/<Config>/` with a
-#      SHA-256 fingerprint each. Kills two documented gotchas: Debug/Release
-#      drift and the stale-binary trap.
+#      boundaries" (sadlang-rfcs#10): the single build gateway. Builds BOTH
+#      compiler backends — `sad-build` (LLVM) and `sad-build-native` (sovereign,
+#      no LLVM) — ATOMICALLY in the SAME configuration, then stages both binaries
+#      into `dist/<Config>/` with a SHA-256 fingerprint each. Kills two documented
+#      gotchas: Debug/Release drift and the stale-binary trap.
+#
+#      🔑 Single-engine track: this pair used to be interpreter+compiler and the
+#      guard prevented execution-engine drift. Deleting the interpreter did not
+#      kill the guard — it MOVED its axis to the remaining one: LLVM backend vs
+#      sovereign backend. A one-entry guard guards nothing.
 #
 # الاستخدام / Usage:
 #   python x.py build --config Debug,Release   # بناء الهدفين معًا لكل تهيئة
@@ -57,10 +68,12 @@ BUILD_DIR = ROOT / "build"
 DIST_DIR = ROOT / "dist"
 
 # (AR) الهدفان اللذان يجب أن يُبنيا معًا دائمًا — قلب ضمان التطابق السلوكيّ.
+#      الاسمُ `ENGINES` باقٍ لأنّ الدورَ باقٍ: هذانِ هما مُنتِجا الشفرة اللذانِ
+#      يجبُ ألّا يتباعدا. أُزيلَ `sad-run` مع المفسّر في مسارِ المحرّكِ الواحد.
 # (EN) The two targets that must ALWAYS build together — the heart of the guard.
 ENGINES = {
-    "sad-run": "المفسّر / interpreter",
-    "sad-build": "المترجم / compiler",
+    "sad-build": "المترجم بـLLVM / compiler (LLVM)",
+    "sad-build-native": "المترجم السياديّ بلا LLVM / sovereign compiler (no LLVM)",
 }
 
 _WINDOWS = platform.system() == "Windows"
@@ -147,6 +160,31 @@ CODEGEN_DOMAINS = (
             "--yaml", "language-truth/types.yaml",
             "--schema", "language-truth/_schemas/type.schema.json",
             "--header", f"{d}/sad_type_kind_generated.h",
+            "--quiet",
+        ],
+    },
+    {
+        # (AR) 🔑 نطاقاتُ المعاملات: كان الجدولُ مكتوبًا باليدِ في
+        #      `TypeChecker::visitBinaryExpr` ومصدرُ الحقيقةِ لا يعرفُ منه شيئًا —
+        #      لا حقلَ لنطاقِ المعاملاتِ في مخطَّطِ العواملِ إطلاقًا. وأخطرُ من ذلك
+        #      أنّ `operator.schema.json` **لم يكن مُصادَقًا في أيِّ بوّابة**:
+        #      قائمةُ الأزواجِ في `language-truth/tests/test_schema_validation.py`
+        #      فارغةٌ منذ M0، فانجرفت البياناتُ عن مخطَّطِها حتّى صارَ ٤٣ مدخلًا
+        #      من ٤٣ مخالِفًا. فوصلُ المصادقةِ داخلَ المولِّدِ يجعلُ الانجرافَ
+        #      يحمرُّ في هذه البوّابةِ القائمةِ لا في اختبارٍ لا يُشغَّلُ أصلًا.
+        # (EN) Operand domains. The table was hand-written C++ and the SoT had no
+        #      operand field at all; worse, operator.schema.json had NO validator
+        #      anywhere, so the data drifted to 43/43 violations. Validating inside
+        #      the generator makes drift redden in this live gate.
+        "name": "operator_domains",
+        "script": "gen_operator_domains.py",
+        "out_dir": "shared/semantic/generated",
+        "outputs": ("operator_domains_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/operators.yaml",
+            "--schema", "language-truth/_schemas/operator.schema.json",
+            "--types", "language-truth/types.yaml",
+            "--header", f"{d}/operator_domains_generated.h",
             "--quiet",
         ],
     },
@@ -369,27 +407,11 @@ CODEGEN_DOMAINS = (
             "--quiet",
         ],
     },
-    {
-        # (AR) نظام «مصدر حقيقة الأدوات» (Tool SoT) — مستقلّ عن مصدر حقيقة اللغة.
-        #      أوّل أداة: sad-repl (أخطاء الأداة + رسائل واجهتها + أوامرها). الناتج
-        #      مُلتزَم داخل tools/repl/generated ويُجمَّع مباشرةً (بلا هدف CMake؛ حارس
-        #      الانجراف يكفي — كنمط ui_*). كلّ أداةٍ لاحقة تُضيف نطاقًا مماثلًا.
-        # (EN) Tools' Source-of-Truth system — independent of the language SoT. First
-        #      tool: sad-repl (tool errors + UI messages + commands). Output committed
-        #      under tools/repl/generated and compiled directly (no CMake target; the
-        #      drift guard suffices — like the ui_* domains). Each future tool adds a peer.
-        "name": "tool_repl",
-        "script": "gen_tool_sot.py",
-        "out_dir": "tools/repl/generated",
-        "outputs": ("repl_sot_generated.h", "repl_sot_generated.cpp"),
-        "args": lambda d: [
-            "--tool-dir", "language-truth/tools/repl",
-            "--schema-dir", "language-truth/tools/_schemas",
-            "--out-h", f"{d}/repl_sot_generated.h",
-            "--out-cpp", f"{d}/repl_sot_generated.cpp",
-            "--quiet",
-        ],
-    },
+    # (AR) 🔑 نُزع نطاق `tool_repl`: أداةُ `sad-repl` حُذفت مع المفسّر،
+    #      فبقاءُ النطاق يجعل `x.py gen --check` يُحمِّر على مخرَجٍ لا
+    #      مستهلكَ له — بوّابةٌ تفشلُ لغيابِ ما لا يُراد.
+    # (EN) Removed the tool_repl codegen scope: sad-repl went with the
+    #      interpreter, so the scope only reddened the gate.
     {
         # (AR) توثيق قواعد المحلّل المولَّد من language-truth/grammar/*.yaml —
         #      Markdown مُلتزَم تحت docs/parser_rule/_generated (8 طبقات + فهرس).
@@ -681,15 +703,12 @@ SOT_CHECK_GUARDS = (
         "script": "check_no_raw_parser_text.py",
         "args": (),
     },
-    {
-        # (AR) تغطية معجم آبلتات sad-repl مقابل مقام busybox defconfig المثبَّت: لا
-        #      exec ميّت (ليس آبلتًا حقيقيًّا) ولا فجوة (آبلت defconfig بلا اسم عربيّ).
-        # (EN) sad-repl applet lexicon coverage vs the pinned busybox defconfig
-        #      denominator: no dead exec, no uncovered defconfig applet.
-        "name": "applet_coverage",
-        "script": "check_applet_coverage.py",
-        "args": (),
-    },
+    # (AR) 🔑 نُزع حارس `applet_coverage`: موضوعُه معجمُ أصيلاتِ صدفةِ
+    #      `sad-repl` — والأداةُ ومصدرُ حقيقتِها زالا مع المفسّر. حارسٌ بلا
+    #      موضوعٍ إمّا ينهار وإمّا يخضرُّ على الفراغ، وكلاهما كذب.
+    # (EN) Removed: its subject (the sad-repl applet lexicon and its SoT)
+    #      went with the interpreter. A subjectless guard either crashes or
+    #      goes green on emptiness — both are lies.
     {
         # (AR) لا خريطةَ «مدمَجة ⇒ وحدة» يدويّةً في محرّك: كانت لكلٍّ خريطتُه فتباعدا
         #      عن مصدر الحقيقة وعن بعضهما (جذر رياضيّةٌ تطلب «نصوص» في المصرّف،
@@ -749,6 +768,18 @@ SOT_CHECK_GUARDS = (
         #      bounded the drift. This guard diffs rows against disk, no test runs.
         "name": "conformance_report_fresh",
         "script": "check_conformance_report_fresh.py",
+        "args": (),
+    },
+    {
+        # (AR) 🔑 حقلُ `retired` في كتالوجِ الأخطاءِ يلزمُه مستهلك: حقلٌ لا
+        #      يقرؤه أحدٌ تعليقٌ بصيغةِ بيانات لا عقد. ويحرسُ اتّجاهَين: لا
+        #      باعثَ لرمزٍ مُتقاعَد (وإلّا فالتقاعدُ دعوى كاذبة)، ولا حذفَ
+        #      لنصِّه من التعداد (فحذفُ مدخلٍ «ميّت» أسقطَ تشخيصًا من قبل).
+        # (EN) The catalog's `retired` field needs a reader, or it is a comment
+        #      in data format. Two directions: no emitter for a retired code, and
+        #      no deletion of its text from the enum.
+        "name": "retired_error_codes",
+        "script": "check_retired_error_codes.py",
         "args": (),
     },
 )
@@ -949,7 +980,7 @@ def _buildable_runtime_libraries() -> tuple[list[str], list[str]]:
 
 def _stage(config: str) -> dict:
     """(AR) ينسخ الثنائيَّين إلى dist/<config>/ ويكتب manifest بالبصمات.
-    (EN) Copy both engines to dist/<config>/ and write a fingerprint manifest."""
+    (EN) Copy both backends to dist/<config>/ and write a fingerprint manifest."""
     dest = DIST_DIR / config
     dest.mkdir(parents=True, exist_ok=True)
     manifest = {
@@ -1032,7 +1063,7 @@ def cmd_build(args: argparse.Namespace) -> None:
 
     for config in configs:
         _log(f"━━ بناء التهيئة / building config: {config} "
-             f"(المحرّكان معًا / both engines together) ━━")
+             f"(الخلفيّتان معًا / both backends together) ━━")
         # (AR) جوهر المرحلة 0: أمر بناء واحد يضمّ الهدفين. إن فشل أحدهما، فشل
         #      الأمر كلّه — فلا يخرج زوجٌ نصفُ مبنيّ بتهيئتين مختلفتين أبدًا.
         # (EN) Phase-0 core: one build command spanning BOTH targets. If either
@@ -1074,7 +1105,7 @@ def cmd_build(args: argparse.Namespace) -> None:
             _run(refresh_cmd)
 
         manifest = _stage(config)
-        _log(f"✓ {config}: ثُبّت المحرّكان في / staged engines to dist/{config}/")
+        _log(f"✓ {config}: ثُبّتت الخلفيّتان في / staged backends to dist/{config}/")
         for name, info in manifest["binaries"].items():
             _log(f"    {name:<10} sha256={info['sha256'][:16]}…  ({info['size']} bytes)")
         staged_libs = manifest.get("libraries", {})
@@ -1118,7 +1149,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
 
         missing = [n for n in ENGINES if n not in manifest.get("binaries", {})]
         if missing:
-            _fail(f"محرّكات ناقصة في / engines missing in {config}: {', '.join(missing)}")
+            _fail(f"خلفيّات ناقصة في / backends missing in {config}: {', '.join(missing)}")
 
         for name, info in manifest["binaries"].items():
             out = DIST_DIR / config / info["file"]
@@ -1182,8 +1213,8 @@ def cmd_test(args: argparse.Namespace) -> None:
         _fail("test يقبل تهيئة واحدة فقط / test accepts exactly one config.")
     config = configs[0]
 
-    # (AR) ابنِ المحرّكين معًا ثم تحقّق قبل تشغيل الاختبارات.
-    # (EN) Build both engines together, then verify, before running tests.
+    # (AR) ابنِ الخلفيّتين معًا ثم تحقّق قبل تشغيل الاختبارات.
+    # (EN) Build both backends together, then verify, before running tests.
     build_args = argparse.Namespace(config=config, clean=False)
     cmd_build(build_args)
     cmd_verify(argparse.Namespace(config=config, all=False))
@@ -1312,7 +1343,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = p.add_subparsers(dest="command", required=True)
 
-    pb = sub.add_parser("build", help="بناء المحرّكين معًا لكل تهيئة / build both engines per config")
+    pb = sub.add_parser("build", help="بناء الخلفيّتين معًا لكل تهيئة / build both backends per config")
     pb.add_argument("--config", default="Debug",
                     help="قائمة تهيئات مفصولة بفواصل / comma-separated configs (Debug,Release)")
     pb.add_argument("--clean", action="store_true", help="حذف build/ قبل البناء / wipe build/ first")

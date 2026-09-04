@@ -34,10 +34,22 @@ def load_json(path: pathlib.Path) -> dict:
 # ─── قائمة الأزواج (YAML، Schema) — تُوسَّع مع كل ستوري M1 ───
 # الصيغة: (وصف_الاختبار, مسار_YAML_النسبي, مسار_Schema_النسبي, نوع_البيانات)
 #   نوع البيانات: "list" إذا كان الملف يحوي قائمة entries، "single" لكائن واحد
-YAML_SCHEMA_PAIRS: list[tuple[str, str, str, str]] = [
+# (AR) 🔑 كانت هذه القائمةُ **فارغةً منذ M0**، ورتبةُ صفِّها لا توافقُ
+#      مُستهلِكَها: الإعلانُ رباعيٌّ و`parametrize` أدناه كان يطلبُ اسمَين. فاختبارُ
+#      «كلُّ YAML يوافقُ مخطَّطَه» لم يجرِ قطُّ ولا على ملفٍّ واحد — وهو أخضرُ لأنّ
+#      شرطَه لا يمكنُ أن يكونَ كاذبًا. ونتيجتُه المقيسةُ (٢٠٢٦-٠٩-٠٣): `operators.yaml`
+#      انجرفَ عن مخطَّطِه حتّى صارَ **٤٣ مدخلًا من ٤٣ مخالِفًا**.
+# (EN) This list sat EMPTY since M0 and its arity disagreed with its consumer, so
+#      "every YAML matches its schema" never ran for any file — green because the
+#      condition could not be false. Measured result: operators.yaml had drifted to
+#      43/43 schema violations.
+#
+# (AR) الصيغة: (وصف، مسار YAML، اسم المخطَّط، مفتاح قائمة المدخلات أو None لكائنٍ واحد)
+YAML_SCHEMA_PAIRS: list[tuple[str, str, str, str | None]] = [
     # M0 — الكلمات المفتاحية
     # keywords.yaml بنية مختلفة (categories لا entries)، يُختبر بشكل خاص
-    # سيُضاف المزيد هنا مع M1
+    ("العوامل", "operators.yaml", "operator.schema.json", "operators"),
+    ("الأنواع", "types.yaml", "type.schema.json", "types"),
 ]
 
 
@@ -136,14 +148,41 @@ class TestSchemaValidation:
         "stdlib_function.schema.json",
     ])
     def test_v5_schema_has_required_fields(self, schema_name: str):
-        """كل Schema V5 يحوي CommonFields المطلوبة."""
+        """كل Schema V5 يحوي CommonFields المطلوبة على مستوى المدخلة.
+
+        (AR) 🔑 كان هنا شرطٌ خامسٌ: «schema_version في required». وهو
+             يطلبُ عُرفًا **لا تتّبعُه بياناتُ المشروع**، والدليلُ في الشجرةِ نفسِها:
+             `type.schema.json` — وهو المخطَّطُ الوحيدُ المُصادَقُ فعلًا في بوّابةٍ
+             حيّة — لا يعرفُ `schema_version` في خصائصِه أصلًا، و`types.yaml`
+             يحملُه في **رأسِ الملفّ** لا في كلِّ مدخلة. فالإصدارُ صفةُ الملفِّ
+             لا صفةُ المدخلة.
+
+             وكان الشرطُ أحمرَ على `type.schema.json` و`error.schema.json` قبلَ
+             هذا التعديلِ ولم يُلحَظْ، لأنّ CI لا يُشغّلُ `language-truth/tests/`
+             إطلاقًا. فالتصحيحُ يُخضِرُ حمرتَين قائمتَين ولا يُخفيهما.
+        (EN) A fifth clause demanded `schema_version` inside entry-level `required`
+             — a convention the project's own data does not follow: type.schema.json,
+             the only schema validated by a live gate, has no such property at all
+             and types.yaml carries it at FILE level. The clause was already red for
+             type/error and unnoticed because CI never runs this directory.
+        """
         schema = load_json(SCHEMAS_DIR / schema_name)
         required = schema.get("required", [])
-        # CommonFields الإلزامية لكل Schema V5
+        # CommonFields الإلزامية لكل Schema V5 (على مستوى المدخلة)
         assert "id" in required, f"{schema_name}: id مفقود من required"
-        assert "schema_version" in required, f"{schema_name}: schema_version مفقود"
         assert "since" in required, f"{schema_name}: since مفقود"
         assert "status" in required, f"{schema_name}: status مفقود"
+
+    @pytest.mark.parametrize("desc,yaml_path,schema_name,entries_key", YAML_SCHEMA_PAIRS)
+    def test_sot_file_declares_schema_version(self, desc: str, yaml_path: str,
+                                              schema_name: str, entries_key: "str | None"):
+        """(AR) الإصدارُ صفةُ الملفِّ: كلُّ ملفٍّ مُصادَقٍ يُعلِنُ `schema_version` في رأسِه."""
+        data = load_yaml(TRUTH_DIR / yaml_path)
+        assert isinstance(data, dict), f"{desc}: {yaml_path} ليس خريطةً عليا"
+        assert "schema_version" in data, \
+            f"{desc}: {yaml_path} يفتقر schema_version في رأس الملفّ"
+        assert str(data["schema_version"]).startswith("5."), \
+            f"{desc}: schema_version المتوقع 5.x، الموجود: {data['schema_version']}"
 
     def test_meta_version_exists(self):
         """_meta/_version.yaml موجود ويحوي إصدار 5.0.0."""
@@ -159,21 +198,26 @@ class TestSchemaValidation:
             path = TRUTH_DIR / d
             assert path.is_dir(), f"المجلد المطلوب غير موجود: language-truth/{d}/"
 
-    @pytest.mark.parametrize("yaml_path,schema_name", YAML_SCHEMA_PAIRS)
-    def test_yaml_validates_against_schema(self, yaml_path: str, schema_name: str):
-        """كل ملف YAML يتطابق مع Schema المقابل (يُوسَّع مع M1)."""
+    @pytest.mark.parametrize("desc,yaml_path,schema_name,entries_key", YAML_SCHEMA_PAIRS)
+    def test_yaml_validates_against_schema(self, desc: str, yaml_path: str,
+                                           schema_name: str, entries_key: "str | None"):
+        """كل ملف YAML يتطابق مع Schema المقابل.
+
+        (AR) `entries_key` يسمّي المفتاحَ الحاملَ للمدخلات صراحةً. وكان الاستدلالُ
+             عليه ضمنيًّا («entries» أو قائمةٌ عليا)، وهو ما يجعلُ ملفًّا كـ
+             `operators.yaml` — مدخلاتُه تحتَ `operators` — يُصادَقُ **بكامله**
+             ضدّ مخطَّطِ المدخلةِ الواحدة، فيفشلُ لسببٍ لا علاقةَ له بالبيانات.
+        """
         import jsonschema
         data = load_yaml(TRUTH_DIR / yaml_path)
         schema = load_json(SCHEMAS_DIR / schema_name)
-        # التحقق من كل عنصر في القائمة
-        if isinstance(data, list):
-            for entry in data:
-                jsonschema.validate(entry, schema)
-        elif isinstance(data, dict) and "entries" in data:
-            for entry in data["entries"]:
-                jsonschema.validate(entry, schema)
-        else:
+        if entries_key is None:
             jsonschema.validate(data, schema)
+            return
+        entries = data[entries_key] if isinstance(data, dict) else data
+        assert entries, f"{desc}: لا مدخلاتِ تحت «{entries_key}» في {yaml_path}"
+        for entry in entries:
+            jsonschema.validate(entry, schema)
 
 
 # ─── طبقة الخلفيّة السياديّة الجدوليّة (م٠ من RFC الخلفيّة متعدّدة المعماريّات) ───

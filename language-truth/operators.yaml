@@ -3,8 +3,38 @@
 # الأسبقية: 1 = أعلى (يُحسَب أولاً)، 15 = أدنى
 
 version: "1.0"
+schema_version: "5.0"
 description_ar: "جميع العوامل في لغة ص مع الأسبقية والترابط"
 description_en: "All operators in Sad language with precedence and associativity"
+
+# ══════════════════════════════════════════════════════════════════════════
+# 🔑 أصنافُ الأنواعِ لنطاقاتِ المعاملات (operand_classes)
+# ══════════════════════════════════════════════════════════════════════════
+#
+# (AR) العاملُ الذي يحملُ حقلَ `operands` يُحرَسُ: ما لا يوافقُ أحدَ توقيعاتِه
+#      يُرفَضُ بـ`SEM054`. والذي لا يحملُه لا حارسَ له.
+#
+#      ⚠️ وقاعدةٌ لا خيارَ فيها لكلِّ عامل: **المعاملُ المجهولُ النوعِ يمرُّ بلا
+#      حكم** — `أي` و`عدم` و`فراغ` ومعاملُ دالّةٍ غيرُ مُنمَّطٍ ومتغيّرُ حلقةٍ
+#      وكلُّ ما لا يُحسَمُ نوعُه سكونيًّا. وسببُ رفعِها إلى قاعدةٍ عامّةٍ بدل
+#      خانةٍ لكلِّ عامل: قِيسَ (٢٠٢٦-٠٩-٠٣) أنّ حارسًا يقرأُ «لا أعرف» حكمًا
+#      يُحمِّرُ **٣٠ بذرةً صحيحة**، منها `ارجع أ + ب` في دالّةٍ بمعاملَين
+#      عاريَين. فخانةٌ لكلِّ عاملٍ تعني أن يُعادَ ذلك الرفضُ الكاذبُ من بابٍ آخر.
+#
+#      وأصنافُ `numeric` مشتقّةٌ من `types.yaml` (حقل `numeric:` على عشرةِ
+#      أنواع)، لا مكتوبةً هنا ثانيةً.
+#
+# (EN) An operator carrying `operands` is guarded: anything matching none of its
+#      signatures is rejected with SEM054. Operators without the field are
+#      unguarded. One rule admits no per-operator override: an operand whose type
+#      is not statically certain ALWAYS passes unjudged — measured, a guard that
+#      reads "unknown" as a verdict reddens 30 correct seeds.
+operand_classes:
+  numeric:  { derive: "types.yaml:numeric", note_ar: "العشرة التي تحمل حقل numeric" }
+  textual:  { types: [type.string] }
+  logical:  { types: [type.boolean] }
+  sequence: { types: [type.array] }
+  mapping:  { types: [type.map] }
 
 operators:
 
@@ -75,14 +105,117 @@ operators:
   - { id: op.shift_right, symbol: ">>", name_ar: "إزاحة يمين", name_en: shift_right, category: bitwise, arity: binary, precedence: 6, associativity: left, since: "1.0.0", status: stable }
 
   # ── جمع وطرح ──────────────────────────────────────────────────────────
-  - { id: op.plus,  symbol: "+", name_ar: "جمع",  name_en: addition,    category: arithmetic, arity: binary, precedence: 5, associativity: left, since: "1.0.0", status: stable }
-  - { id: op.minus, symbol: "-", name_ar: "طرح",  name_en: subtraction, category: arithmetic, arity: binary, precedence: 5, associativity: left, since: "1.0.0", status: stable }
+  # (AR) 🔑 `+` ليس الجمعَ وحدَه: هو **الوصلُ** أيضًا متى كان أحدُ طرفَيه نصًّا،
+  #      و**ضمُّ المصفوفتَين**. والتوقيعاتُ أدناه مقيسةٌ كلُّها (١٩٣ قياسًا،
+  #      ٢٠٢٦-٠٩-٠٣): كلُّ توقيعٍ هنا يُنتِجُ اليومَ جوابًا صحيحًا، وكلُّ ما حُذِفَ
+  #      يُنتِجُ قمامةً أو ينهار — فالجدولُ لا يُوسِّعُ ولا يُضيِّق.
+  # (EN) `+` is not only addition: it is CONCATENATION whenever either side is
+  #      textual, and array JOIN. Every signature below was measured to produce a
+  #      correct answer today; everything omitted produces garbage or crashes.
+  - id: op.plus
+    symbol: "+"
+    name_ar: "جمع"
+    name_en: addition
+    category: arithmetic
+    arity: binary
+    precedence: 5
+    associativity: left
+    since: "1.0.0"
+    status: stable
+    operands:
+      accepts:
+        - { left: [numeric, logical], right: [numeric, logical], result: promote }
+        - { left: textual, right: [textual, numeric, logical, sequence, mapping], result: type.string }
+        - { left: [numeric, logical, sequence, mapping], right: textual, result: type.string }
+        - { left: sequence, right: sequence, result: type.array }
+
+  # (AR) والطرحُ حسابٌ خالص. `100 - "عشرة"` لا معنى له في أيِّ لغةٍ جادّة، وهو
+  #      اليومَ يُترجَمُ ويطرحُ **بتّاتِ المؤشّر**: يطبعُ عددًا كاذبًا أو ينهارُ
+  #      بإشارة، بحسبِ ما تصادفَ أن يحملَه العنوان.
+  # (EN) Subtraction is pure arithmetic. `100 - "عشرة"` is meaningless in any
+  #      serious language, yet today it compiles and subtracts POINTER BITS.
+  - id: op.minus
+    symbol: "-"
+    name_ar: "طرح"
+    name_en: subtraction
+    category: arithmetic
+    arity: binary
+    precedence: 5
+    associativity: left
+    since: "1.0.0"
+    status: stable
+    operands:
+      accepts:
+        - { left: [numeric, logical], right: [numeric, logical], result: promote }
 
   # ── ضرب وقسمة وباقي ────────────────────────────────────────────────────
-  - { id: op.multiply,     symbol: "*",  name_ar: "ضرب",          name_en: multiplication, category: arithmetic, arity: binary, precedence: 4, associativity: left, since: "1.0.0", status: stable }
-  - { id: op.divide,       symbol: "/",  name_ar: "قسمة", name_en: division,        category: arithmetic, arity: binary, precedence: 4, associativity: left, since: "1.0.0", status: stable }
-  - { id: op.floor_divide, symbol: "//", name_ar: "قسمة صحيحة",  name_en: floor_division,  category: arithmetic, arity: binary, precedence: 4, associativity: left, since: "1.0.0", status: stable }
-  - { id: op.modulo,       symbol: "%",  name_ar: "باقي القسمة",  name_en: modulo,          category: arithmetic, arity: binary, precedence: 4, associativity: left, since: "1.0.0", status: stable }
+  # (AR) 🔑 `*` بين نصٍّ وعددٍ **تكرارٌ لا ضرب** — كما في Python وRuby
+  #      (`"أب" * 3` ⇒ `أبأبأب`). وقرارُ المالك (٢٠٢٦-٠٩-٠٣): شرعيّ.
+  #
+  #      ⚠️ وهو اليومَ **مكسورٌ يُنتِجُ `0`** لا نصًّا ولا خطأً. وأسوأُ من ذلك أنّ
+  #      بذرةَ P1 «153_stdlib_security_long_key» تكتبُ `"ك" * 300` لتصنعَ مفتاحًا
+  #      طولُه ٣٠٠ بايت، فتحصلُ على عدمٍ **وتمرُّ خضراءَ زورًا** — لا تقيسُ ما
+  #      وُضِعت له. فإعلانُ التوقيعِ هنا يُلزِمُ إصلاحَ الخفض.
+  # (EN) `*` between a string and a number is REPETITION, not multiplication
+  #      (Python/Ruby). Owner decision: legal. It is currently BROKEN — yields 0 —
+  #      and a P1 seed builds a 300-byte key with it and passes falsely.
+  - id: op.multiply
+    symbol: "*"
+    name_ar: "ضرب"
+    name_en: multiplication
+    category: arithmetic
+    arity: binary
+    precedence: 4
+    associativity: left
+    since: "1.0.0"
+    status: stable
+    operands:
+      accepts:
+        - { left: [numeric, logical], right: [numeric, logical], result: promote }
+        - { left: textual, right: numeric, result: type.string }
+        - { left: numeric, right: textual, result: type.string }
+
+  - id: op.divide
+    symbol: "/"
+    name_ar: "قسمة"
+    name_en: division
+    category: arithmetic
+    arity: binary
+    precedence: 4
+    associativity: left
+    since: "1.0.0"
+    status: stable
+    operands:
+      accepts:
+        - { left: [numeric, logical], right: [numeric, logical], result: promote }
+
+  - id: op.floor_divide
+    symbol: "//"
+    name_ar: "قسمة صحيحة"
+    name_en: floor_division
+    category: arithmetic
+    arity: binary
+    precedence: 4
+    associativity: left
+    since: "1.0.0"
+    status: stable
+    operands:
+      accepts:
+        - { left: [numeric, logical], right: [numeric, logical], result: promote }
+
+  - id: op.modulo
+    symbol: "%"
+    name_ar: "باقي القسمة"
+    name_en: modulo
+    category: arithmetic
+    arity: binary
+    precedence: 4
+    associativity: left
+    since: "1.0.0"
+    status: stable
+    operands:
+      accepts:
+        - { left: [numeric, logical], right: [numeric, logical], result: promote }
 
   # ── أحادية ───────────────────────────────────────────────────────────
   - { id: op.not,           symbol: "!",    name_ar: "نفي منطقي",  name_en: logical_not, category: logical,    arity: unary, precedence: 3, associativity: right, since: "1.0.0", status: stable }
@@ -93,7 +226,33 @@ operators:
   - { id: op.decrement,     symbol: "--",   name_ar: "نقصان",      name_en: decrement,   category: arithmetic, arity: unary, precedence: 3, associativity: right, since: "1.0.0", status: stable }
 
   # ── أسّ ───────────────────────────────────────────────────────────────
-  - { id: op.power, symbol: "**", name_ar: "أسّ", name_en: power, category: arithmetic, arity: binary, precedence: 2, associativity: right, since: "1.0.0", status: stable, example: "2 ** 10" }
+  # (AR) 🔑 `**` وحدَه — من العواملِ السبعةِ الحسابيّة — يرفضُ اليومَ شيئًا
+  #      (١٤ تركيبةً من ٢٥ مقيسة). فتوقيعُه يُثبِّتُ ما يفعلُه لا يُغيّرُه.
+  #
+  #      ⚠️ ودَينٌ مقيسٌ مُدوَّنٌ لا مسكوتٌ عنه: الأسُّ بمعاملٍ **منطقيٍّ** يحسبُ
+  #      خطأً — `7 ** صحيح` يعطي `0` والصوابُ `7`، و`صحيح ** 7` يعطي `صحيح`.
+  #      وهو عطبُ **خفضٍ** لا عطبُ نطاق: المنطقيُّ معاملٌ مشروعٌ في العواملِ
+  #      الستّةِ الأخرى ويحسبُ فيها صحيحًا. فلم يُرفَعْ من التوقيعِ — إذ الرفضُ
+  #      يُخفي العطبَ ولا يُصلِحُه — بل حُرِسَ ببذرةٍ مستقلّة.
+  # (EN) `**` is the only one of the seven that rejects anything today (14 of 25
+  #      measured combinations). Recorded debt: exponentiation with a BOOLEAN
+  #      operand miscomputes — `7 ** صحيح` yields 0, expected 7. That is a
+  #      lowering defect, not a domain one: booleans compute correctly under the
+  #      other six operators. Rejecting it would hide the defect, not fix it.
+  - id: op.power
+    symbol: "**"
+    name_ar: "أسّ"
+    name_en: power
+    category: arithmetic
+    arity: binary
+    precedence: 2
+    associativity: right
+    since: "1.0.0"
+    status: stable
+    example: "2 ** 10"
+    operands:
+      accepts:
+        - { left: [numeric, logical], right: [numeric, logical], result: promote }
 
   # ── وصول (أعلى أسبقية) ──────────────────────────────────────────────
   - { id: op.dot,      symbol: ".",   name_ar: "وصول للعضو",     name_en: member_access, category: access, arity: binary, precedence: 1, associativity: left, since: "1.0.0", status: stable }

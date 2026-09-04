@@ -1,0 +1,11 @@
+# @rule: gr.decl.parameters
+# @description: حدّي — معامل بلا نوع مُستنتَج نصًّا مع رقم: العقد `textual × numeric ⇒ type.string` في operators.yaml يلزم المعامِل كما يلزم المتغيّر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: عمر: 5
+
+دالة وسم(أ، ب)
+    ارجع أ + ب
+نهاية
+
+اطبع_سطر(وسم("عمر: ", 5))

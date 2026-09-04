@@ -102,3 +102,18 @@ errors:
     ar: لغة ص تقرأ الملفات حصراً بترميز UTF-8 لدعم العربية والإنجليزية معاً. الترميزات الأخرى (Windows-1256، ISO-8859-6) تُنتج بايتات غير صالحة عند قراءتها كـUTF-8. هذا الخطأ يكشف بايتاً يخالف بنية UTF-8.
     en: Sad reads files strictly as UTF-8 to support both Arabic and Latin scripts. Other encodings (Windows-1256, ISO-8859-6) produce invalid bytes when read as UTF-8. This error flags a byte that violates
       UTF-8 structure.
+- code: LEX_UNTERMINATED_COMMENT
+  id: LEX007
+  category: lexical
+  title:
+    ar: تعليق كتلة غير مغلق
+    en: Unterminated block comment
+  brief:
+    ar: 'تعليق كتلة بدأ بـ #* ولم يُغلق بـ *#'
+    en: 'Block comment opened with #* was never closed with *#'
+  fix_hint:
+    ar: 'أضف *# في نهاية التعليق. وإن أردت تعليق سطرٍ واحد فاستعمل # وحدها بلا نجمة.'
+    en: 'Add *# at the end of the comment. For a single-line comment use # alone, without the asterisk.'
+  detailed:
+    ar: 'بدأ تعليق كتلة بـ #* (أو تعليق توثيقي بـ #**) ولم يُغلق قبل نهاية الملف، فابتلع بقية المصدر. لغة ص تتطلّب إغلاق كل تعليق كتلة بـ *# (أو **# للتوثيقي).'
+    en: 'A block comment opened with #* (or a doc comment with #**) and was never closed before end-of-file, so it swallowed the rest of the source. Sad requires every block comment to close with *# (or **# for doc comments).'

@@ -8,6 +8,22 @@
 # (EN) ns09 — absence-contract RFC stage ب: typed map fetch, compiled-path
 #      typed-param guard (SEM045), and the truthful type-checker Void inference.
 # ═══════════════════════════════════════════════════════════════════════════════
+#
+# ⚠️ **دَينٌ مُقيَّدٌ — هذا السكربتُ لا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل.**
+#
+#      خمسةُ نداءاتٍ للمفسّرِ وأربعةَ عشرَ للمترجم. قِيس ٢٠٢٦-٠٩-٠٤: ١٣ إخفاقًا كلُّها موسومةٌ «مفسّر» — أي أنّ نصفَه المترجِميَّ (وهو أكبرُ نصفَيه) يعمل.
+#
+#      وسببُ التقييدِ أنّ «متجاهَل» يجبُ أن يبقى قرارًا لا نسيانًا: حارسٌ
+#      لا يُنادَى ليس حارسًا، وسكوتُه يُقرأُ خضرةً وهو صمتٌ. والوصلُ
+#      يحتاجُ فصلَ نصفِ المفسّرِ أوّلًا — وذاك عملٌ مقصودٌ لا يُقحَمُ في
+#      رقعةِ تنظيف. والنظيرُ الموصولُ: ns03 (بوّابةٌ في ci.yml).
+# (EN) TRACKED DEBT — no gate or workflow invokes this script. "Ignored"
+#      must stay a decision, never an oversight: a guard nobody calls is
+#      not a guard, and its silence reads as green while it is only
+#      silence. Wiring it up requires splitting the interpreter half out
+#      first, which is deliberate work, not a cleanup patch. The wired
+#      sibling is ns03 (a gate in ci.yml).
+
 set -u
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 RUN="$ROOT/build/bin/Debug/sad-run.exe";  [ -x "$RUN" ]  || RUN="$ROOT/dist/Debug/sad-run.exe"

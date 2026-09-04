@@ -95,35 +95,41 @@ arabic.WelcomeTitle=مرحباً بك في مُثبّت لغة ص
 arabic.WelcomeDesc=سيقوم هذا المعالج بتثبيت لغة ص {#MyAppVersion} على جهازك.%n%nلغة ص هي لغة برمجة عربية حديثة تدعم البرمجة الكائنية والمتزامنة والتحويل إلى كود أصلي عبر LLVM.%n%nيُنصح بإغلاق جميع البرامج قبل الاستمرار.
 arabic.FinishTitle=اكتمل تثبيت لغة ص
 arabic.FinishDesc=تم تثبيت لغة ص بنجاح على جهازك.%n%nيمكنك الآن كتابة برامجك بالعربية والتشغيل مباشرة.
-arabic.LaunchSad=تشغيل مفسّر لغة ص (REPL)
-arabic.OpenDocs=فتح التوثيق
+arabic.LaunchSad=عرض أوامر لغة ص
 arabic.InstallVSCode=تثبيت إضافة VS Code (يتطلب VS Code)
 
 ; المكونات
-arabic.CompInterpreter=المفسر (أساسي — تشغيل ملفات .ص مباشرة)
-arabic.CompCompiler=المترجم sadc (تحويل .ص إلى ملف تنفيذي أصلي — يتطلب LLVM)
+arabic.CompHub=مركز الأدوات (أساسي — sad build وsad check…)
+arabic.CompCompiler=المترجم sad-build/sadc (تحويل .ص إلى ملف تنفيذي أصلي)
 arabic.CompLSP=خادم LSP + أداة التنسيق (دعم المحررات: VS Code / Vim / Neovim...)
 arabic.CompPkg=مدير الحزم sad-pkg (تثبيت مكتبات لغة ص)
 arabic.CompStdlib=المكتبة القياسية (io, math, string, network, graphics, database)
 arabic.CompVSCode=إضافة VS Code (تمييز الصياغة، التكملة التلقائية، التشغيل المباشر)
-arabic.CompREPL=بيئة REPL التفاعلية
 arabic.GroupCore=المكونات الأساسية
 arabic.GroupTools=أدوات التطوير
 arabic.GroupIDE=دعم بيئات التطوير
 
 ; الطريق
 arabic.AddToPath=إضافة لغة ص إلى متغير PATH (يسمح باستخدامها من أي مكان)
-arabic.AssocExt=ربط امتداد .ص بمفسر لغة ص (نقر مزدوج للتشغيل)
+arabic.AssocExt=ربط امتداد .ص بمترجم لغة ص (نقر مزدوج للترجمة)
 arabic.DesktopIcon=إنشاء اختصار على سطح المكتب
 arabic.StartMenuIcon=إنشاء مجموعة في قائمة ابدأ
 
 ; خطأ
-arabic.LLVM_Warning=تحذير: المترجم (sadc) يتطلب LLVM 18.%n%nيمكنك تحميل LLVM من:%nhttps://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.8%n%nبدون LLVM، يمكنك فقط استخدام المفسر (sad).
+; (AR) ⚠️ `LLVM_Warning` **بلا قارئ**: لا `{cm:LLVM_Warning}` ولا
+;      `CustomMessage('LLVM_Warning')` في الملفّ، و`LLVMWarningShown` يُسنَدُ
+;      ولا يُقرَأ. وهذا سابقٌ لهذا التغيير، وقد صُحِّحَ نصُّها (كان يقول إنّ
+;      بلا LLVM «يمكنك فقط استخدام المفسر») كي لا تكذبَ إن وُصِلَت يومًا.
+; (EN) LLVM_Warning has no reader: no {cm:} reference, no CustomMessage call,
+;      and LLVMWarningShown is assigned but never read. That predates this
+;      change; the text was corrected (it used to say that without LLVM you
+;      could only use the interpreter) so it will not lie if ever wired up.
+arabic.LLVM_Warning=المترجم (sadc) مربوطٌ بـLLVM ساكنًا — لا تحتاج تثبيت شيء.
 arabic.VSCode_NotFound=لم يُعثر على VS Code. يمكنك تثبيت الإضافة لاحقاً من:%nhttps://marketplace.visualstudio.com/items?itemName=sad-lang.sad-language
 
 ; صفحة LLVM
 arabic.LLVMPageTitle=إعداد مترجم لغة ص (LLVM)
-arabic.LLVMPageDesc=يتطلب المترجم sadc مكتبة LLVM 18 أو أحدث
+arabic.LLVMPageDesc=المترجم يربط LLVM ساكنًا — لا حاجة لتثبيتها (الصفحة متروكة سجلًّا)
 arabic.LLVMFound=تم اكتشاف LLVM تلقائياً
 arabic.LLVMNotFound=لم يُعثر على LLVM على جهازك
 arabic.LLVMPathLabel=مسار مجلد LLVM:
@@ -144,32 +150,30 @@ english.WelcomeTitle=Welcome to the Sad Language Installer
 english.WelcomeDesc=This wizard will install Sad Programming Language {#MyAppVersion} on your computer.%n%nSad is a modern Arabic programming language with OOP, async/await, and LLVM native compilation support.%n%nPlease close all other applications before continuing.
 english.FinishTitle=Sad Language Installation Complete
 english.FinishDesc=Sad Programming Language has been successfully installed.%n%nYou can now write and run Sad programs.
-english.LaunchSad=Launch Sad Interpreter (REPL)
-english.OpenDocs=Open Documentation
+english.LaunchSad=Show Sad commands
 english.InstallVSCode=Install VS Code Extension (requires VS Code)
 
-english.CompInterpreter=Interpreter (core — run .ص files directly)
-english.CompCompiler=Compiler sadc (compile .ص to native binary — requires LLVM)
+english.CompHub=Tool hub (core — sad build, sad check…)
+english.CompCompiler=Compiler sad-build/sadc (compile .ص to a native binary)
 english.CompLSP=LSP Server + Formatter (VS Code / Vim / Neovim / Emacs support)
 english.CompPkg=Package Manager sad-pkg (install Sad libraries)
 english.CompStdlib=Standard Library (io, math, string, network, graphics, database)
 english.CompVSCode=VS Code Extension (syntax highlighting, autocomplete, run support)
-english.CompREPL=Interactive REPL Environment
 english.GroupCore=Core Components
 english.GroupTools=Developer Tools
 english.GroupIDE=IDE Support
 
 english.AddToPath=Add Sad to PATH (use from anywhere in terminal)
-english.AssocExt=Associate .ص files with Sad Interpreter
+english.AssocExt=Associate .ص files with the Sad compiler
 english.DesktopIcon=Create Desktop Shortcut
 english.StartMenuIcon=Create Start Menu Group
 
-english.LLVM_Warning=Warning: The compiler (sadc) requires LLVM 18.%n%nDownload LLVM from:%nhttps://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.8%n%nWithout LLVM, you can only use the interpreter (sad).
+english.LLVM_Warning=The compiler (sadc) links LLVM statically — nothing to install.
 english.VSCode_NotFound=VS Code not found. You can install the extension later from:%nhttps://marketplace.visualstudio.com/items?itemName=sad-lang.sad-language
 
 ; LLVM Page
 english.LLVMPageTitle=Sad Compiler Setup (LLVM)
-english.LLVMPageDesc=The sadc compiler requires LLVM 18 or later
+english.LLVMPageDesc=The compiler links LLVM statically - nothing to install (page kept as record)
 english.LLVMFound=LLVM was automatically detected
 english.LLVMNotFound=LLVM was not found on your computer
 english.LLVMPathLabel=LLVM installation folder:
@@ -188,23 +192,63 @@ english.LLVMHeadersFound=Headers: present ✓
 ; ──────────────────────────────────────────────────────────────────────────────
 [Types]
 Name: "full";     Description: "حزمة كاملة — كل المكونات"
-Name: "dev";      Description: "مطوّر — مفسر + أدوات + VS Code"
-Name: "minimal";  Description: "أساسي — المفسر فقط"
+; (AR) 🔑 وُصِفَ «dev» بأنّه «المترجم + أدوات» و«minimal» بأنّه «المركزُ
+;      والمترجم» — و`Tools\Compiler` كان `Types: full custom` وحدَهما، فلا
+;      يقعُ في أيٍّ منهما. والوصفانِ **كانا صادقَينِ قبلَ حذفِ المفسّر** حينَ
+;      كان `sad.exe` هو المحرّك؛ فلمّا صار مركزَ إرسالٍ لا محرّكًا، صارَ
+;      «minimal» موزِّعًا بلا شيءٍ يوزِّعُ إليه. فالتصحيحُ في `Types` لا في
+;      النصّ: المترجّمُ والمكتبةُ القياسيّةُ يدخلانِ الأدنى، وبهما يعملُ
+;      `sad build`.
+; (EN) "dev" claimed compiler+tools and "minimal" claimed hub+compiler, while
+;      Tools\Compiler was Types: full custom only, so neither selected it.
+;      Both descriptions were TRUE before the interpreter was deleted, when
+;      sad.exe was itself the engine; once it became a dispatcher, "minimal"
+;      installed a dispatcher with nothing to dispatch to. Fixed in Types,
+;      not in the text: the compiler and the standard library now belong to
+;      the smallest type, which is what makes `sad build` work.
+Name: "dev";      Description: "مطوّر — المترجم + أدوات + VS Code"
+Name: "minimal";  Description: "أساسي — المركز والمترجم والمكتبة القياسية"
 Name: "custom";   Description: "مخصص — اختر بنفسك"; Flags: iscustom
 
 ; ──────────────────────────────────────────────────────────────────────────────
+; ══════════════════════════════════════════════════════════════════════════════
+; (AR) 🔑 **ما يَعِدُ به هذا المُثبِّتُ يجبُ أن يُنسَخَ فعلًا.**
+;
+;      كان المستخدمُ يؤشِّرُ «بيئة REPL التفاعلية» فيقولُ المُثبِّتُ «تمّ»
+;      ولا يُنسَخُ شيء: مصدرُ `sad-repl.exe` يحملُ `skipifsourcedoesntexist`
+;      فالكذبةُ صامتة. ومعه اختصارا «مفسر لغة ص (REPL)» في قائمةِ ابدأ
+;      وسطحِ المكتب، وتشغيلٌ بعدَ التثبيتِ بـ`sad.exe --repl` — وثلاثتُها
+;      تُنادي عَلَمًا لا وجودَ له.
+;
+;      ⚠️ واقترانُ `.ص` كان `sad.exe "%1"` — والمركزُ **يرفضُ** ملفًّا
+;      عاريًا عمدًا (اختبار `HubMain_BareFileRejected` يُثبِّتُ ذلك). فنقرةٌ
+;      مزدوجةٌ على ملفِّ مصدرٍ كانت تفتحُ نافذةً تقولُ «أمر غير معروف».
+;      وقد رُبِطَ الاقترانُ بـ`sad build` — وهو الفعلُ القائمُ لملفِّ مصدر.
+;
+;      والمكوّنُ الأساسيُّ أُعيدت تسميتُه `Core\Hub`: `sad.exe`
+;      مركزُ أدواتٍ لا مفسّرًا، والاسمُ كان يصفُ محرّكًا محذوفًا.
+; (EN) What this installer promises must actually be copied. A user could
+;      tick "Interactive REPL Environment", be told it was installed, and
+;      receive nothing: the sad-repl.exe source carries
+;      skipifsourcedoesntexist, so the lie was silent. With it went two
+;      shortcuts and a post-install run, all invoking a flag that no longer
+;      exists. The .ص association ran `sad.exe "%1"`, and the hub rejects a
+;      bare file BY DESIGN (HubMain_BareFileRejected pins this), so a
+;      double-click opened a window saying "unknown command"; it is now
+;      bound to `sad build`. The core component is renamed Core\Hub: sad.exe
+;      is a tool hub, and the old name described a deleted engine.
+; ══════════════════════════════════════════════════════════════════════════════
 [Components]
 ; ──── مجموعة: المكونات الأساسية
 Name: "Core";             Description: "{cm:GroupCore}";      Types: full dev minimal custom; Flags: fixed
-Name: "Core\Interpreter"; Description: "{cm:CompInterpreter}"; Types: full dev minimal custom; Flags: fixed
-Name: "Core\Stdlib";      Description: "{cm:CompStdlib}";      Types: full dev custom
+Name: "Core\Hub"; Description: "{cm:CompHub}"; Types: full dev minimal custom; Flags: fixed
+Name: "Core\Stdlib";      Description: "{cm:CompStdlib}";      Types: full dev minimal custom
 
 ; ──── مجموعة: أدوات التطوير
-Name: "Tools";            Description: "{cm:GroupTools}";     Types: full dev custom
-Name: "Tools\Compiler";   Description: "{cm:CompCompiler}";   Types: full custom
+Name: "Tools";            Description: "{cm:GroupTools}";     Types: full dev minimal custom
+Name: "Tools\Compiler";   Description: "{cm:CompCompiler}";   Types: full dev minimal custom
 Name: "Tools\LSP";        Description: "{cm:CompLSP}";        Types: full dev custom
 Name: "Tools\Pkg";        Description: "{cm:CompPkg}";        Types: full dev custom
-Name: "Tools\REPL";       Description: "{cm:CompREPL}";       Types: full dev custom
 
 ; ──── مجموعة: دعم بيئات التطوير
 Name: "IDE";              Description: "{cm:GroupIDE}";       Types: full dev custom
@@ -230,29 +274,58 @@ Name: "{app}\stdlib\string"
 Name: "{app}\stdlib\network"
 Name: "{app}\stdlib\graphics"
 Name: "{app}\stdlib\database"
-Name: "{app}\docs"
 Name: "{app}\examples"
 Name: "{localappdata}\sad-lang\packages"
 Name: "{localappdata}\sad-lang\cache"
 
 ; ──────────────────────────────────────────────────────────────────────────────
 [Files]
-; ──── المفسر (أساسي — دائماً)
-Source: "..\..\build\bin\Release\sad.exe";           DestDir: "{app}\bin"; DestName: "sad.exe";     Flags: ignoreversion; Components: Core\Interpreter
-Source: "..\..\build\bin\Release\sad_core.dll";      DestDir: "{app}\bin"; Flags: ignoreversion skipifsourcedoesntexist; Components: Core\Interpreter
+; ──── مركز الأدوات (أساسي — دائماً)
+Source: "..\..\build\bin\Release\sad.exe";           DestDir: "{app}\bin"; DestName: "sad.exe";     Flags: ignoreversion; Components: Core\Hub
 
 ; ──── المترجم
-Source: "..\..\build\bin\Release\sadc.exe";          DestDir: "{app}\bin"; DestName: "sadc.exe";    Flags: ignoreversion skipifsourcedoesntexist; Components: Tools\Compiler
+; (AR) 🔑 كان المصدرُ `sadc.exe` — و**لا يُنتِجُه أيُّ هدفِ بناء** (يقولُها
+;      `tools/build/FindSad.cmake` نصًّا). ومعه `skipifsourcedoesntexist`،
+;      فالمستخدمُ يؤشِّرُ «المترجم» ويُقالُ له «تمّ» ولا يُنسَخُ شيء — كذبةٌ
+;      صامتة. والمبنيُّ اسمُه `sad-build.exe`، ويُنسَخُ **باسمَين**: `sad-build`
+;      لأنّ المركزَ يجدُ إخوتَه بمسحِ البادئةِ `sad-` فبه وحدَه يعملُ
+;      `sad build`، و`sadc` لأنّ الوثائقَ تَعِدُ به. وهو عينُ ما يفعلُه
+;      `scripts/ci/release_tools.sh`. ولا `skipifsourcedoesntexist` بعدَ اليوم.
+; (EN) The source was sadc.exe, which NO build target produces (FindSad.cmake
+;      says so verbatim) - and with skipifsourcedoesntexist the user ticked
+;      "compiler", was told it installed, and got nothing: a silent lie. The
+;      built name is sad-build.exe, copied under BOTH names: sad-build so the
+;      hub registers it by its sad- prefix and `sad build` works, and sadc
+;      because the docs promise it. Same rule as release_tools.sh, and the
+;      skip flag is gone.
+Source: "..\..\build\bin\Release\sad-build.exe";      DestDir: "{app}\bin"; DestName: "sad-build.exe"; Flags: ignoreversion; Components: Tools\Compiler
+Source: "..\..\build\bin\Release\sad-build.exe";      DestDir: "{app}\bin"; DestName: "sadc.exe";      Flags: ignoreversion; Components: Tools\Compiler
 
 ; ──── خادم LSP + المنسَّق
-Source: "..\..\build\bin\Release\sad-lsp.exe";       DestDir: "{app}\bin"; DestName: "sad-lsp.exe"; Flags: ignoreversion skipifsourcedoesntexist; Components: Tools\LSP
+; (AR) 🔑 **`sad-check` مُلزَمٌ في كلِّ حزمةٍ ولم يكنْ يُشحَنُ في أيِّ
+;      مُثبِّتِ ويندوز.** `scripts/ci/release_tools.sh` يُعلِنُه في
+;      `SAD_REQUIRED_STANDARD` — أي «ما يجبُ أن يوجدَ وإلّا سقطَ الشوط» —
+;      وحارسُ `check_installer_tool_lists.py` كان يقيسُ `install.sh`
+;      و`install.ps1` وحدَهما، فلم يرَ المُثبِّتَين هذين أصلًا. ووُضِعَ
+;      تحتَ `Core\Hub` المثبَّتِ (`Flags: fixed`) لأنّه مُلزَمٌ لا اختياريّ.
+; (EN) sad-check is hard-required in every package and was shipped by NEITHER
+;      Windows installer. release_tools.sh declares it in
+;      SAD_REQUIRED_STANDARD, and check_installer_tool_lists.py measured only
+;      install.sh and install.ps1, so it never looked at these files. Placed
+;      under the fixed Core\Hub component because it is required, not optional.
+Source: "..\..\build\bin\Release\sad-check.exe";      DestDir: "{app}\bin"; DestName: "sad-check.exe"; Flags: ignoreversion; Components: Core\Hub
+; (AR) 🔑 نُزِعَ `skipifsourcedoesntexist` عن `sad-lsp`: هو مُلزَمٌ في
+;      `SAD_REQUIRED_STANDARD`، والعَلَمُ يجعلُ غيابَه صامتًا فتُبنى حزمةٌ
+;      ناقصةٌ بلا كلمة. المُلزَمُ يُنسَخُ أو يُخفِقُ البناء.
+; (EN) skipifsourcedoesntexist removed from sad-lsp: it is hard-required by
+;      SAD_REQUIRED_STANDARD, and the flag made its absence silent, building
+;      an incomplete package without a word. Required means copied or fail.
+Source: "..\..\build\bin\Release\sad-lsp.exe";       DestDir: "{app}\bin"; DestName: "sad-lsp.exe"; Flags: ignoreversion; Components: Tools\LSP
 Source: "..\..\build\bin\Release\sad-fmt.exe";       DestDir: "{app}\bin"; DestName: "sad-fmt.exe"; Flags: ignoreversion skipifsourcedoesntexist; Components: Tools\LSP
 
 ; ──── مدير الحزم
 Source: "..\..\build\bin\Release\sad-pkg.exe";       DestDir: "{app}\bin"; DestName: "sad-pkg.exe"; Flags: ignoreversion skipifsourcedoesntexist; Components: Tools\Pkg
 
-; ──── REPL
-Source: "..\..\build\bin\Release\sad-repl.exe";      DestDir: "{app}\bin"; DestName: "sad-repl.exe"; Flags: ignoreversion skipifsourcedoesntexist; Components: Tools\REPL
 
 ; ──── المكتبة القياسية
 Source: "..\..\stdlib\core\*";       DestDir: "{app}\stdlib\core";       Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
@@ -271,7 +344,7 @@ Source: "..\..\stdlib\ui\*";         DestDir: "{app}\stdlib\ui";         Flags: 
 Source: "..\..\tools\vscode-extension\sad-language-2.0.0.vsix"; DestDir: "{tmp}"; Flags: ignoreversion deleteafterinstall; Components: IDE\VSCode
 
 ; ──── الأمثلة
-Source: "..\..\examples\*"; DestDir: "{app}\examples"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Interpreter
+Source: "..\..\examples\*"; DestDir: "{app}\examples"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Hub
 
 ; ──── الأيقونة
 Source: "..\assets\sad_icon.ico"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
@@ -285,15 +358,18 @@ Source: "..\assets\sad.config.json"; DestDir: "{app}"; Flags: ignoreversion skip
 ; ──────────────────────────────────────────────────────────────────────────────
 [Icons]
 ; قائمة ابدأ
-Name: "{group}\مفسر لغة ص (REPL)";    Filename: "{app}\bin\sad.exe"; Parameters: "--repl"; WorkingDir: "{userdocs}"; IconFilename: "{app}\sad_icon.ico"; Tasks: startmenu; Components: Core\Interpreter
-Name: "{group}\محرر لغة ص";           Filename: "{app}\bin\sad.exe"; Parameters: "--edit"; WorkingDir: "{userdocs}"; IconFilename: "{app}\sad_icon.ico"; Tasks: startmenu; Components: Core\Interpreter
 Name: "{group}\مدير الحزم sad-pkg";   Filename: "{app}\bin\sad-pkg.exe"; WorkingDir: "{userdocs}"; IconFilename: "{app}\sad_icon.ico"; Tasks: startmenu; Components: Tools\Pkg
-Name: "{group}\التوثيق";              Filename: "{app}\docs\index.html"; Tasks: startmenu; Components: Core\Interpreter
-Name: "{group}\أمثلة لغة ص";         Filename: "{app}\examples"; Tasks: startmenu; Components: Core\Interpreter
+; (AR) ⚠️ حُذف اختصارُ «التوثيق»: لا سطرَ `[Files]` واحدٌ ينسخُ إلى
+;      `{app}\docs`، فالمجلَّدُ يُنشَأُ فارغًا و`index.html` لا يوجدُ أصلًا.
+;      فنقرةُ الاختصارِ تفتحُ نافذةَ «الملف غير موجود».
+; (EN) The "documentation" shortcut was removed: not one [Files] line copies
+;      anything into {app}\docs, so the folder is created empty and
+;      index.html never exists - the shortcut opened a file-not-found dialog.
+Name: "{group}\أمثلة لغة ص";         Filename: "{app}\examples"; Tasks: startmenu; Components: Core\Hub
 Name: "{group}\إزالة تثبيت لغة ص";   Filename: "{uninstallexe}"; Tasks: startmenu
 
 ; سطح المكتب
-Name: "{autodesktop}\لغة ص (REPL)";   Filename: "{app}\bin\sad.exe"; Parameters: "--repl"; IconFilename: "{app}\sad_icon.ico"; Tasks: desktopicon; Components: Core\Interpreter
+Name: "{autodesktop}\لغة ص";          Filename: "{app}\bin\sad.exe"; Parameters: "--help"; IconFilename: "{app}\sad_icon.ico"; Tasks: desktopicon; Components: Core\Hub
 
 ; ──────────────────────────────────────────────────────────────────────────────
 [Registry]
@@ -302,8 +378,7 @@ Root: HKCR; Subkey: ".ص";                         ValueType: string; ValueName:
 Root: HKCR; Subkey: ".sad";                        ValueType: string; ValueName: ""; ValueData: "SadSourceFile";          Flags: uninsdeletevalue; Tasks: assocext
 Root: HKCR; Subkey: "SadSourceFile";               ValueType: string; ValueName: ""; ValueData: "ملف لغة ص";              Flags: uninsdeletekey; Tasks: assocext
 Root: HKCR; Subkey: "SadSourceFile\DefaultIcon";   ValueType: string; ValueName: ""; ValueData: "{app}\sad_icon.ico,0";   Tasks: assocext
-Root: HKCR; Subkey: "SadSourceFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\sad.exe"" ""%1"""; Tasks: assocext
-Root: HKCR; Subkey: "SadSourceFile\shell\edit\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\sad.exe"" ""--edit"" ""%1"""; Tasks: assocext
+Root: HKCR; Subkey: "SadSourceFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\sad.exe"" ""build"" ""%1"""; Tasks: assocext
 
 ; ──── PATH (كل المستخدمين — يتطلب صلاحية admin)
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "SAD_HOME"; ValueData: "{app}"; Flags: uninsdeletevalue; Tasks: addtopath
@@ -324,10 +399,10 @@ Filename: "{code:GetVSCodePath}"; Parameters: "--install-extension ""{tmp}\sad-l
 ; ──── إشعار النظام بتغيير PATH
 Filename: "{sys}\cmd.exe"; Parameters: "/C setx SAD_HOME ""{app}"" && setx SAD_STDLIB ""{app}\stdlib"""; Flags: runhidden; Tasks: addtopath
 
-; ──── بعد التثبيت — تشغيل REPL
-Filename: "{app}\bin\sad.exe"; Parameters: "--repl"; Description: "{cm:LaunchSad}"; Flags: nowait postinstall skipifsilent unchecked; Components: Core\Interpreter
-; ──── فتح التوثيق
-Filename: "{app}\docs\index.html"; Description: "{cm:OpenDocs}"; Flags: nowait postinstall shellexec skipifsilent unchecked
+; ──── بعد التثبيت — عرض الأوامر المتاحة
+Filename: "{app}\bin\sad.exe"; Parameters: "--help"; Description: "{cm:LaunchSad}"; Flags: nowait postinstall skipifsilent unchecked; Components: Core\Hub
+; (AR) وكذلك «فتح التوثيق» بعدَ التثبيت — نفسُ الملفِّ غيرِ الموجود.
+; (EN) The post-install "open documentation" action went to the same file.
 
 ; ──────────────────────────────────────────────────────────────────────────────
 [UninstallRun]
@@ -858,7 +933,16 @@ begin
   Result := False;
   { تخطي صفحة LLVM إذا لم يختر المستخدم المترجم }
   if PageID = LLVMPage.ID then begin
-    Result := not WizardIsComponentSelected('Tools\Compiler');
+    { (AR) 🔑 صفحةُ LLVM تُتخطّى دائمًا. المترجّمُ يربطُ LLVM **ساكنًا**
+      (cmake/llvm.cmake: "sad-build.exe imports no LLVM DLL")، فلا شيءَ
+      يُثبَّت. وكانت الصفحةُ تطلبُ مسارَ LLVM ثمّ **تمنعُ المتابعةَ** برسالةٍ
+      تعرضُ «التثبيت بدون sadc» — أي تحرمُ المستخدمَ من مترجّمٍ يعمل. }
+    { (EN) The LLVM page is always skipped: the compiler links LLVM
+      statically (cmake/llvm.cmake: "sad-build.exe imports no LLVM DLL"), so
+      there is nothing to install. The page asked for an LLVM path and then
+      BLOCKED the wizard, offering to install without sadc - denying the user
+      a compiler that works. }
+    Result := True;
   end;
 end;
 

@@ -19,6 +19,21 @@
 #      the absence-contract RFC (sadlang/rfcs#58) — a declared follow-up wave.
 #
 # الاستعمال:  bash tests/behavior/null_safety/ns07_void_crossing_check.sh
+#
+# ⚠️ **دَينٌ مُقيَّدٌ — هذا السكربتُ لا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل.**
+#
+#      **ثمانيةُ نداءاتٍ للمفسّرِ وصفرٌ للمترجم** — سكربتٌ أحاديُّ المحرّكِ بالكامل. قِيس ٢٠٢٦-٠٩-٠٤: ٤٩ توكيدًا، ١٦ نجح و٣٣ أخفق، وكلُّها لغيابِ المفسّر. ⇒ مصفوفةُ SEM045 (عبورُ الفراغِ) لأوضاعِ «افتراضي/تعلم/جامع/إنتاج» **غيرُ مقيسةٍ اليومَ بشيء**. وهذه خسارةُ تغطيةٍ حقيقيّةٌ لا تُسَدُّ بتحريرِ هذا الملفّ: تحتاجُ نقلَ التوكيداتِ إلى المترجمِ وإثباتَ ما يقابلُها فيه.
+#
+#      وسببُ التقييدِ أنّ «متجاهَل» يجبُ أن يبقى قرارًا لا نسيانًا: حارسٌ
+#      لا يُنادَى ليس حارسًا، وسكوتُه يُقرأُ خضرةً وهو صمتٌ. والوصلُ
+#      يحتاجُ فصلَ نصفِ المفسّرِ أوّلًا — وذاك عملٌ مقصودٌ لا يُقحَمُ في
+#      رقعةِ تنظيف. والنظيرُ الموصولُ: `ns03` (بوّابةٌ في `ci.yml`).
+# (EN) TRACKED DEBT — no gate or workflow invokes this script. "Ignored"
+#      must stay a decision, never an oversight: a guard nobody calls is
+#      not a guard, and its silence reads as green while it is only
+#      silence. Wiring it up requires splitting the interpreter half out
+#      first, which is deliberate work, not a cleanup patch. The wired
+#      sibling is ns03 (a gate in ci.yml).
 # ============================================================================
 set -u
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"

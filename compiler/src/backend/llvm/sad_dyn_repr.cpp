@@ -810,6 +810,28 @@ namespace Sad
             return cg.builder_->CreateIntToPtr(dynPayloadI64(cg, dyn), ptrTy, "dyn.ptr");
         }
 
+        // (AR) التوثيقُ الكاملُ في الرأس. الترتيبُ هنا **ملزِمٌ**: الخانةُ تُحمَّلُ
+        //      أوّلًا، وإلّا رأى `isSadDyn` مؤشّرَ الخانةِ فحكمَ «ليست موسومة»
+        //      ومرّرَ **عنوانَ الخانةِ** مؤشّرَ كائنٍ — فيُقرأُ وسمُ %SadDyn حقلَ
+        //      vtable. ثمّ يُفَكُّ الوسمُ، ثمّ يُرفَعُ المقبضُ i64 مؤشّرًا.
+        // (EN) Full rationale in the header. The order is binding: load the slot
+        //      first, or isSadDyn sees the slot pointer, concludes "not tagged", and
+        //      the slot ADDRESS is used as the object pointer — the %SadDyn kind byte
+        //      is then read as the vtable field.
+        llvm::Value *objectPointerOperand(LLVMCodeGen &cg, llvm::Value *v,
+                                          const std::string &name)
+        {
+            if (!v || !cg.builder_ || !cg.context_)
+                return v;
+            v = loadDynSlot(cg, v);
+            if (isSadDyn(v))
+                v = unpackPtr(cg, v);
+            if (v->getType()->isIntegerTy())
+                v = cg.builder_->CreateIntToPtr(
+                    v, llvm::PointerType::getUnqual(*cg.context_), name);
+            return v;
+        }
+
         llvm::Value *unpackI64(LLVMCodeGen &cg, llvm::Value *dyn)
         {
             auto &b = *cg.builder_;
@@ -1136,6 +1158,114 @@ namespace Sad
             llvm::Value *lI = dynPayloadI64(cg, l);
             llvm::Value *rI = dynPayloadI64(cg, r);
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 **ذراعُ النصِّ** — الدَّينُ المُعلَنُ أدناه يُسدَّد.
+            //
+            //      كان الموزِّعُ بلا ذراعٍ لوسمِ `Str` في الحسابيّات، فيسقطُ النصُّ
+            //      إلى `add i64 payload, payload` — **جمعُ مؤشّرَين عدديًّا** — ثمّ
+            //      يُوسَمُ الناتجُ `Int` فيُطبَعُ عددًا:
+            //
+            //          دالة ضم(أ، ب) ارجع أ + ب نهاية
+            //          اطبع_سطر(ضم(4، 9))            ⇒ 13
+            //          اطبع_سطر(ضم("مر"، "حبا"))     ⇒ 281394832499039
+            //
+            //      وموضعا النداءِ متعارضانِ فتُعمَّمُ الخانةُ إلى `أي` ⇒ `%SadDyn`،
+            //      فلا يملكُ الأمامُ ما يحكمُ به: **السؤالُ سؤالُ زمنِ تشغيل**.
+            //
+            //      والموزِّعُ بلا فروعٍ عمدًا (يحسبُ النتيجتَينِ ويختارُ بالوسم)،
+            //      والضمُّ يستدعي زمنَ التشغيل فلا يصلحُ له اختيارٌ — فيُفتَحُ هنا
+            //      تفرّعٌ حقيقيٌّ يُغلَقُ بـ`phi` عندَ نهايةِ الدالّة.
+            //
+            //      والتحويلُ بـ`dynToString` وهو الموزِّعُ عينُه الذي يستعملُه
+            //      المسارُ الساكنُ في `emitStringConcat` — فلا دلالةَ ثانيةً للضمّ:
+            //      `"عمر: " + 5` يُنصِّصُ الخمسةَ كما يُنصِّصُها المسارُ الساكن.
+            //
+            // ⚠️ وما عدا `+` من الحسابيّاتِ على وسمِ `Str` يُوجَّهُ إلى حارسِ
+            //      الغيابِ أدناه ⇒ **RUN053** «العملية 'حسابية' تتطلّب قيمة رقمية» —
+            //      وهو نصُّ الكتالوجِ عينُه ولا يلزمُه رمزٌ جديد.
+            //      ويشملُ ذلك `*`: فتكرارُ النصِّ (`نص × رقم`) مُنفَّذٌ في المسارِ
+            //      الساكنِ ولمّا يُنفَّذْ في الديناميِّ — **فجوةٌ مُعلَنةٌ محروسةٌ ببذرة**،
+            //      والخطأُ الصائحُ خيرٌ من القمامةِ الصامتة.
+            // (EN) 🔑 String arm — paying the debt declared below.
+            //
+            //      The dispatcher had no arm for the `Str` tag in arithmetic, so a string
+            //      fell through to `add i64 payload, payload` — adding two POINTERS — and
+            //      the result was tagged Int and printed as a number. The slot is `أي`
+            //      because two call sites disagreed, so the frontend cannot decide: the
+            //      question is a runtime one. The dispatcher is deliberately branchless,
+            //      but concatenation calls into the runtime, so a real branch is opened
+            //      here and closed with a phi at the end of the function.
+            //      Conversion goes through `dynToString` — the same dispatcher the static
+            //      path uses in `emitStringConcat` — so there is no second meaning for
+            //      concatenation.
+            //      Every other arithmetic op on a `Str` tag is routed into the absence
+            //      guard below ⇒ RUN053 «arithmetic requires a numeric value», the same
+            //      catalog text, needing no new code. That includes `*`: string repetition
+            //      exists on the static path and not yet on the dynamic one — a declared
+            //      gap guarded by a seed. A loud error beats silent garbage.
+            // ════════════════════════════════════════════════════════════════
+            const bool dynTextualAdd =
+                (op == SIROpcode::ADD_I64 || op == SIROpcode::ADD_F64);
+            llvm::Value *dynTextResult = nullptr;
+            llvm::BasicBlock *dynTextBlock = nullptr;
+            llvm::BasicBlock *dynTextMerge = nullptr;
+            llvm::Value *dynEitherStr = nullptr;
+            {
+                auto *strKind = llvm::ConstantInt::get(i8, DynKind::Str);
+                dynEitherStr = b.CreateOr(
+                    b.CreateICmpEQ(dynKindByte(cg, l), strKind, "dyn.str.l"),
+                    b.CreateICmpEQ(dynKindByte(cg, r), strKind, "dyn.str.r"),
+                    "dyn.str.either");
+            }
+
+            if (dynTextualAdd && b.GetInsertBlock() != nullptr &&
+                b.GetInsertBlock()->getParent() != nullptr)
+            {
+                llvm::Function *fn = b.GetInsertBlock()->getParent();
+                llvm::BasicBlock *textBB =
+                    llvm::BasicBlock::Create(ctx, "dyn.cat", fn);
+                llvm::BasicBlock *numBB =
+                    llvm::BasicBlock::Create(ctx, "dyn.num", fn);
+                dynTextMerge = llvm::BasicBlock::Create(ctx, "dyn.cat.merge", fn);
+                b.CreateCondBr(dynEitherStr, textBB, numBB);
+
+                b.SetInsertPoint(textBB);
+                llvm::Value *leftText = dynToString(cg, l);
+                llvm::Value *rightText = dynToString(cg, r);
+
+                llvm::Type *bytePtr = leftText->getType();
+                llvm::FunctionType *lenTy =
+                    llvm::FunctionType::get(i64, {bytePtr}, false);
+                llvm::FunctionCallee lenFn =
+                    cg.module_->getOrInsertFunction("strlen", lenTy);
+                llvm::Value *leftLen = b.CreateCall(lenFn, {leftText}, "dyn.cat.llen");
+                llvm::Value *rightLen = b.CreateCall(lenFn, {rightText}, "dyn.cat.rlen");
+                llvm::Value *total = b.CreateAdd(
+                    b.CreateAdd(leftLen, rightLen, "dyn.cat.sum"),
+                    llvm::ConstantInt::get(i64, 1), "dyn.cat.total");
+
+                llvm::FunctionType *allocTy =
+                    llvm::FunctionType::get(bytePtr, {i64}, false);
+                llvm::FunctionCallee allocFn =
+                    cg.module_->getOrInsertFunction("malloc", allocTy);
+                llvm::Value *buffer = b.CreateCall(allocFn, {total}, "dyn.cat.buf");
+
+                b.CreateMemCpy(buffer, llvm::MaybeAlign(1), leftText,
+                               llvm::MaybeAlign(1), leftLen);
+                llvm::Value *tail = b.CreateGEP(i8, buffer, leftLen, "dyn.cat.tail");
+                b.CreateMemCpy(tail, llvm::MaybeAlign(1), rightText,
+                               llvm::MaybeAlign(1), rightLen);
+                llvm::Value *terminator =
+                    b.CreateGEP(i8, tail, rightLen, "dyn.cat.end");
+                b.CreateStore(llvm::ConstantInt::get(i8, 0), terminator);
+
+                dynTextResult = packDyn(cg, buffer, DynKind::Str);
+                dynTextBlock = b.GetInsertBlock();
+                b.CreateBr(dynTextMerge);
+
+                b.SetInsertPoint(numBB);
+            }
+
             // (AR) حارس الغياب (نظير RUN053، توافق المحرّكين): معاملٌ وسمُه Null أو
             //      Void كان يُفكُّ حمولتُه صفرًا فيُنتج «غياب + 1 = 1» بخروجِ صفرٍ —
             //      بينما المفسّر يُبلغ RUN053 ويخرج 1. الفحص هنا في **الباب الواحد**
@@ -1164,8 +1294,21 @@ namespace Sad
                 llvm::Value *rAbsent = b.CreateOr(
                     b.CreateICmpEQ(rK, nullK, "dyn.abs.rn"),
                     b.CreateICmpEQ(rK, voidK, "dyn.abs.rv"), "dyn.abs.r");
+                // (AR) 🔑 ووسمُ `Str` يدخلُ البابَ نفسَه لكلِّ عمليّةٍ ليست
+                //      جمعًا: الجمعُ له ذراعُه أعلاه، وما عداه لا دلالةَ له على نصٍّ
+                //      فيُبلَّغُ RUN053 بدل جمعِ مؤشّرَين عدديًّا. وهذا هو الدَّينُ
+                //      المُعلَنُ في التعليقِ أعلاه، يُسدَّدُ في البابِ الواحدِ لا في
+                //      مواضعِ الظهور.
+                // (EN) 🔑 The `Str` tag enters the same door for every op that is
+                //      not addition: addition has its arm above, and nothing else has a
+                //      meaning on a string, so RUN053 is reported instead of adding two
+                //      pointers numerically. This is the debt declared above, paid in the
+                //      single door rather than at symptom sites.
+                llvm::Value *dynBadTextual =
+                    dynTextualAdd ? llvm::ConstantInt::getFalse(ctx) : dynEitherStr;
                 emitDynDivZeroGuard(cg,
-                                    b.CreateOr(lAbsent, rAbsent, "dyn.abs.either"),
+                                    b.CreateOr(b.CreateOr(lAbsent, rAbsent, "dyn.abs.either"),
+                                               dynBadTextual, "dyn.abs.or.str"),
                                     lI, Sad::Compiler::kNumericRequiredRun053Msg,
                                     "dyn.absence");
             }
@@ -1402,7 +1545,26 @@ namespace Sad
                 llvm::ConstantInt::get(i8, DynKind::Int), "dyn.res.kind");
             llvm::Value *fBits = b.CreateBitCast(fRes, i64, "dyn.res.fbits");
             llvm::Value *resPayload = b.CreateSelect(isFloatRes, fBits, iRes, "dyn.res.payload");
-            return makeDyn(cg, resKind, resPayload);
+            llvm::Value *numericResult = makeDyn(cg, resKind, resPayload);
+
+            // (AR) 🔑 إغلاقُ الفرعِ النصّيّ: النتيجةُ من الكتلةِ التي وصلَت
+            //      فعلًا (لا من الكتلةِ التي أنشأناها) — فحُرّاسُ الغيابِ والقسمةِ
+            //      تُنشئُ كتلًا وسيطةً فيتبدّلُ سلفُ الفرعِ العدديّ.
+            // (EN) 🔑 Close the textual branch: the incoming block is the one that
+            //      actually reached here, not the one we created — the absence and
+            //      division guards create blocks, so the numeric predecessor shifts.
+            if (dynTextMerge != nullptr && dynTextResult != nullptr)
+            {
+                llvm::BasicBlock *numericEnd = b.GetInsertBlock();
+                b.CreateBr(dynTextMerge);
+                b.SetInsertPoint(dynTextMerge);
+                llvm::PHINode *merged =
+                    b.CreatePHI(numericResult->getType(), 2, "dyn.cat.phi");
+                merged->addIncoming(dynTextResult, dynTextBlock);
+                merged->addIncoming(numericResult, numericEnd);
+                return merged;
+            }
+            return numericResult;
         }
 
         llvm::Value *dynCompare(LLVMCodeGen &cg, DynCmp cmp, llvm::Value *l, llvm::Value *r)

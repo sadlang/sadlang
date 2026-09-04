@@ -1,13 +1,31 @@
 ---
 name: sad-lang-dev
-description: 'تطوير لغة ص نفسها — العمل على كود C++ للمفسر والمترجم وأنظمتها الداخلية. Use when: developing the Sad language implementation (not writing .ص code), modifying the lexer/parser/AST/interpreter/compiler (sadc), adding or editing builtin functions, working with the error/diagnostics system, editing language-truth YAML (Single Source of Truth), running the codegen pipeline (scripts/codegen/gen_*.py), adding a new keyword/directive/type, building a new internal subsystem, regenerating generated C++ from YAML, understanding the layered architecture (Lexer→Parser→AST→SIR→LLVM), understanding the BMAD governance system (_bmad-output), understanding how language subsystems interlock (a builtin touches docs/YAML + errors + module/section + tests). Covers: error system (shared/errors + language-truth/errors), builtins system (interpreter/src/builtins + language-truth/builtins + codegen), documentation/YAML SoT system, interconnected-systems map, governance onboarding, strict dev workflow + Definition of Done, task delivery conditions + impact analysis + final checklist (which compiler/interpreter/tooling paths a change affects, how to confirm nothing was forgotten), extensibility — adding entirely new language subsystems.'
+description: 'تطوير لغة ص نفسها — العمل على كود C++ للمترجّم وأنظمته الداخلية. Use when: developing the Sad language implementation (not writing .ص code), modifying the lexer/parser/AST/SIR/compiler (sad-build), adding or editing builtin functions, working with the error/diagnostics system, editing language-truth YAML (Single Source of Truth), running the codegen pipeline (scripts/codegen/gen_*.py), adding a new keyword/directive/type, building a new internal subsystem, regenerating generated C++ from YAML, understanding the layered architecture (Lexer→Parser→AST→SIR→LLVM), understanding the BMAD governance system (_bmad-output), understanding how language subsystems interlock (a builtin touches docs/YAML + errors + module/section + tests). Covers: error system (shared/errors + language-truth/errors), builtins system (language-truth/builtins + codegen), documentation/YAML SoT system, interconnected-systems map, governance onboarding, strict dev workflow + Definition of Done, task delivery conditions + impact analysis + final checklist (which compiler/tooling paths a change affects, how to confirm nothing was forgotten), extensibility — adding entirely new language subsystems.'
 ---
 
 # مهارة مبرمج لغة ص (تطوير اللغة نفسها)
 
+> ⚠️ **مسارُ المحرّكِ الواحد — اقرأ هذا قبلَ أيِّ أمرٍ هنا.**
+>
+> حُذِفَ المفسّرُ الشجريُّ (`interpreter/`) وأداتُه `sad-run`، ومعهما
+> `sad-repl` والآلةُ الافتراضيّة. **المترجّمُ وحدَه محرّكُ اللغة.** فما بقيَ
+> في هذه المهارةِ من ذكرِ المفسّرِ **سِجلٌّ لا تعليمات**:
+>
+> | كان | صار |
+> |---|---|
+> | `--target sad-run` | `--target sad sad-build` |
+> | `sad-run.exe ملف.ص` | `sad build ملف.ص` ثمّ تشغيلُ الناتج |
+> | `runner.py --interp …` | `runner.py --compiler …` وحدَه |
+> | «قارن المفسّر والمترجم» | التوكيدُ المُدوَّنُ `@expected` هو المرجع |
+>
+> ومعيارُ الصوابِ لم يعدْ تطابقَ محرّكَين، بل قاعدةً مُعلَنةً في
+> `language-truth/` يقيسُها توكيدٌ مُدوَّن. ولا يُفعَّلُ وضعٌ بغيابِ وسيط:
+> `runner.py` بلا `--compiler` يُخفِقُ صراحةً.
+
+
 > **هذه المهارة لتطوير اللغة، وليست لكتابة الكود بها.**
 > إن كنت تكتب برنامجاً بلغة ص (ملف `.ص`) فاستخدم مهارة `sad-lang-coding`.
-> هذه المهارة تخصّ تعديل كود C++ للمفسر/المترجم وأنظمة اللغة الداخلية.
+> هذه المهارة تخصّ تعديل كود C++ للمترجّم وأنظمة اللغة الداخلية.
 
 ## متى تُستخدم هذه المهارة
 
@@ -46,7 +64,7 @@ language-truth/*.yaml  →  scripts/codegen/gen_*.py  →  shared/*/generated/*.
 4. **اتبع قائمة المهام الجاهزة** لنوع مهمتك في [./references/playbooks.md](./references/playbooks.md) (دالة/خطأ/كلمة/إصلاح مترجم) — تدفّق مرقّم وكيفية تعديل الكود.
 5. **اقرأ 3 ملفات مشابهة** في نفس المجلد قبل الكتابة لاتباع النمط (BF-25, CW-04).
 6. **التزم بقواعد الكود الـ30 (CW-*)** وقواعد إصلاح الأخطاء الـ30 (BF-*)، واتبع [./references/workflow.md](./references/workflow.md) (التسلسل + معيار الإنجاز).
-7. **اختبر في المفسر والمترجم معاً** عبر `runner.py` — إن عمل في `sad-run` وفشل في `sadc` فالمشكلة في SIR/LLVM (BF-08).
+7. **اختبر بالمترجّم** عبر `runner.py --compiler` — والمرجعُ توكيدُ `@expected` المُدوَّنُ في البذرة، لا تطابقُ محرّكَين.
 8. **قبل إعلان الإنجاز:** أجرِ تحليل الأثر واجتَز قائمة التسليم الموحّدة في [./references/delivery-checklist.md](./references/delivery-checklist.md). المهمة ليست «مُسلَّمة» حتى تمرّ كل بوّاباتها.
 
 ## شروط التسليم (متى تكون المهمة «منجَزة» فعلاً)
@@ -56,7 +74,7 @@ language-truth/*.yaml  →  scripts/codegen/gen_*.py  →  shared/*/generated/*.
 1. **تحليل الأثر مكتمل** — حدّدتَ كل مسار/نظام متأثّر (مفسر، مترجم SIR/LLVM، VM، وأدوات
    `language-truth`: LSP/المنسّق/الحزم) ولم تُهمل شيئاً بلا مبرّر.
 2. **الاختبارات موجودة وتمرّ 100%** — `.ص` إيجابي+سلبي، و`runner.py --level P0` + القسم + `P1` خضراء، بلا تراجع.
-3. **البناء نظيف** — `sad-run` (Debug) و`sadc` (Release) بلا أخطاء/تحذيرات جديدة.
+3. **البناء نظيف** — `sad` و`sad-build` (Debug وRelease) بلا أخطاء/تحذيرات جديدة.
 4. **التوليد متسق** — YAML + `generated/` متطابقان في نفس الـ commit.
 5. **التوثيق والأخطاء مدمجان** — `description_ar/en` مكتملان؛ الأخطاء عبر الكتالوج الموحَّد.
 6. **سجل المطوّر + قائمة الملفات** موثّقان (ما نُفِّذ، الاختبارات، القرارات، كل ملف تغيّر).

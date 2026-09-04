@@ -10,6 +10,22 @@
 # التشغيل من جذر المستودع:
 #   bash tests/behavior/null_safety/ns10_void_bare_slots_fields_receivers_check.sh
 # ============================================================================
+#
+# ⚠️ **دَينٌ مُقيَّدٌ — هذا السكربتُ لا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل.**
+#
+#      تسعةُ نداءاتٍ للمفسّرِ واثنانِ للمترجم. قِيس ٢٠٢٦-٠٩-٠٤: **لا يبدأُ أصلًا** — يشترطُ وجودَ `sad-run` فيخرجُ برسالةِ «ابنِ sad-run وsad-build أولًا»، وهي تأمرُ المستخدمَ ببناءِ هدفٍ لا وجودَ له. فصفرُ توكيدٍ يُقاس.
+#
+#      وسببُ التقييدِ أنّ «متجاهَل» يجبُ أن يبقى قرارًا لا نسيانًا: حارسٌ
+#      لا يُنادَى ليس حارسًا، وسكوتُه يُقرأُ خضرةً وهو صمتٌ. والوصلُ
+#      يحتاجُ فصلَ نصفِ المفسّرِ أوّلًا — وذاك عملٌ مقصودٌ لا يُقحَمُ في
+#      رقعةِ تنظيف. والنظيرُ الموصولُ: ns03 (بوّابةٌ في ci.yml).
+# (EN) TRACKED DEBT — no gate or workflow invokes this script. "Ignored"
+#      must stay a decision, never an oversight: a guard nobody calls is
+#      not a guard, and its silence reads as green while it is only
+#      silence. Wiring it up requires splitting the interpreter half out
+#      first, which is deliberate work, not a cleanup patch. The wired
+#      sibling is ns03 (a gate in ci.yml).
+
 set -u
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 RUN="$ROOT/build/bin/Debug/sad-run.exe"

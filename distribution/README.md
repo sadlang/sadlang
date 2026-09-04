@@ -18,12 +18,10 @@ distribution/
 │   └── SadLang.Sad.installer.yaml  # معلومات التثبيت
 │
 ├── scoop/                          # حزمة Scoop (Windows)
-│   ├── sad.json                    # الحزمة الكاملة
-│   └── sad-interpreter.json        # المفسر فقط
+│   └── sad.json                    # الحزمة القياسية
 │
-├── homebrew/                       # حزمة Homebrew (macOS/Linux)
-│   ├── sad.rb                      # الحزمة الكاملة
-│   └── sad-interpreter.rb          # المفسر فقط
+├── homebrew/                       # حزمة Homebrew (Linux)
+│   └── sad.rb                      # الحزمة القياسية
 │
 ├── deb/                            # حزمة deb (Debian/Ubuntu)
 │   └── build-deb.sh               # سكريبت بناء .deb
@@ -43,14 +41,17 @@ https://github.com/sad-lang/sad-language/releases
 
 | الملف | المحتوى | مثال |
 |-------|---------|------|
-| `sad-v*.zip/.tar.gz` | **المفسر فقط** + مكتبة قياسية + أدوات أساسية | `sad-v1.0.0-windows-x86_64.zip` |
-| `sad-full-v*.zip/.tar.gz` | **المفسر + المترجم** + كل الأدوات | `sad-full-v1.0.0-linux-x86_64.tar.gz` |
-| `sadc-v*.zip/.tar.gz` | **المترجم فقط** (يتطلب LLVM 18) | `sadc-v1.0.0-macos-aarch64.tar.gz` |
+| `sad-v*.zip/.tar.gz` | **المترجم** + مكتبة قياسية + أدوات أساسية | `sad-v1.0.0-windows-x86_64.zip` |
+| `sad-full-v*.zip/.tar.gz` | **المترجم** + كل الأدوات (LSP · REPL · مدير الحزم · المنسّق) | `sad-full-v1.0.0-linux-x86_64.tar.gz` |
+
+<!-- (AR) 🔑 صنفان لا ثلاثة: زالَ `sadc-v*` («المترجم فقط») مع زوالِ المفسّر —
+     لم يبقَ ما يميّزُه عن القياسيّة. وLLVM تُربَطُ ساكنًا فلا شرطَ على المستخدم. -->
 
 ### المنصات المدعومة:
 - `windows-x86_64`
-- `linux-x86_64`, `linux-aarch64`
-- `macos-x86_64`, `macos-aarch64` (Apple Silicon)
+- `linux-x86_64`, `linux-aarch64` (القياسية) · `linux-x86_64` (الكاملة)
+
+<!-- (AR) ⚠️ ماك غيرُ مبنيّةٍ في مجرى الإصدار (أُزيلت مدخلاتُها من المصفوفتَين). -->
 
 ---
 
@@ -69,9 +70,8 @@ curl -fsSL https://sad-lang.org/install.sh | sh
 ```
 
 السكريبتات تعرض قائمة تفاعلية لاختيار:
-- `[1]` المفسر فقط — الأفضل لمعظم المستخدمين
-- `[2]` المترجم فقط — يتطلب LLVM 18
-- `[3]` الحزمة الكاملة
+- `[1]` الحزمة القياسية — الأفضل لمعظم المستخدمين
+- `[2]` الحزمة الكاملة — + LSP و REPL ومدير الحزم والمنسّق
 
 ---
 
@@ -93,16 +93,13 @@ winget install SadLang.Sad
 # إضافة bucket لغة ص
 scoop bucket add sad https://github.com/sad-lang/scoop-bucket
 
-# الحزمة الكاملة (مفسر + مترجم)
+# الحزمة القياسية
 scoop install sad
-
-# المفسر فقط
-scoop install sad-interpreter
 ```
 
 **نشر الحزمة:**
 1. أنشئ مستودع `sad-lang/scoop-bucket`
-2. ضع `sad.json` و `sad-interpreter.json` في الجذر
+2. ضع `sad.json` في الجذر
 
 ---
 
@@ -111,16 +108,13 @@ scoop install sad-interpreter
 # إضافة tap لغة ص
 brew tap sad-lang/tap
 
-# الحزمة الكاملة
+# الحزمة القياسية
 brew install sad
-
-# المفسر فقط
-brew install sad-interpreter
 ```
 
 **نشر الحزمة:**
 1. أنشئ مستودع `sad-lang/homebrew-tap`
-2. ضع `sad.rb` و `sad-interpreter.rb` في مجلد `Formula/`
+2. ضع `sad.rb` في مجلد `Formula/`
 
 ---
 

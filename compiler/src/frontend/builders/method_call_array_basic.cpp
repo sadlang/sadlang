@@ -9,6 +9,8 @@
 #include <optional>
 #include <limits>
 #include "sir_builder.h"
+#include "error_manager.h"
+#include "error_codes.h"
 #include "builders/method_call_builder.h"
 // (AR) ثوابت أسماء طرق الأنواع المُولَّدة
 #include "builtin_registry.h"
@@ -79,17 +81,37 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) أزل / pop - إزالة آخر عنصر
-                // (EN) pop / remove - remove last element
+                // ================================================================
+                // (AR) 🔑 «أزل» — فجوةٌ **تُعلَن** ولا تُصرَفُ بدلالةِ غيرِها.
+                //
+                //      مصدرُ الحقيقة (`type_methods.yaml`) يُعلِنُها «إزالةُ عنصرٍ
+                //      **بالقيمة**» و`status: stable`. والخلفيّةُ لا تملكُ إلّا
+                //      `BUILTIN_ARRAY_REMOVE` وهي إزالةٌ **بالفهرس**.
+                //
+                //      وكان هنا انهيارٌ داخليّ (معاملٌ واحدٌ حيث تلزمُ خانتان)،
+                //      فوُضِعَ ‎-1‎ فهرسًا — وهي التهجئةُ الصحيحةُ لـ«احذف_اخير»
+                //      **وليست** لـ«أزل». فصارَ `م.أزل(1)` على `[1، 2، 3]` يحذفُ
+                //      **آخرَ عنصرٍ** ويخرجُ بصفر: جوابٌ خاطئٌ صامتٌ لطريقةٍ
+                //      مستقرّة (مقيسٌ ٢٠٢٦-٠٩-٠٣ في مراجعةٍ خصميّة). ولم تكشفْه
+                //      بذرةٌ واحدة: ثلاثُ بذورٍ في الشجرةِ تستعملُ `.أزل(` وثلاثتُها
+                //      `@skip_compiler`. ⇒ يُعلَنُ القيدُ بـSEM053.
+                // (EN) 🔑 «أزل» is declared remove-BY-VALUE and stable in the SoT;
+                //      the backend only has remove-BY-INDEX. A -1 index was supplied here
+                //      to stop an internal error — the correct spelling for «احذف_اخير»
+                //      and not for this method — so `م.أزل(1)` on [1,2,3] deleted the LAST
+                //      element and exited 0: a silent wrong answer for a stable method,
+                //      invisible because all three seeds using it are @skip_compiler.
+                // ================================================================
                 if (methodName == TM::Array::REMOVE)
                 {
-                    std::string resultReg = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
-                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer); // (AR) العنصر المحذوف
-                    inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    Sad::Errors::RenderContext context;
+                    context.placeholders = {
+                        {"method", std::string(TM::Array::REMOVE)},
+                        {"target", std::string(sadTypeKindArabicName(SadTypeKind::Array))}};
+                    b_.errors_.push_back(
+                        Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                            Sad::Errors::ErrorCode::SEM_TYPE_METHOD_ABSENT_IN_COMPILER, context));
+                    return BuildResult();
                 }
 
                 // (AR) فارغة / empty - التحقق إن كانت المصفوفة فارغة
@@ -317,6 +339,18 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+                    // (AR) 🔑 الفهرسُ **معاملٌ إلزاميّ**: `BUILTIN_ARRAY_REMOVE`
+                    //      تلزمُه خانتان (المصفوفة، الفهرس)، وكان يُبعَثُ بواحدةٍ
+                    //      فتنهارُ الخلفيّةُ بـ«التعليمة (ARRAY_REMOVE) وصلت بعدد
+                    //      معاملات غير متوقَّع» — خطأً داخليًّا يطلبُ الإبلاغَ عن
+                    //      علّةِ مترجِمٍ، ثمّ يخرجُ بصفرٍ ويُسلّمُ ثنائيًّا.
+                    //      و‎-1‎ هي التهجئةُ التي تفهمُها الخلفيّةُ «آخرَ عنصر»
+                    //      (`normalizeArrayIndex` يحوّلُ السالبَ إلى موجب).
+                    // (EN) The index is a REQUIRED operand: the backend needs two
+                    //      and was given one, so it raised an INTERNAL error and
+                    //      then exited 0 with a binary. -1 is how the backend
+                    //      spells "last element".
+                    inst.operands.push_back(SIROperand::ConstantI64(-1));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);

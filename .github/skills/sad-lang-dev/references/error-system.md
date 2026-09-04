@@ -153,6 +153,6 @@ shared/errors/  (كود المعالجة والعرض — يُحرَّر يدو�
 # اختبارات المولّد + حُرّاس الترحيل (الفعّال V5: منها حارس ICE وحارس placeholders)
 python -m pytest scripts/codegen/test_gen_error_messages_v5.py -q
 
-# اختبارات سلوكية end-to-end لأخطاء الدوال المضمنة (تتطلّب بناء sad-run)
+# اختبارات سلوكية end-to-end لأخطاء الدوال المضمنة (تتطلّب بناء sad-build)
 python -m pytest tests/builtin_errors/ -q
 ```

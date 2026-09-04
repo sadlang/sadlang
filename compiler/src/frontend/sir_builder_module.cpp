@@ -28,6 +28,15 @@
 #include "sad_ui/generated/color_table_generated.h" // (AR) تعداد الألوان المدمَج (SoT)
 #include "sad_event_layout_generated.h" // (② rfcs#46) تخطيط «حدث» المولَّد (SAD_EVENT_FIELDS/SAD_EVENT_STRUCT_NAME) — SoT صنف الحدث المضمَّن
 #include "utf8_utils.h"
+// (AR) رموزُ كتالوجِ الأخطاء ومعجمُ أسماءِ الأنواعِ المولَّد — تضمينٌ صريحٌ لا
+//      عبورًا: فحصُ هدفِ «امتداد» يبني رسالتَه من الكتالوج ويقارنُ أسماءَ
+//      الأنواعِ المدمجةِ بالمعجم، فلا نصَّ عربيًّا مكتوبًا هنا.
+// (EN) Error-catalog codes and the generated type-name lexicon — included
+//      explicitly, not in passing: the extension-target check builds its
+//      message from the catalog and compares built-in type names against the
+//      lexicon, so no Arabic literal is written here.
+#include "error_codes.h"
+#include "sad_type_kind_generated.h"
 #include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
@@ -2253,6 +2262,127 @@ namespace Sad
                     // (EN) Restore previous state
                     currentFunction_ = prevFunction;
                     currentBlock_ = prevBlock;
+                }
+
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 **هدفُ «امتداد» يجبُ أن يكونَ نوعًا موجودًا.**
+                //
+                //      قاعدةُ `gr.oop.extension` في مصدرِ الحقيقةِ تقولُ نصًّا:
+                //      «إضافة دوالٍ لنوعٍ **موجود** دون تعديل تعريفه»، وميزانيّتُها
+                //      تُفرِدُ بذرتَينِ سالبتَين. ولم يكنْ في المترجّمِ فحصٌ لذلك
+                //      البتّة: `امتداد نوع_غير_موجود` كان يُترجَمُ ويعملُ ويرجعُ
+                //      بصفر (بذرة `rules_matrix/30_oop/gr.oop.extension/negative/
+                //      060_ext_unknown_type`). فالقاعدةُ مُعلَنةٌ ولا يقيسُها أحد.
+                //
+                //      ⚠️ **وموضعُ الفحصِ آخرُ `buildModule` عمدًا** — لا داخلَ
+                //      `buildStatement_Extension`. فالأصنافُ تُبنى في المرحلة ١٫٢٥
+                //      والأسماءُ المستعارةُ في المرحلة ٢ **بترتيبِ العبارات**؛ فلو
+                //      فُحِصَ الهدفُ لحظةَ معالجةِ الامتدادِ لَرُفِضَ `امتداد أ`
+                //      المكتوبُ قبلَ `نوع أ = ب` رفضًا كاذبًا. والرفضُ الكاذبُ
+                //      أسوأُ من القبولِ الذي حلَّ محلَّه. وهنا يكونُ كلُّ نوعٍ
+                //      قد سُجِّل، فالحكمُ مستقلٌّ عن الترتيب.
+                //
+                //      والقبولُ واسعٌ عمدًا: صنفٌ أو اسمٌ مستعارٌ لصنفٍ
+                //      (`module_->getClass`)، أو تعدادٌ (`adtEnumTable_`)، أو
+                //      سمةٌ (`getTrait`)، أو معاملُ نوعٍ للامتدادِ نفسِه، أو اسمُ
+                //      نوعٍ مدمجٍ **مأخوذٌ من معجمِ الأنواعِ المولَّد** لا مكتوبٌ
+                //      هنا. فلا يُرفَضُ إلّا ما لا يُعرَفُ من أيِّ بابٍ منها.
+                // (EN) An extension's target must be an existing type. The SoT rule
+                //      gr.oop.extension says so in words ("adding functions to an
+                //      EXISTING type") and budgets two negative seeds, yet the
+                //      compiler had no such check at all: extending an undefined type
+                //      compiled, ran and returned zero. The check sits at the END of
+                //      buildModule on purpose, not inside buildStatement_Extension:
+                //      classes are built in Phase 1.25 but type aliases in Phase 2 in
+                //      STATEMENT ORDER, so judging at extension-processing time would
+                //      falsely reject `امتداد أ` written above `نوع أ = ب` — and a
+                //      false rejection is worse than the acceptance it replaces. By
+                //      here every type is registered, so the verdict is order-free.
+                //      Acceptance is deliberately wide: a class or class alias, an
+                //      enum, a trait, one of the extension's own type parameters, or a
+                //      built-in type name TAKEN FROM THE GENERATED TYPE LEXICON rather
+                //      than written here.
+                // ═══════════════════════════════════════════════════════════════
+                if (program)
+                {
+                    for (const auto &stmt : *program)
+                    {
+                        auto *extDecl = dynamic_cast<Sad::AST::ExtensionDecl *>(stmt.get());
+                        if (!extDecl)
+                            continue;
+
+                        const std::string &target = extDecl->targetType;
+                        if (target.empty())
+                            continue;
+
+                        bool known = false;
+                        if (module_ && module_->getClass(target))
+                            known = true;
+                        if (!known && classTable_.count(target) > 0)
+                            known = true;
+                        if (!known && adtEnumTable_.count(target) > 0)
+                            known = true;
+                        if (!known && module_ && module_->getTrait(target))
+                            known = true;
+                        if (!known)
+                        {
+                            for (const auto &typeParam : extDecl->typeParameters)
+                            {
+                                if (typeParam.name == target)
+                                {
+                                    known = true;
+                                    break;
+                                }
+                            }
+                        }
+                        // (AR) 🔑 اسمُ النوعِ المدمجِ يُسأَلُ عنه المعجمُ المولَّدُ نفسُه
+                        //      (`sadTypeKindFromArabicName` من `types.yaml`)، ولا تُكتَبُ
+                        //      هنا قائمةُ أنواعٍ باليد — فقائمةٌ يدويّةٌ تتباعدُ عن
+                        //      المعجمِ بأوّلِ نوعٍ يُضاف، فيُرفَضُ امتدادٌ صحيحٌ رفضًا
+                        //      كاذبًا. و`Unknown` تعني «ليس لفظَ نوعٍ سطحيًّا».
+                        // (EN) A built-in type name is resolved by the generated lexicon
+                        //      itself (sadTypeKindFromArabicName, from types.yaml); no
+                        //      hand-written type list lives here, since one would drift
+                        //      from the lexicon the first time a type is added and would
+                        //      then falsely reject a valid extension. Unknown means "not
+                        //      a surface type word".
+                        if (!known &&
+                            Sad::Types::sadTypeKindFromArabicName(target) !=
+                                SadTypeKind::Unknown)
+                        {
+                            known = true;
+                        }
+
+                        if (!known)
+                        {
+                            // (AR) 🔑 الخانةُ تُملأ ولا تُطبَعُ حرفًا: الكتالوجُ يُرجِعُ
+                            //      القالبَ بخانتِه `{name}`، فمن لم يملأْها طبعَ
+                            //      «الصنف '{name}' غير معرَّف» — رسالةً تُظهِرُ اسمَ
+                            //      الخانةِ بدل اسمِ النوعِ المفقود.
+                            // (EN) The placeholder is filled, not printed: the catalog
+                            //      returns the template with its {name} slot, so a caller
+                            //      that skips substitution prints the slot's own name
+                            //      instead of the missing type's.
+                            std::string undefinedClassMsg =
+                                ::Sad::Errors::getErrorDescription(
+                                    ::Sad::Errors::ErrorCode::SEM_UNDEFINED_CLASS,
+                                    ::Sad::Errors::Language::ARABIC);
+                            const std::string nameSlot = "{name}";
+                            for (std::size_t at = undefinedClassMsg.find(nameSlot);
+                                 at != std::string::npos;
+                                 at = undefinedClassMsg.find(nameSlot, at))
+                            {
+                                undefinedClassMsg.replace(at, nameSlot.size(), target);
+                                at += target.size();
+                            }
+
+                            errors_.push_back(
+                                "[" +
+                                ::Sad::Errors::getErrorCodeString(
+                                    ::Sad::Errors::ErrorCode::SEM_UNDEFINED_CLASS) +
+                                "] " + undefinedClassMsg);
+                        }
+                    }
                 }
 
                 // (AR) الخروج من النطاق العام الذي أنشأناه في المرحلة 1.5

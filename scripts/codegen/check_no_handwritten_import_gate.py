@@ -26,7 +26,11 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8")
 
 الجذر = Path(__file__).resolve().parents[2]
-مسارات = [الجذر / "compiler" / "src", الجذر / "interpreter" / "src", الجذر / "shared" / "builtins" / "src"]
+# (AR) 🔑 حُذف جذرُ المفسّر: زالَ من الشجر. والمسحُ يتخطّى المفقودَ
+#      بـ`continue` فلا يُحمِّر — فكان الاسمُ دعوى «مقيسٌ» لا يقيسُها أحد.
+# (EN) The interpreter root is removed: it left the tree. The scan `continue`s
+#      past a missing root and never reddens, so the name was an unmeasured claim.
+مسارات = [الجذر / "compiler" / "src", الجذر / "shared" / "builtins" / "src"]
 
 نص_الوحدات = (الجذر / "shared/builtins/include/module_definitions.h").read_text(encoding="utf-8")
 أسماء_الوحدات = sorted({م.group(1) for م in re.finditer(r"\{\"([^\"]+)\",\s*ModuleId::(\w+)\}", نص_الوحدات)

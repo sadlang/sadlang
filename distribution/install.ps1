@@ -10,9 +10,8 @@
 #
 # خيارات متقدمة / Advanced:
 #   .\install.ps1                          # تثبيت تفاعلي (يسألك ماذا تريد)
-#   .\install.ps1 -Components full         # المفسر + المترجم + كل الأدوات
-#   .\install.ps1 -Components compiler     # المترجم فقط (يتطلب LLVM)
-#   .\install.ps1 -Components interpreter  # المفسر فقط
+#   .\install.ps1 -Components standard     # المترجم + المكتبة القياسية + الأدوات الأساسية
+#   .\install.ps1 -Components full         # المترجم + كل الأدوات
 #   .\install.ps1 -Version 1.2.0           # إصدار محدد
 #   .\install.ps1 -InstallDir "D:\sad"     # مجلد مخصص
 #   .\install.ps1 -NoPath                  # لا يضيف لمتغير PATH
@@ -22,13 +21,12 @@
 #
 # مصدر التحميل / Download Source:
 #   يتم تحميل الملفات من GitHub Releases:
-#   https://github.com/SalehKadah/s-programming-language/releases
+#   https://github.com/sadlang/sadlang/releases
 #
 #   ملفات التحميل المتاحة لكل إصدار:
 #   ┌─────────────────────────────────────────────────────────────────┐
-#   │ sad-v{VER}-windows-x86_64.zip        المفسر + الأدوات الأساسية│
-#   │ sad-full-v{VER}-windows-x86_64.zip   المفسر + المترجم + كل شيء│
-#   │ sadc-v{VER}-windows-x86_64.zip       المترجم فقط (LLVM)       │
+#   │ sad-v{VER}-windows-x86_64.zip        المترجم + الأدوات الأساسية│
+#   │ sad-full-v{VER}-windows-x86_64.zip   المترجم + كل الأدوات     │
 #   │                                                                │
 #   │ نفس الملفات متاحة لـ:                                         │
 #   │   linux-x86_64, linux-aarch64                                  │
@@ -39,7 +37,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet("interpreter", "compiler", "full")]
+    [ValidateSet("standard", "full")]
     [string]$Components,
 
     [string]$Version = "latest",
@@ -55,8 +53,15 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-$REPO_OWNER = "SalehKadah"
-$REPO_NAME  = "s-programming-language"
+# (AR) 🔑 المستودعُ العلنيُّ الذي يصدرُ منه الإصدارُ الرسميّ.
+#      وكان يشيرُ إلى مستودعٍ صارَ **خاصًّا**، فكانت كلُّ محاولةِ تثبيتٍ في
+#      العالمِ تقعُ على 404، واسمُ مستودعٍ خاصٍّ مكتوبٌ في سكربتٍ يُشحَنُ للناس.
+# (EN) 🔑 The public repository the official release is issued from.
+#      This pointed at a repository that has since been made PRIVATE, so every
+#      install attempt in the wild would 404 — and a private repository's name
+#      sat in a script shipped to users.
+$REPO_OWNER = "sadlang"
+$REPO_NAME  = "sadlang"
 $GITHUB_API = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME"
 
 # ──────────────────────────────────────────────────────────────────────
@@ -92,41 +97,32 @@ function Show-ComponentMenu {
     Write-Host "  ║  اختر ما تريد تثبيته / Choose what to install:              ║" -ForegroundColor White
     Write-Host "  ╠════════════════════════════════════════════════════════════════╣" -ForegroundColor White
     Write-Host "  ║                                                              ║" -ForegroundColor White
-    Write-Host "  ║  [1] المفسر فقط (interpreter)" -NoNewline -ForegroundColor White
-    Write-Host "                                ║" -ForegroundColor White
+    Write-Host "  ║  [1] الحزمة القياسية (standard)" -NoNewline -ForegroundColor White
+    Write-Host "                              ║" -ForegroundColor White
     Write-Host "  ║      sad.exe + المكتبة القياسية + الأدوات" -NoNewline -ForegroundColor DarkGray
     Write-Host "                  ║" -ForegroundColor White
     Write-Host "  ║      ← الأفضل لمعظم المستخدمين" -NoNewline -ForegroundColor Green
     Write-Host "                             ║" -ForegroundColor White
     Write-Host "  ║                                                              ║" -ForegroundColor White
-    Write-Host "  ║  [2] المترجم فقط (compiler)" -NoNewline -ForegroundColor White
-    Write-Host "                                 ║" -ForegroundColor White
-    Write-Host "  ║      sadc.exe — يحوّل .ص إلى ملف تنفيذي أصلي" -NoNewline -ForegroundColor DarkGray
-    Write-Host "             ║" -ForegroundColor White
-    Write-Host "  ║      ⚠ يتطلب LLVM 18 مثبتاً" -NoNewline -ForegroundColor Yellow
-    Write-Host "                               ║" -ForegroundColor White
-    Write-Host "  ║                                                              ║" -ForegroundColor White
-    Write-Host "  ║  [3] الحزمة الكاملة (full)" -NoNewline -ForegroundColor White
+    Write-Host "  ║  [2] الحزمة الكاملة (full)" -NoNewline -ForegroundColor White
     Write-Host "                                  ║" -ForegroundColor White
-    Write-Host "  ║      المفسر + المترجم + LSP + REPL + مدير الحزم" -NoNewline -ForegroundColor DarkGray
-    Write-Host "            ║" -ForegroundColor White
+    Write-Host "  ║      + LSP + REPL + مدير الحزم + المنسّق" -NoNewline -ForegroundColor DarkGray
+    Write-Host "                   ║" -ForegroundColor White
     Write-Host "  ║      ← كل شيء في حزمة واحدة" -NoNewline -ForegroundColor Cyan
     Write-Host "                              ║" -ForegroundColor White
     Write-Host "  ║                                                              ║" -ForegroundColor White
     Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor White
     Write-Host ""
 
-    $choice = Read-Host "  اختر رقم (1/2/3) [الافتراضي: 1]"
+    $choice = Read-Host "  اختر رقم (1/2) [الافتراضي: 1]"
     switch ($choice) {
-        "2" { $script:Components = "compiler" }
-        "3" { $script:Components = "full" }
-        default { $script:Components = "interpreter" }
+        "2" { $script:Components = "full" }
+        default { $script:Components = "standard" }
     }
 
     $componentName = switch ($script:Components) {
-        "interpreter" { "المفسر (sad.exe)" }
-        "compiler"    { "المترجم (sadc.exe)" }
-        "full"        { "الحزمة الكاملة (sad + sadc + أدوات)" }
+        "full" { "الحزمة الكاملة (sad + sadc + أدوات)" }
+        default { "الحزمة القياسية (sad.exe)" }
     }
     Write-OK "تم اختيار: $componentName"
     Write-Host ""
@@ -154,346 +150,35 @@ function Test-Requirements {
         exit 1
     }
 
-    # تحذير LLVM إذا اختار المترجم
-    if ($Components -in @("compiler", "full")) {
-        $script:LLVMPath = Find-LLVM
-        if (-not $script:LLVMPath) {
-            Write-Warn "LLVM 18 غير مثبت أو غير مكتشف — sadc يحتاج LLVM 18"
-            Write-Host ""
-            Write-Host "  ╔══════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
-            Write-Host "  ║           خيارات LLVM / LLVM Options                   ║" -ForegroundColor Yellow
-            Write-Host "  ╠══════════════════════════════════════════════════════════╣" -ForegroundColor Yellow
-            Write-Host "  ║  [1] تحميل وتثبيت LLVM 18 تلقائياً (موصى به)         ║" -ForegroundColor White
-            Write-Host "  ║  [2] تحديد مسار LLVM المثبت يدوياً                    ║" -ForegroundColor White
-            Write-Host "  ║  [3] تخطي (تثبيت sad بدون sadc — يمكن إضافة LLVM لاحقاً) ║" -ForegroundColor DarkGray
-            Write-Host "  ╚══════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
-            Write-Host ""
-            $llvmChoice = Read-Host "  اختر (1/2/3) [الافتراضي: 1]"
-            switch ($llvmChoice) {
-                "2" {
-                    $manualPath = Read-Host "  أدخل مسار مجلد LLVM (مثال: C:\Program Files\LLVM)"
-                    $manualPath = $manualPath.Trim().Trim('"')
-                    $validated = Test-LLVMPath $manualPath
-                    if ($validated) {
-                        $script:LLVMPath = $validated.Path
-                        Write-OK "LLVM مقبول: $($validated.Path) (الإصدار: $($validated.Version))"
-                        Set-LLVMEnvironment $validated.Path
-                    } else {
-                        Write-Warn "المسار لا يحتوي على مكتبات LLVM صالحة — سيتم التثبيت بدون sadc"
-                        if ($Components -eq "compiler") { $script:Components = "interpreter" }
-                    }
-                }
-                "3" {
-                    Write-Info "سيتم التثبيت بدون sadc — أضف LLVM لاحقاً وشغّل المثبت مجدداً"
-                    if ($Components -eq "compiler") { $script:Components = "interpreter" }
-                }
-                default {
-                    Install-LLVM
-                }
-            }
-        }
-    }
 }
 
 # ──────────────────────────────────────────────────────────────────────
-# البحث الشامل عن LLVM / Find LLVM Everywhere
+# (AR) 🔑 نُزعت آلةُ LLVM كاملةً (Find-LLVM · Test-LLVMPath ·
+#      Set-LLVMEnvironment · Install-LLVM) — لأنّ شرطَها زال: الحزمُ صارت
+#      تُربَطُ ساكنًا (`SAD_LLVM_STATIC=ON`) فلا تشترطُ LLVM على جهازِ
+#      المستخدم. ومعها زالَ مسارُ التراجعِ «إن غابت LLVM فثبّتِ المفسّرَ
+#      بدلًا»: لا مفسّرَ بعدَ حذفِه، وكلتا الحزمتَينِ تحملانِ المترجِم.
+#      والدعوى مقيسةٌ في مجرى الإصدار: فحصُ التبعيّاتِ لا يأذنُ بـ`libLLVM`.
+#      ⚠️ **وحدُّ الدعوى مقيسٌ**: «لا تشترطُ **LLVM**» لا «لا تشترطُ شيئًا».
+#      فقد قِيس على العدّاء (تشغيل 33885363902) أنّ مكتباتِ LLD غيرُ موجودة —
+#      حزمةُ `lld-18` تحملُ **الثنائيَّ** لا المكتبات، فتُطبَعُ ستّةُ أسطرِ
+#      «LLD component not found» ويستقرُّ `HAS_EMBEDDED_LLD=FALSE`. ومعناه أنّ
+#      `sad-build` ما يزالُ يستدعي رابطَ النظامِ لإنتاجِ تنفيذيّ. فالحزمةُ
+#      مكتفيةٌ بذاتِها في LLVM، لا في سلسلةِ الأدواتِ كلِّها.
+# (EN) 🔑 The entire LLVM subsystem is removed — its premise is gone:
+#      packages are linked statically and require no LLVM on the user's machine.
+#      With it goes the "no LLVM ⇒ install the interpreter instead" fallback:
+#      there is no interpreter left, and both packages carry the compiler.
+#      Measured in the release workflow, whose dependency check allows no
+#      libLLVM at all.
+#      The claim's width is measured: "requires no LLVM", not "requires nothing".
+#      It was measured on the runner (run 33885363902) that the LLD libraries are
+#      absent — the lld-18 package ships the BINARY, not the libraries — so six
+#      "LLD component not found" lines print and HAS_EMBEDDED_LLD stays FALSE.
+#      sad-build therefore still invokes a system linker to produce executables.
+#      The package is self-contained in LLVM, not in the whole toolchain.
 # ──────────────────────────────────────────────────────────────────────
-function Find-LLVM {
-    Write-Step "البحث عن LLVM على الجهاز..."
 
-    # 1) البحث في PATH أولاً
-    $llvmConfig = Get-Command "llvm-config.exe" -ErrorAction SilentlyContinue
-    if ($llvmConfig) {
-        $binDir = Split-Path $llvmConfig.Source
-        $rootDir = Split-Path $binDir
-        $result = Test-LLVMPath $rootDir
-        if ($result) {
-            Write-OK "LLVM موجود في PATH: $rootDir (الإصدار: $($result.Version))"
-            Set-LLVMEnvironment $rootDir
-            return $rootDir
-        }
-    }
-
-    # 2) البحث في السجل (Registry)
-    $regPaths = @(
-        "HKLM:\SOFTWARE\LLVM\LLVM",
-        "HKLM:\SOFTWARE\WOW6432Node\LLVM\LLVM",
-        "HKCU:\SOFTWARE\LLVM\LLVM"
-    )
-    foreach ($regKey in $regPaths) {
-        try {
-            $val = Get-ItemPropertyValue -Path $regKey -Name "(default)" -ErrorAction Stop
-            if ($val -and (Test-Path $val)) {
-                $result = Test-LLVMPath $val
-                if ($result) {
-                    Write-OK "LLVM موجود في السجل: $val (الإصدار: $($result.Version))"
-                    Set-LLVMEnvironment $val
-                    return $val
-                }
-            }
-        } catch {}
-    }
-
-    # 3) البحث في مسارات شائعة متعددة
-    $commonPaths = @(
-        "C:\Program Files\LLVM",
-        "C:\Program Files\LLVM-18",
-        "C:\LLVM",
-        "C:\LLVM-18",
-        "C:\LLVM-Dev",
-        "C:\tools\LLVM",
-        "C:\msys64\mingw64",
-        "C:\msys64\ucrt64",
-        "C:\msys64\clang64",
-        "D:\Program Files\LLVM",
-        "D:\LLVM",
-        "$env:USERPROFILE\scoop\apps\llvm\current",
-        "$env:LOCALAPPDATA\Programs\LLVM",
-        "$env:ChocolateyInstall\lib\llvm\tools\llvm"
-    )
-    foreach ($p in $commonPaths) {
-        if (Test-Path $p) {
-            $result = Test-LLVMPath $p
-            if ($result) {
-                Write-OK "LLVM موجود: $p (الإصدار: $($result.Version))"
-                Set-LLVMEnvironment $p
-                return $p
-            }
-        }
-    }
-
-    # 4) البحث عبر Scoop / Chocolatey / WinGet
-    foreach ($tool in @("scoop", "choco")) {
-        $cmd = Get-Command $tool -ErrorAction SilentlyContinue
-        if ($cmd) {
-            Write-Info "$tool مثبت — محاولة الكشف عن LLVM..."
-        }
-    }
-
-    Write-Warn "لم يُعثر على LLVM تلقائياً"
-    return $null
-}
-
-# ──────────────────────────────────────────────────────────────────────
-# التحقق من صحة مجلد LLVM / Validate LLVM Path
-# ──────────────────────────────────────────────────────────────────────
-function Test-LLVMPath {
-    param([string]$Path)
-    if (-not (Test-Path $Path)) { return $null }
-
-    # ابحث عن llvm-config في bin أو مباشرة
-    $candidates = @(
-        (Join-Path $Path "bin\llvm-config.exe"),
-        (Join-Path $Path "llvm-config.exe")
-    )
-
-    $llvmConfigExe = $null
-    foreach ($c in $candidates) {
-        if (Test-Path $c) { $llvmConfigExe = $c; break }
-    }
-
-    # تحقق من ملفات أساسية حتى بدون llvm-config
-    $requiredBins = @("clang.exe", "llc.exe", "opt.exe", "lld-link.exe", "llvm-ar.exe")
-    $binDir = Join-Path $Path "bin"
-    $foundBins = @()
-    foreach ($bin in $requiredBins) {
-        $binPath = Join-Path $binDir $bin
-        if (Test-Path $binPath) { $foundBins += $bin }
-    }
-
-    if ($foundBins.Count -lt 2 -and -not $llvmConfigExe) {
-        return $null
-    }
-
-    # استخراج الإصدار
-    $version = "unknown"
-    if ($llvmConfigExe) {
-        try {
-            $version = (& $llvmConfigExe --version 2>$null).Trim()
-        } catch {}
-    } else {
-        # محاولة clang
-        $clangExe = Join-Path $binDir "clang.exe"
-        if (Test-Path $clangExe) {
-            try {
-                $clangVer = (& $clangExe --version 2>$null | Select-Object -First 1)
-                if ($clangVer -match "(\d+\.\d+\.\d+)") { $version = $matches[1] }
-            } catch {}
-        }
-    }
-
-    # تحقق أن الإصدار 14+ (يدعم sadc)
-    $majorVersion = 0
-    if ($version -match "^(\d+)") { $majorVersion = [int]$matches[1] }
-    if ($majorVersion -lt 14 -and $majorVersion -ne 0) {
-        Write-Warn "LLVM الإصدار $version قديم — sadc يحتاج LLVM 14+ (مُفضّل 18)"
-        return $null
-    }
-
-    # التحقق من وجود ملفات المكتبات
-    $libDir = Join-Path $Path "lib"
-    $hasLibs = $false
-    if (Test-Path $libDir) {
-        $hasLibs = (Get-ChildItem $libDir -Filter "LLVM*.lib" -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0
-        if (-not $hasLibs) {
-            $hasLibs = (Get-ChildItem $libDir -Filter "libLLVM*.a" -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0
-        }
-    }
-
-    $includeDir = Join-Path $Path "include\llvm"
-    $hasHeaders = Test-Path $includeDir
-
-    Write-Info "  [✓] ملفات تنفيذية: $($foundBins -join ', ')"
-    if ($hasLibs)   { Write-Info "  [✓] مكتبات .lib/.a موجودة" }
-    if ($hasHeaders){ Write-Info "  [✓] ملفات الترويسة include/llvm موجودة" }
-
-    return @{
-        Path        = $Path
-        Version     = $version
-        MajorVersion = $majorVersion
-        HasLibs     = $hasLibs
-        HasHeaders  = $hasHeaders
-        BinDir      = $binDir
-        Bins        = $foundBins
-    }
-}
-
-# ──────────────────────────────────────────────────────────────────────
-# حفظ متغيرات البيئة لـ LLVM / Save LLVM Environment
-# ──────────────────────────────────────────────────────────────────────
-function Set-LLVMEnvironment {
-    param([string]$LLVMRoot)
-    $binDir = Join-Path $LLVMRoot "bin"
-    # حفظ LLVM_DIR
-    [Environment]::SetEnvironmentVariable("LLVM_DIR", $LLVMRoot, "User")
-    $env:LLVM_DIR = $LLVMRoot
-    # إضافة bin لـ PATH إذا لم يكن موجوداً
-    $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    if ($currentPath -notlike "*$binDir*") {
-        [Environment]::SetEnvironmentVariable("PATH", "$binDir;$currentPath", "User")
-        $env:PATH = "$binDir;$env:PATH"
-    }
-    Write-OK "تم حفظ LLVM_DIR=$LLVMRoot في متغيرات البيئة"
-}
-
-# ──────────────────────────────────────────────────────────────────────
-# تحميل وتثبيت LLVM تلقائياً / Auto-Download & Install LLVM
-# ──────────────────────────────────────────────────────────────────────
-function Install-LLVM {
-    Write-Host ""
-    Write-Step "تحميل LLVM 18 تلقائياً..."
-    Write-Info "حجم الملف: ~500 MB — قد يستغرق بضع دقائق"
-    Write-Host ""
-
-    # اكتشاف مدير الحزم
-    $packageManager = $null
-    if (Get-Command "winget" -ErrorAction SilentlyContinue) {
-        $packageManager = "winget"
-    } elseif (Get-Command "choco" -ErrorAction SilentlyContinue) {
-        $packageManager = "choco"
-    } elseif (Get-Command "scoop" -ErrorAction SilentlyContinue) {
-        $packageManager = "scoop"
-    }
-
-    if ($packageManager) {
-        Write-Step "تم اكتشاف مدير الحزم: $packageManager"
-        $proceed = Read-Host "  هل تريد تثبيت LLVM عبر $packageManager ؟ (ن/ل) [ن=نعم]"
-        if ($proceed -notin @("ل", "لا", "n", "no")) {
-            switch ($packageManager) {
-                "winget" {
-                    Write-Step "تشغيل: winget install LLVM.LLVM --version 18.1.8..."
-                    try {
-                        & winget install LLVM.LLVM --version 18.1.8 --silent --accept-package-agreements --accept-source-agreements
-                        Write-OK "اكتمل تثبيت LLVM عبر winget"
-                        $script:LLVMPath = Find-LLVM
-                        return
-                    } catch {
-                        Write-Warn "فشل winget — سيتم التحميل المباشر"
-                    }
-                }
-                "choco" {
-                    Write-Step "تشغيل: choco install llvm --version 18.1.8..."
-                    try {
-                        & choco install llvm --version 18.1.8 -y
-                        Write-OK "اكتمل تثبيت LLVM عبر Chocolatey"
-                        $script:LLVMPath = Find-LLVM
-                        return
-                    } catch {
-                        Write-Warn "فشل Chocolatey — سيتم التحميل المباشر"
-                    }
-                }
-                "scoop" {
-                    Write-Step "تشغيل: scoop install llvm..."
-                    try {
-                        & scoop install llvm
-                        Write-OK "اكتمل تثبيت LLVM عبر Scoop"
-                        $script:LLVMPath = Find-LLVM
-                        return
-                    } catch {
-                        Write-Warn "فشل Scoop — سيتم التحميل المباشر"
-                    }
-                }
-            }
-        }
-    }
-
-    # تحميل مباشر من GitHub Releases
-    Write-Step "تحميل LLVM 18.1.8 مباشرة من GitHub..."
-    $llvmArch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
-    $llvmUrl  = "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/LLVM-18.1.8-win$($llvmArch).exe"
-    $llvmInstaller = Join-Path $env:TEMP "LLVM-18.1.8-installer.exe"
-    $llvmInstallDir = "C:\Program Files\LLVM"
-
-    Write-Info "الرابط: $llvmUrl"
-    Write-Info "حجم تقريبي: ~500 MB — الرجاء الانتظار..."
-    Write-Host ""
-
-    try {
-        # عرض شريط تقدم
-        $webClient = New-Object System.Net.WebClient
-        $progress = 0
-        $webClient.DownloadProgressChanged += {
-            param($sender, $e)
-            $pct = $e.ProgressPercentage
-            if ($pct -ne $progress) {
-                $progress = $pct
-                $bar = "#" * ([math]::Floor($pct / 5))
-                $empty = "-" * (20 - [math]::Floor($pct / 5))
-                Write-Host "`r  [${bar}${empty}] ${pct}%" -NoNewline -ForegroundColor Cyan
-            }
-        }
-        $webClient.DownloadFileTaskAsync($llvmUrl, $llvmInstaller).Wait()
-        Write-Host ""
-        Write-OK "تم تحميل LLVM ($([math]::Round((Get-Item $llvmInstaller).Length / 1MB))  MB)"
-
-        Write-Step "تشغيل مثبت LLVM (صامت)..."
-        $proc = Start-Process -FilePath $llvmInstaller -ArgumentList "/S /D=$llvmInstallDir" -Wait -PassThru
-        if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 3010) {
-            Write-OK "تم تثبيت LLVM في: $llvmInstallDir"
-            $script:LLVMPath = $llvmInstallDir
-            Set-LLVMEnvironment $llvmInstallDir
-
-            # التحقق النهائي
-            $validated = Test-LLVMPath $llvmInstallDir
-            if ($validated) {
-                Write-OK "التحقق: LLVM $($validated.Version) جاهز للاستخدام مع sadc"
-            }
-        } else {
-            Write-Warn "انتهى مثبت LLVM بكود خروج: $($proc.ExitCode)"
-            Write-Info "يمكنك تثبيت LLVM يدوياً من: https://github.com/llvm/llvm-project/releases"
-            if ($Components -eq "compiler") { $script:Components = "interpreter" }
-        }
-    } catch {
-        Write-Warn "فشل تحميل LLVM: $_"
-        Write-Info "حمّل LLVM يدوياً: https://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.8"
-        if ($Components -eq "compiler") { $script:Components = "interpreter" }
-    } finally {
-        Remove-Item $llvmInstaller -ErrorAction SilentlyContinue
-    }
-}
-
-# ──────────────────────────────────────────────────────────────────────
-# تحديد بنية المعالج / Detect Architecture
 # ──────────────────────────────────────────────────────────────────────
 function Get-Architecture {
     try {
@@ -543,9 +228,8 @@ function Install-Sad {
 
     # بادئة اسم الملف حسب المكون
     $prefix = switch ($Components) {
-        "interpreter" { "sad" }
-        "compiler"    { "sadc" }
-        "full"        { "sad-full" }
+        "full"  { "sad-full" }
+        default { "sad" }
     }
 
     # أسماء محتملة
@@ -636,10 +320,10 @@ function Install-Sad {
         #      check_installer_tool_lists.py. It had drifted: "compiler"
         #      required only sadc and "full" omitted sad-build.
         $مطلوب = switch ($Components) {
-            "interpreter" { @("sad", "sad-run", "sad-lsp", "sad-check") }
-            "compiler"    { @("sadc", "sad-build") }
-            "full"        { @("sad", "sad-run", "sad-lsp", "sad-check", "sadc", "sad-build") }
-            default       { @("sad") }
+            # (AR) 🔑 أُضيف sad-build: لا شيءَ في المكوّنِ كان يُشغّلُ برنامجَ ص.
+            "standard" { @("sad", "sad-build", "sad-lsp", "sad-check") }
+            "full"     { @("sad", "sad-lsp", "sad-check", "sadc", "sad-build") }
+            default    { @("sad") }
         }
         $ناقص = @()
         foreach ($أداة in $مطلوب) {
@@ -665,7 +349,6 @@ function Install-Sad {
                 "sadc"           { "المترجم — يحوّل .ص إلى ملف تنفيذي أصلي (LLVM)" }
                 "sad-lsp"        { "خادم LSP — تكامل مع VS Code والمحررات" }
                 "sad-pkg"        { "مدير الحزم — تثبيت المكتبات" }
-                "sad-repl"       { "بيئة تفاعلية" }
                 "sad-fmt"        { "أداة تنسيق الكود" }
                 default          { $exe.BaseName }
             }
@@ -835,9 +518,8 @@ $releaseInfo = Get-ReleaseInfo
 Install-Sad -ReleaseInfo $releaseInfo
 
 $componentName = switch ($Components) {
-    "interpreter" { "المفسر (sad.exe)" }
-    "compiler"    { "المترجم (sadc.exe)" }
-    "full"        { "الحزمة الكاملة" }
+    "full"  { "الحزمة الكاملة" }
+    default { "الحزمة القياسية (sad.exe)" }
 }
 
 Write-Host ""
@@ -846,16 +528,13 @@ Write-Host "  ✓ تم تثبيت $componentName v$($releaseInfo.Version) بنج
 Write-Host "  ═══════════════════════════════════════════════" -ForegroundColor Green
 Write-Host ""
 Write-Host "  للبدء:" -ForegroundColor White
-if ($Components -in @("interpreter", "full")) {
-    Write-Host "    sad --help              عرض المساعدة" -ForegroundColor DarkGray
-    Write-Host "    sad script.ص           تشغيل ملف" -ForegroundColor DarkGray
-}
-if ($Components -in @("compiler", "full")) {
+Write-Host "    sad --help              عرض المساعدة" -ForegroundColor DarkGray
+Write-Host "    sad script.ص           تشغيل ملف" -ForegroundColor DarkGray
+if ($Components -eq "full") {
     Write-Host "    sadc script.ص          ترجمة إلى ملف تنفيذي" -ForegroundColor DarkGray
 }
 if ($Components -eq "full") {
     Write-Host "    sad-pkg init            إنشاء مشروع جديد" -ForegroundColor DarkGray
-    Write-Host "    sad-repl                بيئة تفاعلية" -ForegroundColor DarkGray
 }
 Write-Host ""
 Write-Host "  ⚡ أعد فتح الطرفية لتفعيل PATH" -ForegroundColor Yellow

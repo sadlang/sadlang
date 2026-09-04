@@ -2,7 +2,6 @@
 # orphan_sources_guard.cmake — حارس الملفات اليتيمة
 # ============================================================================
 #
-# (AR) يفحص أن كل ملف .cpp/.cc تحت مسارات محددة (compiler/src, interpreter/src,
 #      vm/src) مذكور في خصائص SOURCES لأي target مُسجَّل. يفشل البناء إن وُجد
 #      ملف يتيم (موجود على القرص لكن لا يُربط بأي مكتبة/تنفيذي).
 #
@@ -24,7 +23,6 @@
 # (EN) Guarded paths (relative to project root)
 set(SAD_GUARDED_DIRS
     "compiler/src"
-    "interpreter/src"
 )
 
 # (AR) أنماط استثناء — ملفات معروفة أنها قوالب/توليد/أرشفة
@@ -90,11 +88,7 @@ function(sad_check_orphan_sources)
     #      (INTERPRETER_UI_BRIDGE_SOURCES) لا تُضاف لأيّ هدف شرعًا فلا تُعدّ يتيمة.
     # (EN) When graphics is OFF (headless/initramfs), the UI-bridge sources are
     #      legitimately not added to any target, so they must not be flagged.
-    if(NOT SAD_ENABLE_GRAPHICS)
-        list(APPEND SAD_ORPHAN_EXCLUDE_PATTERNS
-            "/interpreter/src/ui/"
-            "/interpreter/src/visitors/expression_evaluator_ui\.cpp$")
-    endif()
+    # (AR) 🔑 شجرةُ المفسّرِ حُذفت، ومعها مصادرُ جسرِ الواجهات — فلا استثناءَ يُذكر.
 
     # (1) جمع جميع الـ targets ومصادرها
     _sad_collect_all_targets(_all_targets)

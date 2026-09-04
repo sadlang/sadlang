@@ -263,3 +263,47 @@ sad_bytes_rt.bin
 .worktrees/
 .security-key
 logs/security/
+
+# ════════════════════════════════════════════════════════════════════
+# (AR) مفاتيحُ التوقيعِ لا تُودَع — ولو كانت مفاتيحَ تنقيح.
+#      `platform/android/debug.keystore` كان مُودَعًا وأُزيلَ من التاريخِ
+#      كلِّه عندَ فتحِ المستودعِ للعموم. و`build_apk.ps1` يُعيدُ توليدَه
+#      تلقائيًّا إن غاب (`keytool -genkeypair` بكلمةِ أندرويد المعياريّة)،
+#      فالغيابُ لا يُعطِّلُ بناءً — وإنّما يلزمُ إزالةُ نسخةٍ سابقةٍ من
+#      الجهازِ قبلَ تثبيتِ APK موقَّعٍ بمفتاحٍ مُولَّدٍ جديد.
+# (EN) Signing keys are never committed — debug keys included.
+#      platform/android/debug.keystore used to be committed and was purged
+#      from the whole history when the repository was opened to the public.
+#      build_apk.ps1 regenerates it on demand, so its absence breaks no
+#      build; a previously installed debug APK must be uninstalled first.
+# ════════════════════════════════════════════════════════════════════
+*.keystore
+*.jks
+*.p12
+*.pfx
+
+# ════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **مُخرَجاتُ التحزيمِ تُنتَجُ ولا تُودَع.**
+#      كان في الشجرةِ ١٬١٣٩ ملفًّا مُتتبَّعًا من مُخرَجاتِ بناءٍ سابقة:
+#      `distribution/output/` (أرشيفاتُ إصدارٍ ‎.zip‏ و‎.tar.gz‏ و‎.deb‏
+#      وشجرةُ حزمةٍ مُهيَّأةٌ كاملة) و`distribution/deb/sad-lang_*_*/`
+#      (شجرةُ حزمةِ deb مُهيَّأة). وفيهما **نسخةٌ كاملةٌ من مصادرِ المفسّرِ
+#      المحذوفِ ومن المكتبةِ القياسيّة** — تُقرَأُ بالمسحِ فتُفسِدُ كلَّ عَدٍّ
+#      وكلَّ كنسٍ، وتَعِدُ قارئَها بمنتجٍ زال.
+#      و`distribution/output` هو `OUTPUT_DIR` لـ`build-installers.ps1`
+#      و`macos/build-pkg.sh` — أي إنّه هدفُ إنتاجٍ لا مصدر. وقد أوصى
+#      تدقيقُ المستودعِ بهذا نصًّا (WEAKNESS_AUDIT: «إخراج
+#      distribution/output|deb/ من git + تحديث .gitignore»).
+# (EN) Packaging output is produced, not committed. 1,139 tracked files of
+#      prior build output lived here — release archives and two fully staged
+#      package trees carrying a complete copy of the deleted interpreter's
+#      sources and of the standard library. Every sweep read them, so every
+#      count was wrong and every purge missed them. distribution/output is
+#      OUTPUT_DIR for build-installers.ps1 and macos/build-pkg.sh: a
+#      production target, not a source. The repository's own audit asked for
+#      exactly this.
+# ════════════════════════════════════════════════════════════════════
+distribution/output/
+distribution/deb/sad-lang_*_*/
+distribution/deb/*.deb
+distribution/rpm/*.rpm

@@ -17,8 +17,11 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "error_manager.h"
+#include "error_codes.h"
 #include "builders/call_builder.h"
 #include <string>
+#include <algorithm>
 #include <cstdio>
 #include <set>
 #include "sir_builder.h"
@@ -492,8 +495,85 @@ namespace Sad
                         break;
                     }
                 }
-                bool isUserDefinedFunction = (b_.functionTable_.find(funcName) != b_.functionTable_.end()) ||
-                                             (b_.lambdaAliases_.find(funcName) != b_.lambdaAliases_.end()) ||
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 **دالّةُ القالبِ معرَّفةٌ من المستخدمِ أيضًا** — وهي الحالةُ
+                //      الثالثةُ من الصنفِ الموصوفِ أعلاه (البانِي الجبريُّ العاري، ومتغيّرُ
+                //      الإغلاق). القوالبُ تُخزَّنُ في `templateFunctions_` لا في
+                //      `functionTable_` — لأنّها لا تُخصَّصُ إلّا عندَ النداء — فكان
+                //      اسمُها غائبًا عن هذا الحساب:
+                //
+                //          قالب <نوع ت، نوع ث>
+                //          دالة ضم(ت أ، ث ب)
+                //              اطبع_سطر(نوع(أ))
+                //              ارجع أ + ب
+                //          نهاية
+                //          اطبع_سطر(ضم(2.5، 1.5))     ⇐ يطبعُ «3» ولا يطبعُ «عشري»
+                //
+                //      لأنّ «ضمّ» مدمَجٌ مُعلَنٌ في `language-truth/builtins/kernel_cpu.yaml`
+                //      (`CPU_15`، «أو» البتّيّ بجوارِ «وافق» و«خالف»)، والشدّةُ تُجرَّدُ في
+                //      التوليدِ فيصيرُ الاسمُ «ضم». فاختطفَ المدمَجُ النداءَ، وبَتَرَ
+                //      ٢٫٥ و١٫٥ إلى عددَين صحيحَين، وأجابَ `2 | 1 = 3` — **برمزِ خروجٍ
+                //      صفرٍ وبلا تشخيصٍ واحد**، وجسمُ الدالّةِ لم يُنفَّذْ قطّ.
+                //      ⚠️ ولا يُكشَفُ بتغييرِ الاسم: `دمج` و`جمع` و`ضم2` كلُّها سليمة —
+                //      فالعطبُ يظهرُ فقط لمن وقعَ اسمُه على اسمِ مدمَج.
+                // (EN) 🔑 A template function is user-defined too — the third instance
+                //      of the class described above (bare ADT constructor, closure variable).
+                //      Templates live in `templateFunctions_`, not `functionTable_`, since they
+                //      are only instantiated at the call site, so their name was missing here.
+                //      A user template named «ضم» was hijacked by the kernel-CPU builtin of the
+                //      same name (bitwise OR): the arguments were truncated to integers and
+                //      `2 | 1 = 3` was returned with exit code 0 and no diagnostic, the body
+                //      never running. Renaming hides it — only a name that collides with a
+                //      builtin is affected.
+                // ════════════════════════════════════════════════════════════════
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 **سؤالٌ واحد: أيملكُ المستخدمُ هذا الاسم؟**
+                //
+                //      كان هذا سردًا يتّسعُ حالةً بحالة، وكلُّ توسيعٍ منها اكتُشِفَ
+                //      بالمصادفةِ بعدَ أن أجابَ برنامجٌ جوابًا خاطئًا صامتًا:
+                //        ① متغيّرُ الإغلاق — مدمَجٌ يُظلّلُ لامدا المستخدم
+                //        ② البانِي الجبريُّ العاري — «مربع(٢٠)» ⇒ ٤٠٠ ⇒ SIGSEGV
+                //        ③ دالّةُ القالب — «ضم» ⇒ ٢|١ = ٣ والجسمُ لا يُنفَّذ
+                //        ④ الماكرو — العددُ عينُه، بالآليّةِ عينِها
+                //        ⑤ صنفُ القالب — «ضم<رقم>()» يُخفِقُ برسالةٍ **كاذبة**
+                //           («دالة القالب غير موجودة») لأنّ الاسمَ بلغَ مسارَ
+                //           القوالبِ الدوالّيَّ لا الصنفيّ
+                //
+                //      وكلُّها صنفٌ واحد: **اسمٌ كتبَه المستخدمُ في مصدرِ ص يخسرُ
+                //      أمامَ مدمَجٍ يحملُ اسمَه**. والجداولُ تفصيلُ تنفيذٍ لا حكم،
+                //      فيُسأَلُ السؤالُ مرّةً هنا بدلَ أن يُعادَ سردُها.
+                //
+                // ⚠️ وهذا لا يمنعُ السادسةَ: أسماءُ المدمَجاتِ مولَّدةٌ من
+                //      `language-truth/builtins/*.yaml` وتنمو، وجداولُ الأسماءِ تنمو.
+                //      والعلاجُ الجذريُّ أن يُبَثَّ **تشخيصٌ** حين يفوزُ مدمَجٌ باسمٍ
+                //      يظهرُ في أيِّ جدولِ أسماءٍ للمستخدم، فيصيرُ النسيانُ مرئيًّا
+                //      بدلَ أن يُجيبَ `2 | 1`. دَينٌ مُعلَنٌ لم يُسدَّدْ بعد.
+                // (EN) 🔑 One question: does the user own this name?
+                //
+                //      This was a list that grew one case at a time, each case found by
+                //      accident after a program silently answered wrong: closure variable,
+                //      bare ADT constructor («square(20)» ⇒ 400 ⇒ SIGSEGV), template
+                //      function («join» ⇒ 2|1 = 3, body never run), macro (the same number
+                //      by the same mechanism), and template class (which fails with a LYING
+                //      message because the name reaches the template-function path).
+                //      All one class: a name the user wrote in Sad source loses to a builtin
+                //      that happens to share it. The tables are an implementation detail, so
+                //      the question is asked once here instead of re-listing them.
+                //
+                //      This does not prevent a sixth: builtin names are generated from
+                //      language-truth and both sets grow. The root remedy is to EMIT A
+                //      DIAGNOSTIC whenever a builtin wins over a name present in any user
+                //      name table, so the omission becomes visible instead of answering
+                //      `2 | 1`. Declared debt, not yet paid.
+                // ════════════════════════════════════════════════════════════════
+                const bool userOwnsCallName =
+                    (b_.functionTable_.find(funcName) != b_.functionTable_.end()) ||
+                    (b_.lambdaAliases_.find(funcName) != b_.lambdaAliases_.end()) ||
+                    (b_.templateFunctions_.find(funcName) != b_.templateFunctions_.end()) ||
+                    (b_.templateClasses_.find(funcName) != b_.templateClasses_.end()) ||
+                    (b_.macros_.find(funcName) != b_.macros_.end());
+
+                bool isUserDefinedFunction = userOwnsCallName ||
                                              isClosureVariable ||
                                              isADTVariantCtor;
 
@@ -880,12 +960,132 @@ namespace Sad
                     {
                         std::cout << "[Template] Found template function: " << funcName << std::endl;
 
-                        // (AR) استنتاج الأنواع من المعاملات
-                        // (EN) Infer types from arguments
+                        // ════════════════════════════════════════════════════════
+                        // (AR) 🔑 وسائطُ النوعِ تُبنى **بعددِ معاملاتِ النوعِ**
+                        //      لا بعددِ الوسائط.
+                        //
+                        //      كانت تُبنى إدخالًا لكلِّ وسيط، ثمّ يفحصُ
+                        //      `instantiateTemplate` أنّ `typeArguments.size() ==
+                        //      typeParamNames.size()`. فمعاملُ نوعٍ واحدٌ يتقاسمُه
+                        //      موضعانِ — وهو أبسطُ صورةٍ للعموميّة —:
+                        //
+                        //          قالب <نوع ت>
+                        //          دالة اضم(ت أ، ت ب)
+                        //              ارجع أ + ب
+                        //          نهاية
+                        //          اطبع_سطر(اضم(2.5، 1.5))
+                        //
+                        //      يُعطي ٢ وسيطًا مقابلَ معاملِ نوعٍ واحدٍ ⇒ «عدد معاملات
+                        //      الأنواع غير متطابق» ⇒ **رفضٌ كاذبٌ لبرنامجٍ مشروعٍ
+                        //      بالقاعدة** `gr.adv.template_params`.
+                        //
+                        //      والخريطةُ متاحةٌ حيثُ يقرؤها الاستبدالُ نفسُه: معاملُ
+                        //      القالبِ يصلُ الشجرةَ بـ`type == Class` و
+                        //      `typeName == «ت»`، وبه يُفهرِسُ `instantiateTemplate`
+                        //      جدولَ الاستبدال. فيُجمَعُ لكلِّ معاملِ نوعٍ ما وقعَ
+                        //      عليه من أنواعِ الوسائط، ثمّ يُوحَّد.
+                        //
+                        //      ⚠️ والسقوطُ آمنٌ: إن بقيَ معاملُ نوعٍ بلا رباط (لأنّه
+                        //      لا يظهرُ إلّا في نوعِ الإرجاع مثلًا)، أو تعارضَ رباطاه
+                        //      بما لا تحسمُه ترقيةٌ عدديّة، عادَ البناءُ إلى الصيغةِ
+                        //      القديمة. فهذه الرقعةُ **تُضيفُ حالاتٍ تعمل ولا تنزعُ
+                        //      واحدة**.
+                        // (EN) 🔑 Type arguments are built PER TYPE PARAMETER, not per
+                        //      argument. They used to be one entry per argument, while
+                        //      `instantiateTemplate` requires the count to equal the number
+                        //      of type parameters — so one type parameter shared by two
+                        //      positions, the simplest generic there is, was rejected as an
+                        //      arity mismatch: a false rejection of a program the grammar
+                        //      allows. The mapping is available where substitution itself
+                        //      reads it: a template parameter reaches the AST as
+                        //      `type == Class` with `typeName == "T"`. Bindings are collected
+                        //      per type parameter and unified. The fallback is safe: an
+                        //      unbound type parameter, or a conflict no numeric promotion
+                        //      settles, reverts to the old vector — this patch adds working
+                        //      cases and removes none.
+                        // ════════════════════════════════════════════════════════
                         std::vector<SadTypeKind> inferredTypes;
                         for (const auto &argResult : argResults)
                         {
                             inferredTypes.push_back(argResult.type);
+                        }
+
+                        {
+                            auto templateIt = b_.templateFunctions_.find(funcName);
+                            const Sad::AST::TemplateFunctionDecl *templateDecl =
+                                (templateIt != b_.templateFunctions_.end()) ? templateIt->second
+                                                                            : nullptr;
+                            if (templateDecl != nullptr)
+                            {
+                                std::vector<std::string> typeParamNames;
+                                for (const auto &typeParam : templateDecl->typeParameters)
+                                {
+                                    if (!typeParam.isConst)
+                                        typeParamNames.push_back(typeParam.name);
+                                }
+
+                                // (AR) رباطُ كلِّ معاملِ نوعٍ: النوعُ المتّفَقُ عليه، أو
+                                //      Unknown إن لم يُربَط، أو Never إن تعارضَ بلا حسم.
+                                // (EN) Per-type-parameter binding: the agreed kind, Unknown if
+                                //      unbound, Never if it conflicts with no resolution.
+                                std::unordered_map<std::string, SadTypeKind> bindings;
+                                bool conflicted = false;
+                                const size_t bindCount =
+                                    std::min(templateDecl->parameters.size(), argResults.size());
+                                for (size_t pi = 0; pi < bindCount; ++pi)
+                                {
+                                    const auto &param = templateDecl->parameters[pi];
+                                    if (param.type != Types::SadTypeKind::Class ||
+                                        param.typeName.empty())
+                                    {
+                                        continue;
+                                    }
+                                    if (std::find(typeParamNames.begin(), typeParamNames.end(),
+                                                  param.typeName) == typeParamNames.end())
+                                    {
+                                        continue;
+                                    }
+
+                                    const SadTypeKind argKind = argResults[pi].type;
+                                    auto found = bindings.find(param.typeName);
+                                    if (found == bindings.end())
+                                    {
+                                        bindings.emplace(param.typeName, argKind);
+                                        continue;
+                                    }
+                                    if (found->second == argKind)
+                                        continue;
+
+                                    // (AR) ترقيةٌ عدديّة: العشريُّ يغلبُ الصحيح — كقاعدةِ
+                                    //      الهيمنةِ في العمليّات الثنائيّة.
+                                    // (EN) Numeric promotion: float outranks integer, mirroring
+                                    //      the binary-operation dominance rule.
+                                    const bool bothNumeric =
+                                        ::Sad::Types::isNumericKind(found->second) &&
+                                        ::Sad::Types::isNumericKind(argKind);
+                                    if (bothNumeric)
+                                    {
+                                        if (found->second == SadTypeKind::Float ||
+                                            argKind == SadTypeKind::Float)
+                                        {
+                                            found->second = SadTypeKind::Float;
+                                        }
+                                        continue;
+                                    }
+                                    conflicted = true;
+                                    break;
+                                }
+
+                                if (!conflicted && !typeParamNames.empty() &&
+                                    bindings.size() == typeParamNames.size())
+                                {
+                                    std::vector<SadTypeKind> orderedTypes;
+                                    orderedTypes.reserve(typeParamNames.size());
+                                    for (const auto &typeParamName : typeParamNames)
+                                        orderedTypes.push_back(bindings[typeParamName]);
+                                    inferredTypes = std::move(orderedTypes);
+                                }
+                            }
                         }
 
                         // (AR) إنشاء نسخة من القالب مع الأنواع المستنتجة
@@ -1079,7 +1279,28 @@ namespace Sad
                         //      خطأٍ إملائيٍّ لا وجودَ له، أو يعرّفُها بنفسِه فيصطدمُ
                         //      بالاسمِ المحجوز. والسببُ الحقيقيُّ **تباعدُ تغطيةٍ بين
                         //      المحرّكَين** يُقاس ويُعلَن، لا عطبٌ في البرنامج.
-                        if (gatedModule.empty() &&
+                        // (AR) 🔑 ولا يُقالُ هذا لاسمٍ **يملكُه المستخدم**.
+                        //      نصُّ SEM047 دعوى: «مدمَجةٌ معلَنةٌ بلا ذراعِ توزيعٍ في
+                        //      المترجم». وهي كاذبةٌ حين يكونُ للمدمَجةِ ذراعٌ تعملُ
+                        //      وإنّما فُوِّتَت لأنّ المستخدمَ صرَّحَ بالاسم: مقيسٌ أنّ
+                        //      `ضم(2، 1)` مدمَجًا خالصًا يُخرِجُ `3`، فالذراعُ قائمة.
+                        //      فمَن كتبَ `ماكرو ضم` يُقالُ له خبرٌ عن باطنِ المترجِمِ
+                        //      لا عن برنامجِه — وهو عيبُ «الرسالةِ الكاذبة» عينُه.
+                        //      والبِنيةُ واحدةٌ: `ماكرو دمج3` باسمٍ فريدٍ يُخرِجُ
+                        //      SEM004 «الدالة غير معرَّفة»، فليكن الحكمُ واحدًا —
+                        //      والفارقُ الوحيدُ أنّ الاسمَ صادفَ مدمَجًا، وهو ما لا
+                        //      سبيلَ للكاتبِ إلى معرفتِه.
+                        // (EN) 🔑 And this is not said about a name the USER owns.
+                        //      SEM047 claims «a builtin declared in the SoT with no compiler
+                        //      dispatch arm». That claim is false when the builtin's arm exists
+                        //      and was merely skipped because the user declared the name —
+                        //      measured: a bare call to the same builtin still answers. Telling
+                        //      someone who wrote `macro join` about the compiler's internals is
+                        //      the same lying-message defect. The structure is identical to a
+                        //      macro with a unique name, which yields SEM004; the only
+                        //      difference is that this name happens to collide with a builtin,
+                        //      which the writer has no way to know.
+                        if (gatedModule.empty() && !userOwnsCallName &&
                             Sad::Builtins::isKnownBuiltin(std::string_view(funcName)))
                         {
                             Sad::Errors::RenderContext ctx;
@@ -1089,15 +1310,38 @@ namespace Sad
                                     Sad::Errors::ErrorCode::SEM_BUILTIN_ABSENT_IN_COMPILER, ctx));
                             return BuildResult();
                         }
+                        // ====================================================
+                        // (AR) 🔑 الذراعُ غيرُ المبوَّبةِ تعودُ إلى الكتالوج.
+                        //      كان نصُّها **مؤلَّفًا في الشفرة** بلا رمزٍ، و`SEM004`
+                        //      مُعلَنٌ في مصدرِ الحقيقةِ بنصَّيه وعلاجِه. وبذرةُ
+                        //      `N04_undefined_function.ص` تطلبُ `SEM004` فتُخفِقُ مع
+                        //      أنّ الرفضَ صحيح.
+                        //      ⚠️ وذراعُ الوحدةِ المبوَّبةِ تبقى نصًّا مؤلَّفًا: لا رمزَ
+                        //      في الكتالوجِ لحالِ «مدمَجةٌ تلزمُها وحدةٌ لم تُستورَد»،
+                        //      وإعلانُ رمزٍ جديدٍ قرارُ مصدرِ حقيقةٍ لا ترقيعُ باني —
+                        //      **دَينٌ مُقيَّدٌ لا سكوتٌ عنه**.
+                        // (EN) The un-gated arm returns to the catalog: its text was
+                        //      composed in source with no code while SEM004 is declared
+                        //      in the SoT. The gated arm stays composed because no code
+                        //      exists for "builtin requires an unimported module";
+                        //      declaring one is an SoT decision — recorded debt.
+                        // ====================================================
+                        if (gatedModule.empty())
+                        {
+                            Sad::Errors::RenderContext undefinedFunctionContext;
+                            undefinedFunctionContext.placeholders = {{"name", funcName}};
+                            const std::string catalogMsg =
+                                Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                    Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
+                                    undefinedFunctionContext);
+                            std::cerr << catalogMsg << std::endl;
+                            b_.errors_.push_back(catalogMsg);
+                            return BuildResult();
+                        }
                         std::string undefMsg =
-                            gatedModule.empty()
-                                ? ("خطأ: استدعاء دالة غير معرّفة '" + funcName +
-                                   "' — عرّفها، أو أعلنها «خارجي(...)» هنا مع «صدّر» عند تعريفها، "
-                                   "أو استخدم --module للربط عبر الوحدات "
-                                   "(undefined function call)")
-                                : ("خطأ: الدالة '" + funcName + "' تنتمي إلى وحدة '" +
-                                   gatedModule + "' ولم تُستورَد — 💡 جرّب: استورد " +
-                                   gatedModule + " (builtin requires module import)");
+                            ("خطأ: الدالة '" + funcName + "' تنتمي إلى وحدة '" +
+                             gatedModule + "' ولم تُستورَد — 💡 جرّب: استورد " +
+                             gatedModule + " (builtin requires module import)");
                         std::cerr << undefMsg << std::endl;
                         b_.errors_.push_back(undefMsg);
                         return BuildResult();

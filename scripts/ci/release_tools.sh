@@ -77,11 +77,9 @@ set -euo pipefail
 #      sadc — one binary, two published names, rationale below.
 SAD_TOOL_TABLE="
 sad:sad:sad
-sad-run:sad-run:sad-run
 sad-lsp:sad-lsp:sad-lsp
 sad-check:sad-check:sad-check
 sad-pkg:sad-pkg:sad-pkg
-sad-repl:sad-repl:sad-repl
 sad-fmt:sad-fmt:sad-fmt
 sad-build:sad-build:sad-build
 sad-build:sad-build:sadc
@@ -98,9 +96,23 @@ sad-build:sad-build:sadc
 #      the docs promise it, and `sad-build` because the hub finds its siblings
 #      by scanning for the `sad-` prefix — a name without the dash is never
 #      registered, and `sad build` becomes a promised command that is absent.
-SAD_REQUIRED_INTERPRETER="sad sad-run sad-lsp sad-check"
-SAD_REQUIRED_COMPILER="sadc sad-build"
-SAD_REQUIRED_FULL="sad sad-run sad-lsp sad-check sadc sad-build"
+# (AR) 🔑 **صنفان لا ثلاثة.** كانت القسمةُ «مفسّرٌ ↔ مترجِمٌ ↔ كلاهما»،
+#      فلمّا حُذِفَ المفسّرُ زالَ أحدُ طرفَيها: لم يبقَ لصنفِ «المترجمِ وحدَه» ما
+#      يميّزُه عن القياسيّة، وصارَ اسمُ «المفسّر» يَعِدُ بما لا يوجد.
+#      وقد أُضيفَ `sad-build` إلى القائمةِ الأولى قبلَ هذا لأنّ المكوّنَ كان لا
+#      يشحنُ ما يُشغّلُ برنامجَ ص — والنيّةُ سليمةٌ والتنفيذُ كان ناقصًا: أُضيفَ
+#      الهدفُ ولم تُبدَّلْ تهيئتُه من `ENABLE_LLVM_BACKEND=OFF`، وهو لا يوجدُ
+#      إلّا بـ`ON`. فبُدِّلت التهيئةُ في `release.yml` وتقاعدَ الصنفُ الثالث.
+# (EN) 🔑 Two classes, not three. The split was interpreter ↔ compiler ↔
+#      both; deleting the interpreter removed one side, so a compiler-only class
+#      has nothing left to distinguish it and «interpreter» promised what is
+#      absent. sad-build had already been added to the first list because the
+#      component shipped nothing that runs a ص program — right intent, incomplete
+#      execution: the target was added but its configure stayed
+#      ENABLE_LLVM_BACKEND=OFF, where that target does not exist. The configure
+#      is fixed in release.yml and the third class is retired.
+SAD_REQUIRED_STANDARD="sad sad-build sad-lsp sad-check"
+SAD_REQUIRED_FULL="sad sad-lsp sad-check sadc sad-build"
 
 # (AR) 🔑 الألقابُ المُعلَنةُ — الصفوفُ الوحيدةُ التي يجوزُ فيها أن يخالفَ
 #      الاسمُ المنشورُ هدفَه. وكلُّ صفٍّ خارجَها **يجبُ** أن يكونَ مُطابَقةً.
@@ -299,7 +311,7 @@ sad_require_archive() {
 #      --version literally was measuring its own spelling, not the tool's
 #      contract — six red cells in PR #438 from one cause.
 # ══════════════════════════════════════════════════════════════════════════
-SAD_VERSION_FLAGS="sad:--version sad-run:--إصدار sadc:--إصدار sad-build:--إصدار sad-check:--version sad-lsp:--version"
+SAD_VERSION_FLAGS="sad:--version sadc:--إصدار sad-build:--إصدار sad-check:--version sad-lsp:--version"
 
 sad_version_flag() {
     local name="$1" pair

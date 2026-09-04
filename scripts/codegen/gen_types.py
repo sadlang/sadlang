@@ -131,6 +131,77 @@ NUMERIC_CLASS_VOCAB: list[tuple[str, str, str, str]] = [
 ]
 
 
+VALUE_SEMANTICS_VOCAB = ("copy", "move")
+
+
+def _emit_value_semantics(types: list[dict[str, Any]]) -> list[str]:
+    """
+    (AR) يُولّد حكمَ فاحصِ الاستعارة (نسخ/نقل) من حقلِ `value_semantics`.
+
+         🔑 كان هذا الحكمُ يسكن **جدولَين مكتوبَين باليدِ** في
+         `shared/ownership/`: `dataTypeToString` يُحوّل النوعَ إلى **نصّ**، ثمّ
+         `copyTypes_` يبحثُ عن ذلك النصِّ في مجموعةِ أسماء. وانحرفَ الجدولانِ عن
+         معجمِ اللغة: «قاموس» واللفظُ «خريطة»، و«ثنائي» واللفظُ «صف»، و«بايت»
+         وهو لفظٌ **مُزالٌ** من اللغة. وغطّى الأوّلُ ١٢ نوعًا من ٤٩ فسقطَ الباقي
+         إلى `"unknown"` الذي يعني «يُنسَخ» — فصنفٌ وإغلاقٌ واختياريٌّ كلُّها
+         كانت تُعَدُّ قابلةً للنسخِ بلا قرار.
+         ⚠️ والمفتاحُ النصّيُّ لا يميّزُ أصلًا: `sadTypeKindArabicName` تُرجعُ
+         «كائن» لـClass وStruct **كليهما**. فالحكمُ صارَ بمفتاحِ النوعِ لا باسمِه.
+
+    (EN) Emits the borrow checker's copy/move verdict from `value_semantics`.
+         It used to live in two hand-written tables that had drifted from the
+         language lexicon and covered 12 of 49 kinds, the rest falling to
+         "unknown" — which meant Copy. The string key cannot even discriminate:
+         the Arabic-name function returns the same word for Class and Struct.
+         The verdict is now keyed on the kind, not on its name.
+    """
+    for entry in types:
+        seen = entry.get("value_semantics")
+        if seen not in VALUE_SEMANTICS_VOCAB:
+            raise ValueError(
+                f"types.yaml: {entry.get('id', '?')} has value_semantics={seen!r}, "
+                f"which is not one of {list(VALUE_SEMANTICS_VOCAB)}. Every kind must "
+                "declare it — an undeclared verdict is the defect this table replaced."
+            )
+
+    lines: list[str] = []
+    lines.append("        // \u2500\u2500\u2500 \u062f\u0644\u0627\u0644\u0629\u064f \u0627\u0644\u0642\u064a\u0645\u0629 / Value semantics \u2500\u2500\u2500")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) \u062c\u062f\u0648\u0644\u064f \u062f\u0644\u0627\u0644\u0629\u0650 \u0627\u0644\u0642\u064a\u0645\u0629 \u2014 \u0645\u064f\u0648\u0644\u0651\u064e\u062f\u064c \u0645\u0646 `value_semantics` \u0641\u064a types.yaml")
+    lines.append("         * @brief (EN) Value-semantics table — generated from types.yaml `value_semantics`")
+    lines.append("         */")
+    lines.append("        inline constexpr bool SAD_TYPE_IS_COPY_TABLE[] = {")
+    width = max(len(str(entry.get("kind", "?"))) for entry in types)
+    for entry in types:
+        flag = "true " if entry.get("value_semantics") == "copy" else "false"
+        kind = str(entry.get("kind", "?"))
+        word = str(entry.get("word", ""))
+        lines.append(f"            {flag},  // {kind.ljust(width)} — {word}")
+    lines.append("        };")
+    lines.append("")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) \u0647\u0644 \u064a\u064f\u0646\u0633\u064e\u062e\u064f \u0627\u0644\u0646\u0648\u0639\u064f \u0641\u064a\u0628\u0642\u0649 \u0627\u0644\u0645\u0635\u062f\u0631\u064f \u0635\u0627\u0644\u062d\u064b\u0627\u061f")
+    lines.append("         * @brief (EN) Is the kind Copy (source stays valid after use)?")
+    lines.append("         *")
+    lines.append("         * (AR) \u0645\u0641\u062a\u0627\u062d\u064c \u062e\u0627\u0631\u062c\u064e \u0627\u0644\u0645\u062f\u0649 \u064a\u064f\u062c\u0627\u0628\u064f \u0628\u0640«\u064a\u064f\u0646\u0633\u064e\u062e» \u0644\u0627 \u0628\u0640«\u064a\u064f\u0646\u0642\u064e\u0644»: \u0627\u0644\u0646\u0642\u0644\u064f")
+    lines.append("         *      \u064a\u064f\u062d\u0645\u0651\u0650\u0631\u064f \u0628\u0631\u0646\u0627\u0645\u062c\u064b\u0627\u060c \u0641\u0644\u0627 \u064a\u064f\u062d\u0643\u064e\u0645\u064f \u0628\u0647 \u0639\u0644\u0649 \u0645\u0641\u062a\u0627\u062d\u064d \u0645\u062c\u0647\u0648\u0644.")
+    lines.append("         * (EN) An out-of-range kind answers Copy, never Move: Move reddens a")
+    lines.append("         *      program, and an unknown kind must not redden one.")
+    lines.append("         */")
+    lines.append("        inline constexpr bool sadTypeKindIsCopy(SadTypeKind kind)")
+    lines.append("        {")
+    lines.append("            const int index = static_cast<int>(kind);")
+    lines.append("            if (index < 0 ||")
+    lines.append("                index >= static_cast<int>(sizeof(SAD_TYPE_IS_COPY_TABLE) /")
+    lines.append("                                          sizeof(SAD_TYPE_IS_COPY_TABLE[0])))")
+    lines.append("            {")
+    lines.append("                return true;")
+    lines.append("            }")
+    lines.append("            return SAD_TYPE_IS_COPY_TABLE[static_cast<std::size_t>(index)];")
+    lines.append("        }")
+    lines.append("")
+    return lines
+
 def _emit_numeric_traits(types: list[dict[str, Any]]) -> list[str]:
     """
     (AR) يُولّد الجدولَ الموحَّدَ للصفةِ العدديّة (الإشارة + العرض) وما يُشتَقُّ منه.
@@ -784,6 +855,8 @@ def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | Non
     lines.append("")
 
     lines.extend(_emit_numeric_traits(types))
+
+    lines.extend(_emit_value_semantics(types))
 
     # ========================================================================
     # (AR) دالة الاسم العربي لـنوع() — مصدر حقيقة واحد للمحرّكين (مفسّر + مترجم).

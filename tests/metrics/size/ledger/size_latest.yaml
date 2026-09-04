@@ -1,7 +1,7 @@
 # سِجلُّ الحجمِ الحتميِّ للغة ص — مقيسٌ لا مُصرَّح
 # ⚠️ لا يُحرَّرُ باليد: python tests/metrics/size/size_map.py --update --compiler <sad-build>
 # الهدفُ مثبَّتٌ عمدًا فلا يقيسُ الرقمُ آلةَ العدّاء
-# آخرُ قياس / last measurement: 2026-08-29
+# آخرُ قياس / last measurement: 2026-09-04
 target: --هدف=x86_64-unknown-linux-gnu
 programs:
   compiler/benchmarks/01_فيبوناتشي.ص:
@@ -81,7 +81,7 @@ programs:
     native_elf_bytes: 0
   compiler/benchmarks/06_المصفوفات.ص:
     llvm_status: مقبول
-    ir_lines: 2922
+    ir_lines: 2959
     ir_defines: 19
     ir_globals: 39
     external_symbols:
@@ -214,6 +214,6 @@ totals:
   llvm_rejected: 3
   native_accepted: 5
   native_rejected: 10
-  ir_lines: 12091
+  ir_lines: 12128
   native_elf_bytes: 12039
   distinct_external_symbols: 15

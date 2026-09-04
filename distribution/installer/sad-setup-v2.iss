@@ -60,14 +60,14 @@ CreateUninstallRegKey=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-english.CompInterpreter=Interpreter (run .sad files directly)
+english.CompHub=Tool hub (sad build, sad check, sad fmt)
 english.CompCompiler=Compiler sadc (compile to native binary - LLD embedded)
 english.CompLSP=LSP Server + Formatter (editor support)
 english.CompPkg=Package Manager sad-pkg
 english.CompStdlib=Standard Library (io, math, string, network, graphics)
 english.CompExamples=Example Programs
 english.AddToPath=Add Sad to system PATH
-english.AssocExt=Associate .sad files with Sad interpreter
+english.AssocExt=Associate .sad files with the Sad compiler
 english.DesktopIcon=Create Desktop shortcut
 english.StartMenuIcon=Create Start Menu group
 english.PrevInstallFound=A previous installation of Sad Language was found at:%n%n%1%n%nVersion: %2%n%nWhat would you like to do?
@@ -77,15 +77,25 @@ english.PrevCancel=Cancel installation
 
 [Types]
 Name: "full"; Description: "Full installation - all components"
-Name: "minimal"; Description: "Minimal - interpreter only"
+; (AR) 🔑 «minimal» كان يَعِدُ بمترجّمٍ و`compiler` نوعُه `full custom`
+;      وحدَهما — فلا يقعُ فيه. أُدخِلَ المترجّمُ والمكتبةُ في الأدنى: المركزُ
+;      وحدَه موزِّعٌ لا محرّك.
+; (EN) "minimal" promised a compiler while `compiler` was Types: full custom
+;      only. The compiler and stdlib now belong to the smallest type: the hub
+;      alone is a dispatcher, not an engine.
+Name: "minimal"; Description: "Minimal - hub, compiler and standard library"
 Name: "custom"; Description: "Custom - choose components"; Flags: iscustom
 
 [Components]
-Name: "interpreter"; Description: "{cm:CompInterpreter}"; Types: full minimal custom; Flags: fixed
-Name: "compiler"; Description: "{cm:CompCompiler}"; Types: full custom
+; (AR) 🔑 المكوّنُ كان اسمُه `interpreter` ووصفُه «يشغّل .sad مباشرة» —
+;      وذاك عقدُ محرّكٍ محذوف. و`sad.exe` مركزُ أدواتٍ يُنادي البقيّة.
+; (EN) The component was named "interpreter" and described as running .sad
+;      files directly — the contract of a deleted engine. sad.exe is a hub.
+Name: "hub"; Description: "{cm:CompHub}"; Types: full minimal custom; Flags: fixed
+Name: "compiler"; Description: "{cm:CompCompiler}"; Types: full minimal custom
 Name: "lsp"; Description: "{cm:CompLSP}"; Types: full custom
 Name: "pkg"; Description: "{cm:CompPkg}"; Types: full custom
-Name: "stdlib"; Description: "{cm:CompStdlib}"; Types: full custom
+Name: "stdlib"; Description: "{cm:CompStdlib}"; Types: full minimal custom
 Name: "examples"; Description: "{cm:CompExamples}"; Types: full custom
 
 [Tasks]
@@ -103,21 +113,38 @@ Name: "{commonappdata}\sad-lang\packages"
 Name: "{commonappdata}\sad-lang\cache"
 
 [Files]
-; Interpreter (always)
-Source: "..\..\build\bin\Release\sad.exe"; DestDir: "{app}\bin"; DestName: "sad.exe"; Flags: ignoreversion; Components: interpreter
+; Tool hub (always)
+Source: "..\..\build\bin\Release\sad.exe"; DestDir: "{app}\bin"; DestName: "sad.exe"; Flags: ignoreversion; Components: hub
 
 ; Compiler
-Source: "..\..\build\bin\Release\sadc.exe"; DestDir: "{app}\bin"; DestName: "sadc.exe"; Flags: ignoreversion skipifsourcedoesntexist; Components: compiler
+; (AR) 🔑 `sadc.exe` لا يُنتِجُه أيُّ هدفِ بناء — انظر التعليلَ في
+;      sad-setup.iss. المبنيُّ `sad-build.exe`، ويُنسَخُ باسمَيه.
+; (EN) sadc.exe is produced by no build target - see the rationale in
+;      sad-setup.iss. The built name is sad-build.exe, copied under both.
+Source: "..\..\build\bin\Release\sad-build.exe"; DestDir: "{app}\bin"; DestName: "sad-build.exe"; Flags: ignoreversion; Components: compiler
+Source: "..\..\build\bin\Release\sad-build.exe"; DestDir: "{app}\bin"; DestName: "sadc.exe"; Flags: ignoreversion; Components: compiler
 
 ; LSP + Formatter
-Source: "..\..\build\bin\Release\sad-lsp.exe"; DestDir: "{app}\bin"; Flags: ignoreversion skipifsourcedoesntexist; Components: lsp
+; (AR) 🔑 `sad-check` مُلزَمٌ في `SAD_REQUIRED_STANDARD` ولم يكنْ يُشحَن —
+;      انظر التعليلَ في sad-setup.iss. وهو تحتَ `hub` المثبَّت.
+; (EN) sad-check is hard-required by SAD_REQUIRED_STANDARD and was not
+;      shipped — see the rationale in sad-setup.iss. It goes under the fixed
+;      hub component.
+Source: "..\..\build\bin\Release\sad-check.exe"; DestDir: "{app}\bin"; Flags: ignoreversion; Components: hub
+; (AR) 🔑 نُزِعَ `skipifsourcedoesntexist` عن `sad-lsp`: هو مُلزَمٌ في
+;      `SAD_REQUIRED_STANDARD`، والعَلَمُ يجعلُ غيابَه صامتًا فتُبنى حزمةٌ
+;      ناقصةٌ بلا كلمة. المُلزَمُ يُنسَخُ أو يُخفِقُ البناء.
+; (EN) skipifsourcedoesntexist removed from sad-lsp: it is hard-required by
+;      SAD_REQUIRED_STANDARD, and the flag made its absence silent, building
+;      an incomplete package without a word. Required means copied or fail.
+Source: "..\..\build\bin\Release\sad-lsp.exe"; DestDir: "{app}\bin"; Flags: ignoreversion; Components: lsp
 Source: "..\..\build\bin\Release\sad-fmt.exe"; DestDir: "{app}\bin"; Flags: ignoreversion skipifsourcedoesntexist; Components: lsp
 
 ; Package Manager
 Source: "..\..\build\bin\Release\sad-pkg.exe"; DestDir: "{app}\bin"; Flags: ignoreversion skipifsourcedoesntexist; Components: pkg
 
 ; SDL2
-Source: "..\..\build\bin\Release\SDL2.dll"; DestDir: "{app}\bin"; Flags: ignoreversion skipifsourcedoesntexist; Components: interpreter
+Source: "..\..\build\bin\Release\SDL2.dll"; DestDir: "{app}\bin"; Flags: ignoreversion skipifsourcedoesntexist; Components: hub
 
 ; Standard Library
 Source: "..\..\stdlib\core\*"; DestDir: "{app}\stdlib\core"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: stdlib
@@ -140,16 +167,22 @@ Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoes
 Source: "..\assets\sad.config.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist onlyifdoesntexist
 
 [Icons]
-Name: "{group}\Sad Interpreter"; Filename: "{app}\bin\sad.exe"; Parameters: "--repl"; WorkingDir: "{commondocs}"; IconFilename: "{app}\sad_icon.ico"; Tasks: startmenu
+Name: "{group}\Sad Language"; Filename: "{app}\bin\sad.exe"; Parameters: "--help"; WorkingDir: "{commondocs}"; IconFilename: "{app}\sad_icon.ico"; Tasks: startmenu
 Name: "{group}\Uninstall Sad"; Filename: "{uninstallexe}"; Tasks: startmenu
-Name: "{autodesktop}\Sad Language"; Filename: "{app}\bin\sad.exe"; Parameters: "--repl"; IconFilename: "{app}\sad_icon.ico"; Tasks: desktopicon
+Name: "{autodesktop}\Sad Language"; Filename: "{app}\bin\sad.exe"; Parameters: "--help"; IconFilename: "{app}\sad_icon.ico"; Tasks: desktopicon
 
 [Registry]
 ; File associations
 Root: HKCR; Subkey: ".sad"; ValueType: string; ValueName: ""; ValueData: "SadSourceFile"; Flags: uninsdeletevalue; Tasks: assocext
 Root: HKCR; Subkey: "SadSourceFile"; ValueType: string; ValueName: ""; ValueData: "Sad Source File"; Flags: uninsdeletekey; Tasks: assocext
 Root: HKCR; Subkey: "SadSourceFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\sad_icon.ico,0"; Tasks: assocext
-Root: HKCR; Subkey: "SadSourceFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\sad.exe"" ""%1"""; Tasks: assocext
+; (AR) 🔑 كان الاقترانُ `sad.exe "%1"` — والمركزُ يرفضُ ملفًّا عاريًا عمدًا
+;      (`HubMain_BareFileRejected`). وقد صُحّحت الرسالةُ في سطرِ AssocExt ولم
+;      يُصحَّحِ الفعلُ، فصار المُثبِّتُ يُعلِنُ اقترانًا يعملُ وهو لا يعمل.
+; (EN) The association ran `sad.exe "%1"`, which the hub rejects by design
+;      (HubMain_BareFileRejected). The AssocExt message had been corrected
+;      while the action had not - advertising an association that fails.
+Root: HKCR; Subkey: "SadSourceFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\sad.exe"" ""build"" ""%1"""; Tasks: assocext
 
 ; Environment variables
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "SAD_HOME"; ValueData: "{app}"; Flags: uninsdeletevalue; Tasks: addtopath
@@ -162,7 +195,7 @@ Root: HKLM; Subkey: "SOFTWARE\SadLang"; ValueType: string; ValueName: "Publisher
 
 [Run]
 Filename: "{sys}\cmd.exe"; Parameters: "/C setx SAD_HOME ""{app}"" && setx SAD_STDLIB ""{app}\stdlib"""; Flags: runhidden; Tasks: addtopath
-Filename: "{app}\bin\sad.exe"; Parameters: "--repl"; Description: "Launch Sad REPL"; Flags: nowait postinstall skipifsilent unchecked
+Filename: "{app}\bin\sad.exe"; Parameters: "--help"; Description: "Show Sad commands"; Flags: nowait postinstall skipifsilent unchecked
 
 [UninstallRun]
 Filename: "{sys}\cmd.exe"; Parameters: "/C setx SAD_HOME """" && setx SAD_STDLIB """""; Flags: runhidden; RunOnceId: "ClearSadEnv"

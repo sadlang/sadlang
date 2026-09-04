@@ -39,8 +39,6 @@ macro(add_comprehensive_test TEST_NAME TEST_SOURCE)
         ${CMAKE_SOURCE_DIR}/include/errors
         ${CMAKE_SOURCE_DIR}/include/modules
         ${CMAKE_SOURCE_DIR}/include/utils
-        ${CMAKE_SOURCE_DIR}/interpreter/include
-        ${CMAKE_SOURCE_DIR}/interpreter/include/managers
     )
 
     if(MSVC)
@@ -81,23 +79,16 @@ add_comprehensive_test(test_value_comprehensive test_value_comprehensive.cpp)
 #      في المفسّرِ بعد بناءٍ كامل.
 add_comprehensive_test(test_insertion_ordered_map_comprehensive test_insertion_ordered_map_comprehensive.cpp)
 
-# 4. المفسر / Interpreter Tests (76 tests)
-add_comprehensive_test(test_interpreter_comprehensive test_interpreter_comprehensive.cpp)
-# (AR) TEST-004: sad_interpreter جزئية بالتصميم (vtable الزائرين غير مكتمل) — المفسر الكامل في sad_core
-target_link_libraries(test_interpreter_comprehensive PRIVATE sad_core sad_profiler_lib)
-target_sources(test_interpreter_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/interpreter_test_stubs.cpp)
+# (AR) 🔑 حُذف `test_interpreter_comprehensive` وأنصابُه مع المفسّر.
 
 # 5. المكتبة القياسية / Standard Library Tests (90 tests)
 add_comprehensive_test(test_stdlib_comprehensive test_stdlib_comprehensive.cpp)
 target_sources(test_stdlib_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/shared/builtins/src/runtime/array_functions.cpp
     ${CMAKE_SOURCE_DIR}/shared/builtins/src/runtime/type_functions.cpp
-    ${CMAKE_SOURCE_DIR}/shared/builtins/src/runtime/stdlib_manager.cpp
     ${CMAKE_SOURCE_DIR}/stdlib/io/io_functions.cpp
     ${CMAKE_SOURCE_DIR}/stdlib/string/string_functions.cpp
-    ${CMAKE_SOURCE_DIR}/stdlib/math/math_functions.cpp
-    ${CMAKE_SOURCE_DIR}/interpreter/src/managers/function_manager.cpp)
+    ${CMAKE_SOURCE_DIR}/stdlib/math/math_functions.cpp)
 target_include_directories(test_stdlib_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/stdlib ${CMAKE_SOURCE_DIR}/shared/builtins/include/runtime
     ${CMAKE_SOURCE_DIR}/stdlib/string ${CMAKE_SOURCE_DIR}/stdlib/math)
@@ -125,29 +116,13 @@ target_include_directories(test_compiler_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/compiler/include/frontend
     ${CMAKE_SOURCE_DIR}/compiler/include/backend)
 
-# 11.5. اختبارات نظام الاستثناءات / Throw-Catch Exception Tests (35 tests)
-add_comprehensive_test(test_throw_catch_comprehensive test_throw_catch_comprehensive.cpp)
-target_link_libraries(test_throw_catch_comprehensive PRIVATE sad_core sad_profiler_lib)
-target_sources(test_throw_catch_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/interpreter_test_stubs.cpp)
+# (AR) 🔑 حُذف `test_throw_catch_comprehensive` مع المفسّر (كان يضمُّ ترويساتِه وأنصابَه).
 
-# 11.6. اختبارات ?. و ?? / Optional Chain & Null Coalesce Tests (30+ tests)
-add_comprehensive_test(test_optional_null_comprehensive test_optional_null_comprehensive.cpp)
-target_link_libraries(test_optional_null_comprehensive PRIVATE sad_core sad_profiler_lib)
-target_sources(test_optional_null_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/interpreter_test_stubs.cpp)
+# (AR) 🔑 حُذف `test_optional_null_comprehensive` مع المفسّر (كان يضمُّ ترويساتِه وأنصابَه).
 
-# 12. اختبارات الانحدار / Regression Tests (22 tests - bugs from مشاكل.md)
-add_comprehensive_test(test_regression_comprehensive test_regression_comprehensive.cpp)
-
-# تمرير مسار sad-run ومجلد الاختبارات / Pass interpreter and test directory paths
-target_compile_definitions(test_regression_comprehensive PRIVATE
-    SAD_EXE_PATH="$<TARGET_FILE:sad-run>"
-    REGRESSION_DIR="${CMAKE_SOURCE_DIR}/tests/behavior/_regression"
-)
-
-# مهلة أطول للانحدار — بعض الاختبارات تتضمن حلقات لا نهائية / Longer timeout for regression
-set_tests_properties("Comprehensive_test_regression_comprehensive" PROPERTIES TIMEOUT 300)
+# (AR) 🔑 حُذف `test_regression_comprehensive`: كان يستدعي `sad-run` عبر
+#      SAD_EXE_PATH. تغطيةُ `tests/behavior/_regression` باقيةٌ عبر العدّاء
+#      (dual_tests.cmake) وقد صار مترجِمًا فقط.
 
 # ──────────────────────────────────────────────────────────────────────
 # 13. اختبارات وحدات المكتبة القياسية المتقدمة / Advanced Stdlib Module Tests (Sprint 1 — ريم)
@@ -229,22 +204,24 @@ target_include_directories(test_ui_phase1 PRIVATE
 
 # 14a-bis. اختبارات السلسلة التفاعلية لـ@حالة / Reactive @state chain Tests (STORY-UI-W15-03)
 # تختبر UIStateManager مباشرة: تسجيل → مراقبة → تصفية → batching → flush
-add_comprehensive_test(test_ui_reactive_state test_ui_reactive_state.cpp)
 # (AR) نربط sad_core للتنفيذ الحقيقي لـUIStateManager — بدون interpreter_test_stubs
 #      لأن تلك البدائل تُبطل (no-op) دوال UIStateManager وتُفشل اختبار التفاعلية.
 # (EN) Link the REAL UIStateManager from sad_core — NOT interpreter_test_stubs,
 #      whose no-op overrides would shadow the implementation under test.
-target_link_libraries(test_ui_reactive_state PRIVATE sad_core sad_profiler_lib)
-target_include_directories(test_ui_reactive_state PRIVATE
-    ${CMAKE_SOURCE_DIR}/interpreter/include/ui)
+# (AR) 🔑 كلُّ مسارات تضمينِ هذا الهدفِ كانت شجرةَ المفسّر — زالت معها.
 
+# (AR) 🔑 حُذف `test_ui_reactive_state`: موضوعُه `UIStateManager` الخاصُّ
+#      بالمفسّر (`interpreter/src/ui/ui_state_manager.cpp`) — والتعليقُ
+#      الأصليُّ كان يشترطُ «المُدير الحقيقيّ من sad_core لا الأنصاب».
+#      زالَ الموضوعُ فزالَ الاختبار؛ ولا نظيرَ له في المترجم.
+# (EN) Removed: its subject was the interpreter's UIStateManager.
 # 14a-ter. خفض «واجهة» إلى SIR في المترجم / UI -> SIR lowering (STORY-UI-W15-04)
 # (AR) يثبت أن SIRBuilder يخفض UIDeclarationNode إلى ClassDecl (Phase 0) فيظهر
 #      صنف SIR بحقول @حالة ودواله مع احترام «يرث». يُربط بـsad_core + sad_frontend.
 # (EN) Verifies SIRBuilder lowers UIDeclarationNode -> ClassDecl (Phase 0):
 #      a SIR class with @state fields + methods + يرث inheritance.
 add_comprehensive_test(test_ui_sir_lowering test_ui_sir_lowering.cpp)
-target_link_libraries(test_ui_sir_lowering PRIVATE sad_core sad_frontend)
+target_link_libraries(test_ui_sir_lowering PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
 target_include_directories(test_ui_sir_lowering PRIVATE
     ${CMAKE_SOURCE_DIR}/compiler/include/frontend
     ${CMAKE_SOURCE_DIR}/compiler/include)
@@ -362,27 +339,11 @@ set_tests_properties("Comprehensive_test_arabic_shaper_freestanding"
     PROPERTIES TIMEOUT 60 LABELS "Unit")
 message(STATUS "  ✅ test_arabic_shaper_freestanding")
 
-# (AR) اختبار المطابقة المتسامحة لموزِّع آبلتات sad-repl (normalizeArabic + appletExec
-#      ثنائيّ الطبقة). يصرّف المولَّد repl_sot_generated.cpp مباشرةً — منطق نصّيّ نقيّ
-#      (لا execvp/busybox) فيعمل على كلّ منصّة CI.
-# (EN) Tolerant-matching test for the sad-repl applet dispatcher; compiles the
-#      generated SoT directly (pure string logic, no busybox) — runs on all CI.
-add_executable(test_applet_normalize
-    ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/test_applet_normalize.cpp
-    ${CMAKE_SOURCE_DIR}/tools/repl/generated/repl_sot_generated.cpp)
-target_include_directories(test_applet_normalize PRIVATE
-    ${CMAKE_SOURCE_DIR}/tools/repl/generated)
-target_compile_features(test_applet_normalize PRIVATE cxx_std_17)
-if(MSVC)
-    target_compile_options(test_applet_normalize PRIVATE /W3 /utf-8 /FS)
-else()
-    target_compile_options(test_applet_normalize PRIVATE -Wall -Wextra)
-endif()
-add_test(NAME "Comprehensive_test_applet_normalize"
-         COMMAND test_applet_normalize)
-set_tests_properties("Comprehensive_test_applet_normalize"
-    PROPERTIES TIMEOUT 60 LABELS "Unit")
-message(STATUS "  ✅ test_applet_normalize")
+# (AR) 🔑 حُذف `test_applet_normalize`: موضوعُه موزِّعُ آبلتاتِ `sad-repl`
+#      ومصدرُه المولَّد `repl_sot_generated.cpp` — والأداةُ ومصدرُ حقيقتِها
+#      زالا مع المفسّر.
+# (EN) Removed: its subject (the sad-repl applet dispatcher and its generated
+#      SoT) went with the interpreter.
 
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات .ص فردية مباشرة عبر CTest / Individual .ص CTest entries
@@ -436,46 +397,30 @@ set(REGRESSION_P2_TESTS
     test_p22_true_literal
 )
 
-foreach(TEST_NAME IN LISTS REGRESSION_P0_TESTS REGRESSION_P1_TESTS REGRESSION_P2_TESTS)
-    # تحقق من وجود الملف بلاحقة .ص
-    set(TEST_FILE "${REGRESSION_TEST_DIR}/${TEST_NAME}.ص")
-    if(EXISTS "${TEST_FILE}")
-        add_test(
-            NAME "Regression_${TEST_NAME}"
-            COMMAND $<TARGET_FILE:sad-run> "${TEST_FILE}"
-        )
-        set_tests_properties("Regression_${TEST_NAME}" PROPERTIES
-            TIMEOUT 15
-            LABELS "regression"
-        )
-        message(STATUS "  📋 Regression: ${TEST_NAME}")
-    endif()
-endforeach()
+# (AR) 🔑 حُذفت حلقةُ `add_test(... $<TARGET_FILE:sad-run>)`: استدعاءٌ مباشرٌ
+#      للمفسّرِ يتخطّى العدّاء. البذورُ نفسُها تُشغَّلُ عبر dual_tests.cmake.
 
-# الحلقة اللانهائية تحتاج مهلة قصيرة / Infinite loop test needs shorter timeout
-if(TARGET sad-run)
-    set_tests_properties("Regression_test_p02_while_update" PROPERTIES TIMEOUT 5)
-endif()
-
-message(STATUS "  ✅ test_regression_comprehensive (30 regression tests)")
+# (AR) 🔑 نُزِعَ ضبطُ مهلةِ "Regression_test_p02_while_update": الاختبارُ نفسُه
+#      لم يعُدْ يُسجَّل (حلقةُ `add_test` أعلاه حُذفت مع المفسّر)، فكان الضبطُ
+#      يقعُ على اسمٍ لا وجودَ له داخلَ `if(TARGET sad-run)` — فلا يُنفَّذُ ولا
+#      يُخفِق. وحمايةُ الحلقةِ اللانهائيّةِ باقيةٌ عبر مهلةِ العدّاء (`--timeout`).
+# (EN) Removed: the test it configured is no longer registered, so the property
+#      sat on a nonexistent name inside a dead TARGET guard. Infinite-loop
+#      protection remains via the runner's own timeout.
 
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات السلسلة الاختياريّة ?. ودمج العدم ?? عبر ملفات .ص / Optional Chain & Null Coalesce .ص tests
 # ──────────────────────────────────────────────────────────────────────
-if(TARGET sad-run)
-    # (AR) TEST-005: نُقلت ملفات ?./?? إلى behavior/_regression (موطن .ص التي
-    #      يشغّلها ctest) بعد أرشفة tests/ownership — راجع tests/_archive/README.md
-    # (EN) TEST-005: optional-null .ص files moved to behavior/_regression after
-    #      tests/ownership was archived.
-    set(OPT_TEST_DIR "${CMAKE_SOURCE_DIR}/tests/behavior/_regression")
-    file(GLOB OPT_NULL_TESTS "${OPT_TEST_DIR}/test_optional_null*")
-    foreach(OPT_FILE IN LISTS OPT_NULL_TESTS)
-        get_filename_component(OPT_NAME "${OPT_FILE}" NAME_WE)
-        add_test(NAME "OptionalNull_${OPT_NAME}" COMMAND $<TARGET_FILE:sad-run> "${OPT_FILE}")
-        set_tests_properties("OptionalNull_${OPT_NAME}" PROPERTIES TIMEOUT 15 LABELS "optional_null")
-        message(STATUS "  [test] OptionalNull: ${OPT_NAME}")
-    endforeach()
-endif()
+# (AR) 🔑 حُذفت حلقةُ `OptionalNull_*`: كانت تُشغّلُ بذورَ `?.`/`??` بـ`sad-run`
+#      مباشرةً. وبزوالِ الهدفِ صارت تسقطُ **صامتةً** داخلَ `if(TARGET sad-run)` —
+#      وسقوطٌ لا صوتَ له أسوأُ من إخفاق. والتغطيةُ لم تُفقَد: البذرتان تسكنانِ
+#      `tests/behavior/_regression` ويحكمُ عليهما العدّاءُ بالمترجّم. وقد أظهرَ
+#      رفعُ الغطاءِ حمرةً كانت مخبوءةً: `test_optional_null_advanced.ص` يُخفِقُ
+#      بـ«Failed to build if condition» — مُقيَّدةٌ في `DECLARED_REDS.tsv`.
+# (EN) Removed: the loop ran the ?./?? seeds through sad-run directly, so it went
+#      silently dead inside a TARGET guard — worse than a failure. Coverage is not
+#      lost: both seeds live in behavior/_regression and the runner judges them with
+#      the compiler. Lifting the cover surfaced a red that the guard had hidden.
 
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات المترجم freestanding عبر sad-build / Freestanding Compiler Tests (sad-build)
@@ -515,7 +460,6 @@ add_custom_target(comprehensive_tests
         test_parser_comprehensive
         test_value_comprehensive
         test_insertion_ordered_map_comprehensive
-        test_interpreter_comprehensive
         test_stdlib_comprehensive
         test_errors_comprehensive
         test_ast_clone
@@ -523,8 +467,7 @@ add_custom_target(comprehensive_tests
         test_e2e_comprehensive
         test_utils_modules_comprehensive
         test_compiler_comprehensive
-        test_regression_comprehensive
-        test_optional_null_comprehensive
+
     # ملاحظة: اختبارات الرسومات المربوطة بـsad_graphics (test_ui_*, test_backends_*,
     # test_event_system_*, test_reconciler_*, test_ui_render_displaylist) مستثناة
     # عمدًا من هذا الهدف المُجمّع (تتطلّب sad_graphics)؛ تُسجَّل فرديًّا عبر add_test

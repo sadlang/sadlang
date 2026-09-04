@@ -105,12 +105,24 @@ namespace Sad
                 objPtr = cg_.builder_->CreateIntToPtr(ptrAsInt,
                                                   llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".heap.ptr");
             }
-            // (AR) إذا كان الكائن i64 — حوّله إلى ptr
-            // (EN) If object is i64 — cast to ptr
-            else if (objPtr->getType()->isIntegerTy())
+            // (AR) وسائرُ الأشكالِ من بابٍ واحد (موسومٌ · خانةٌ موسومةٌ · مقبضٌ i64).
+            //      وقبلَ توحيدِه كان هذا الموضعُ يعرفُ المقبضَ ويجهلُ الموسومَ، فيصلُ
+            //      `%SadDyn` إلى `CreateStructGEP` فيُجهِضُ مدقّقُ LLVM الوحدةَ.
+            // ⚠️ (AR) وهو **الموضعُ الوحيدُ من السبعةِ الذي يُوسِّع** لا يُوحِّدُ فحسب:
+            //      كان الشرطُ `else if (isIntegerTy)` فصارَ `else` مطلقًا. فما لم يكن
+            //      مقبضًا ولا عامًّا كان يمرُّ **كما هو** وصارَ يمرُّ بالباب. والبابُ
+            //      هويّةٌ على المؤشّرِ الجاهز، فالتوسيعُ يطالُ الموسومَ وحدَه عمليًّا —
+            //      لكنّه توسيعٌ يُذكَرُ ولا يُدَسُّ تحتَ لفظِ «توحيد».
+            // ⚠️ (EN) This is the ONE site of the seven that WIDENS rather than merely
+            //      unifying: the condition was `else if (isIntegerTy)` and is now a bare
+            //      `else`. Anything that was neither a handle nor a global used to pass
+            //      through untouched and now goes through the door. The door is the
+            //      identity on an already-pointer, so in practice the widening reaches
+            //      only the tagged case — but it is stated, not smuggled under the word
+            //      "unification".
+            else
             {
-                objPtr = cg_.builder_->CreateIntToPtr(objPtr,
-                                                  llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".i2p");
+                objPtr = objectPointerOperand(cg_, objPtr, objRegName + ".i2p");
             }
 
             // (AR) البحث عن اسم الصنف

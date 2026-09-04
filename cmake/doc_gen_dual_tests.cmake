@@ -47,7 +47,7 @@ add_custom_target(doc_gen_tests_fast
     COMMAND ${_DOC_GEN_ENV} --skip-pdf
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "📄 اختبارات استخراج التوثيق (md/json/html فقط)"
-    DEPENDS sad-run
+    DEPENDS sad-build
     USES_TERMINAL
 )
 
@@ -55,7 +55,7 @@ add_custom_target(doc_gen_tests_full
     COMMAND ${_DOC_GEN_ENV}
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "📄 اختبارات استخراج التوثيق الشاملة (يشمل PDF)"
-    DEPENDS sad-run
+    DEPENDS sad-build
     USES_TERMINAL
 )
 

@@ -61,20 +61,57 @@ def main(argv):
     print("  تفصيلُ الإخفاق: %d من %d" % (len(failures), report.get("total", len(tests))))
     print("══════════════════════════════════════════════════")
 
+    dual_ran = (report.get("dual_parity_passed", 0)
+                + report.get("dual_parity_failed", 0)
+                + report.get("interp_only_passed", 0)
+                + report.get("interp_only_failed", 0)) > 0
+
     for index, entry in enumerate(failures[:MAX_SHOWN], 1):
         print("")
         print("── [%d] %s" % (index, entry.get("file", "?")))
         print("   الحالة: %s" % entry.get("status", "?"))
         if entry.get("error"):
             print("   الخطأ: %s" % entry["error"])
+        # (AR) 🔑 **لا يُطبَعُ قسمُ محرّكٍ لم يعمل.**
+        #      كان القسمانِ يُطبَعانِ معًا دائمًا، فيظهرُ في مسارِ المحرّكِ
+        #      الواحد:
+        #          ── مفسّر ──
+        #          | (فارغ)
+        #      وهو يُقرأُ **دعوى قياس**: «المفسّرُ أنتجَ خرجًا فارغًا». والحقيقةُ
+        #      «لم يعملْ مفسّرٌ أصلًا». ⚠️ وقد ضلّلَ ذلك قارئًا لسجلِّ CI
+        #      فسألَ: «هذه اختبارات لينكس — لماذا يوجدُ هناك مفسّر؟». فالفراغُ
+        #      هنا كان يُنطَقُ صفرًا حيث الصوابُ الصمت.
+        #      والتمييزُ بـ`is None` لا بالفراغ: خرجٌ فارغٌ من محرّكٍ عملَ فعلًا
+        #      حقيقةٌ تستحقُّ العرض، وغيابُ المحرّكِ لا.
+        # (EN) A section is not printed for an engine that never ran. Both were
+        #      always printed, so the single-engine path showed "── interpreter ──
+        #      | (empty)", which reads as a MEASUREMENT — "the interpreter produced
+        #      empty output" — when the truth is "no interpreter ran at all". It
+        #      actually misled a reader of the CI log into asking why there was an
+        #      interpreter in a Linux run. The distinction is `is None`, not
+        #      emptiness: empty output from an engine that DID run is a fact worth
+        #      showing; an absent engine is not.
         interp = entry.get("interp_output")
         compiled = entry.get("compiler_output")
-        if interp is not None or compiled is not None:
+        # (AR) ⚠️ الحكمُ من عدّاداتِ التقريرِ لا من فراغِ النصّ: العدّاءُ
+        #      يكتبُ سلسلةً فارغةً لا `null` حين لا مفسّرَ، فلا يُميَّزُ
+        #      «عملَ فأنتجَ فراغًا» من «لم يعملْ» بالنظرِ إلى النصِّ وحدَه.
+        #      والعدّاداتُ الأربعةُ في التقريرِ تحسمُها: صفرُها كلِّها يعني
+        #      أنّ محرّكًا ثانيًا لم يُشغَّلْ في هذا الشوطِ أصلًا.
+        # (EN) The verdict comes from the report counters, not from empty text: the
+        #      runner writes an empty string rather than null when there is no
+        #      interpreter, so text alone cannot separate "ran and produced nothing"
+        #      from "never ran". The four counters settle it: all zero means no
+        #      second engine was run in this pass at all.
+        if not dual_ran:
+            interp = None
+        if interp is not None:
             print("   ── مفسّر ──")
-            for line in (interp or "").splitlines() or ["(فارغ)"]:
+            for line in interp.splitlines() or ["(فارغ)"]:
                 print("   | %s" % line)
+        if compiled is not None:
             print("   ── مترجم ──")
-            for line in (compiled or "").splitlines() or ["(فارغ)"]:
+            for line in compiled.splitlines() or ["(فارغ)"]:
                 print("   | %s" % line)
 
     if len(failures) > MAX_SHOWN:

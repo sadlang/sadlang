@@ -1,2 +1,0 @@
-استورد database
-اطبع_سطر(db_open(":memory:"))

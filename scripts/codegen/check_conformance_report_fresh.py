@@ -76,6 +76,15 @@ for _تيّار in (sys.stdout, sys.stderr):
 #      from that file moves along with a consistent mutation and checks nothing.
 ترويسات_مأذونة = {
     "| # | الاختبار | القاعدة | الفئة | الحالة |",
+    # (AR) 🔑 ترويستان لجدولِ التباعد: ذاتُ العمودَين للمحرّكِ الواحد،
+    #      وذاتُ الثلاثةِ للشوطِ المزدوجِ إن عاد. والأولى **ليست توسيعًا للإذن**
+    #      بل تضييقٌ له: عمودُ «مخرج المفسر» كان يُطبَعُ فارغًا بعدَ حذفِ المحرّك،
+    #      فيُقرَأُ «المفسّرُ لم يُخرِجْ شيئًا» وهو لم يُشغَّلْ أصلًا.
+    # (EN) Two accepted headers for the divergence table: the two-column form for
+    #      single-engine runs and the three-column form if a dual run returns. The
+    #      former NARROWS the report: the interpreter-output column was printed
+    #      empty after the engine was deleted, reading as "it produced nothing".
+    "| الاختبار | الحالة | مخرج المترجم |",
     "| الاختبار | الحالة | مخرج المفسر | مخرج المترجم |",
     "| الاختبار | سببُ التخطّي |",
     "| الاختبار | الثغرة | النتيجة |",

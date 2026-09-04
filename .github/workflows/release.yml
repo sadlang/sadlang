@@ -9,9 +9,15 @@
 #   2. يدويًا من واجهة GitHub Actions
 #
 # ينتج:
-#   - sad-v{VER}-windows-x86_64.zip        (المفسّر فقط)
-#   - sad-full-v{VER}-windows-x86_64.zip   (المفسّر + المترجم + كلّ الأدوات)
-#   - sadc-v{VER}-windows-x86_64.zip       (المترجم فقط)
+#   - sad-v{VER}-windows-x86_64.zip        (المترجم + المكتبة القياسيّة + الأدوات الأساسيّة)
+#   - sad-full-v{VER}-windows-x86_64.zip   (المترجم + كلّ الأدوات)
+#
+#   (AR) 🔑 صنفان لا ثلاثة. كانت القسمةُ «مفسّرٌ ↔ مترجِمٌ ↔ كلاهما»،
+#        وقد زالَ أحدُ طرفَيها مع حذفِ المفسّر — فلم يبقَ لصنفِ «المترجمِ وحدَه»
+#        ما يميّزُه، وصارَ اسمُ «المفسّر» وعدًا بما لا يوجد.
+#   (EN) Two classes, not three. The split was interpreter ↔ compiler ↔ both;
+#        one side is gone with the interpreter, so a compiler-only class has
+#        nothing left to distinguish it and «interpreter» promised what is absent.
 #   - نفس الملفات لـ linux-x86_64, linux-aarch64, macos-x86_64, macos-aarch64
 #
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -66,8 +72,8 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
   # 1. بناء المفسّر على جميع المنصّات (بدون LLVM)
   # ════════════════════════════════════════════════════════════════════
-  build-interpreter:
-    name: "المفسّر / Interpreter (${{ matrix.os }}-${{ matrix.arch }})"
+  build-standard:
+    name: "الحزمة القياسيّة / Standard (${{ matrix.os }}-${{ matrix.arch }})"
     runs-on: ${{ matrix.runner }}
     # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
     timeout-minutes: 90
@@ -150,6 +156,26 @@ jobs:
         with:
           cmakeVersion: ${{ env.CMAKE_VERSION }}
 
+      # (AR) 🔑 **الوصفةُ تُنادى هنا أيضًا.** نُقلت إلى فعلٍ مركّبٍ
+      #      لئلّا تُنسَخ، ثمّ نودِيت من وظيفةِ الحزمةِ الكاملةِ وحدَها — بينما
+      #      بُدّلت تهيئةُ هذه الوظيفةِ إلى `ENABLE_LLVM_BACKEND=ON` وأُضيفَ
+      #      فوقَها حارسٌ يشترطُ `LLVM_DIR`. فكانت النتيجةُ أنّ الخاناتِ الثلاثَ
+      #      تسقطُ عندَ الحارسِ ولا يُنشَرُ إصدارٌ أصلًا — وهو العطبُ عينُه الذي
+      #      نُقِلَ من التهيئةِ إلى المورِد.
+      # (EN) 🔑 The recipe is called HERE too. It was extracted into a
+      #      composite action to avoid a second copy, then wired into the full
+      #      package job alone — while this job's configure was switched to
+      #      ENABLE_LLVM_BACKEND=ON with an LLVM_DIR guard above it. All three
+      #      cells would have died at that guard and nothing would publish: the
+      #      same defect moved from the configure to the resource.
+      - name: "تثبيت LLVM / Install LLVM"
+        uses: ./.github/actions/setup-llvm
+        # (AR) الحدُّ على الخطوةِ المنادية: الأفعالُ المركّبةُ لا تقبلُ حدًّا في خطواتِها
+        #      الداخليّة، فحارسُ صمودِ CI يشترطُه هنا. والقيمةُ من نظيرتِها المنقولة.
+        # (EN) The cap belongs on the CALLING step: composite actions accept none on
+        #      their inner steps, and the CI-resilience guard requires it here.
+        timeout-minutes: 30
+
       # ── تبعيات Linux ──
       - name: "تبعيات Linux / Linux Dependencies"
         if: matrix.os == 'linux'
@@ -182,7 +208,25 @@ jobs:
           # (EN) The Windows path arrives with backslashes, which CMake reads as
           #      escapes — flip them to forward slashes.
           [ -n "$PYTHON3_EXECUTABLE" ] && PY_ARG="-DPython3_EXECUTABLE=$(printf '%s' "$PYTHON3_EXECUTABLE" | tr '\' '/')"
-          cmake -S . -B build             -G "${{ matrix.cmake_generator }}"             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}             -DENABLE_LLVM_BACKEND=OFF             -DBUILD_TESTS=OFF             -DBUILD_PKG_MANAGER=ON             -DBUILD_LSP_SERVER=ON             -DBUILD_REPL=ON             $PY_ARG
+          # (AR) 🔑 `ON` بعدَ أن كانت `OFF`. الحزمةُ القياسيّةُ تشحنُ
+          #      `sad-build`، وهو لا يُعرَّفُ إلّا خلفَ بوّابةِ LLVM — فكانت
+          #      التهيئةُ تُطفئُ الخلفيّةَ ثمّ يُطلَبُ منها هدفٌ لا وجودَ له.
+          #      وهذا ما كان **سيُعطِّلُ أوّلَ إصدارٍ رسميّ**: لا مفسّرَ بعدُ
+          #      يُشحَنُ في هذه الحزمة، فلا معنى لبنائها بلا مترجِم.
+          #      و`SAD_LLVM_STATIC=ON` يجعلُ الثنائيّاتِ مكتفيةً بذاتِها فلا
+          #      تشترطُ `libLLVM` على جهازِ المستخدم — ويقيسُه فحصُ التبعيّاتِ
+          #      في التحقّقِ من الحزم.
+          # (EN) ON, where it used to be OFF. The standard package ships
+          #      sad-build, which exists only behind the LLVM gate — so configure
+          #      turned the backend off and was then asked for a target that does
+          #      not exist. This is what would have broken the first official
+          #      release: there is no interpreter left to ship here, so building
+          #      this package without the compiler has no meaning.
+          #      SAD_LLVM_STATIC=ON keeps the binaries self-contained so they do
+          #      not require libLLVM on the user's machine — measured by the
+          #      shared-dependency check in package verification.
+          test -n "$LLVM_DIR" || { echo "::error::LLVM_DIR غيرُ مُصدَّر — خطوةُ تثبيتِ LLVM لم تعمل"; exit 1; }
+          cmake -S . -B build -G "${{ matrix.cmake_generator }}" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DENABLE_LLVM_BACKEND=ON -DLLVM_DIR="$LLVM_DIR" -DSAD_LLVM_STATIC=ON -DBUILD_TESTS=OFF -DBUILD_PKG_MANAGER=ON -DBUILD_LSP_SERVER=ON -DBUILD_REPL=ON $PY_ARG
 
       # ── بناء الأدوات الموعودة (من جدولِ الحقيقةِ الواحد) ──
       # (AR) الأهدافُ تُشتقُّ من `scripts/ci/release_tools.sh` لا تُكتَبُ هنا.
@@ -198,7 +242,7 @@ jobs:
         run: |
           source scripts/ci/release_tools.sh
           sad_require_identity_table
-          sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_INTERPRETER"
+          sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_STANDARD"
 
       # (AR) الأدواتُ الإضافيّةُ ليست وعدًا: تُبنى إن أمكنَ ولا تُسقِطُ الشوط.
       # (EN) Extras are not a promise: best-effort, never fatal.
@@ -206,7 +250,7 @@ jobs:
         shell: bash
         continue-on-error: true
         run: |
-          for target in sad-pkg sad-repl sad-fmt; do
+          for target in sad-pkg sad-fmt; do
             cmake --build build --config ${{ env.BUILD_TYPE }} --target "$target" ||               echo "⚠️ أداةٌ إضافيّةٌ لم تُبنَ / optional tool not built: $target"
           done
 
@@ -225,8 +269,8 @@ jobs:
           PKG_DIR="sad-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
           mkdir -p "$PKG_DIR/bin" "$PKG_DIR/stdlib" "$PKG_DIR/docs"
           sad_copy_tools build "${{ env.BUILD_TYPE }}" "$PKG_DIR/bin" \
-            "$SAD_REQUIRED_INTERPRETER sad-pkg sad-repl sad-fmt"
-          sad_require_tools "$PKG_DIR/bin" "$SAD_REQUIRED_INTERPRETER"
+            "$SAD_REQUIRED_STANDARD sad-pkg sad-fmt"
+          sad_require_tools "$PKG_DIR/bin" "$SAD_REQUIRED_STANDARD"
           echo "PKG_DIR=$PKG_DIR" >> $GITHUB_ENV
 
       # ── تجميع الحزمة ──
@@ -292,7 +336,7 @@ jobs:
         uses: actions/upload-artifact@v7
         timeout-minutes: 15
         with:
-          name: "sad-interpreter-${{ matrix.os }}-${{ matrix.arch }}"
+          name: "sad-standard-${{ matrix.os }}-${{ matrix.arch }}"
           path: sad-v${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.${{ matrix.archive_ext }}
           if-no-files-found: error
           retention-days: 5
@@ -301,7 +345,7 @@ jobs:
   # 2. بناء المترجم (مع LLVM) — Windows و Linux و macOS
   # ════════════════════════════════════════════════════════════════════
   build-compiler:
-    name: "المترجم / Compiler (${{ matrix.os }}-${{ matrix.arch }})"
+    name: "الحزمة الكاملة / Full (${{ matrix.os }}-${{ matrix.arch }})"
     runs-on: ${{ matrix.runner }}
     # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
     timeout-minutes: 90
@@ -369,82 +413,46 @@ jobs:
             echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
           fi
 
-      # ── تثبيت LLVM ──
-      - name: "تثبيت LLVM / Install LLVM (Linux)"
+      # (AR) 🔑 الوصفةُ في `.github/actions/setup-llvm` — **نسخةٌ واحدةٌ**
+      #      تناديها هذه الوظيفةُ ووظيفةُ الحزمةِ القياسيّة. وكانت مكتوبةً هنا
+      #      وحدَها، فلمّا احتاجتها القياسيّةُ أيضًا كان البديلُ نسخَها ثانيةً —
+      #      وهو صنفُ العطبِ الذي كُوِيَ به هذا المستودعُ مرارًا.
+      # (EN) The recipe lives in .github/actions/setup-llvm — ONE copy, called by
+      #      this job and by the standard-package job. It used to live here alone;
+      #      when the standard package came to need it too, the alternative was a
+      #      second copy — the defect class this repo has been burned by before.
+      - name: "تثبيت LLVM / Install LLVM"
+        uses: ./.github/actions/setup-llvm
+        # (AR) الحدُّ على الخطوةِ المنادية: الأفعالُ المركّبةُ لا تقبلُ حدًّا في خطواتِها
+        #      الداخليّة، فحارسُ صمودِ CI يشترطُه هنا. والقيمةُ من نظيرتِها المنقولة.
+        # (EN) The cap belongs on the CALLING step: composite actions accept none on
+        #      their inner steps, and the CI-resilience guard requires it here.
+        timeout-minutes: 30
+
+      # (AR) 🔑 تبعيّاتُ لينكسَ هنا أيضًا. كانت في وظيفةِ الحزمةِ
+      #      القياسيّةِ وحدَها، فتُبنى «الكاملةُ» على لينكسَ **بلا خلفيّةِ سطحِ
+      #      مكتب** بينما تُبنى «القياسيّةُ» بها — أي أنّ الكاملةَ ليست فوقَ
+      #      القياسيّة، وهو نقضٌ لأساسِ القسمةِ نفسِها. والآليّةُ مكتوبةٌ في
+      #      `ci.yml`: وجودُ `libsdl2-dev` يقلبُ `SAD_UI_SDL2_AVAILABLE` فتدخلُ
+      #      مصادرُ الخلفيّةِ في الترجمةِ أو تسقطُ منها.
+      # (EN) 🔑 Linux dependencies here too. They lived in the standard job
+      #      alone, so the FULL package was built on Linux without a desktop
+      #      backend while the standard one had it — the full package not being a
+      #      superset of the standard one, which contradicts the split itself.
+      # ── تبعيات Linux ──
+      - name: "تبعيات Linux / Linux Dependencies"
         if: matrix.os == 'linux'
         run: |
-          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
-            https://apt.llvm.org/llvm-snapshot.gpg.key
-          sudo apt-key add "$RUNNER_TEMP/llvm-snapshot.gpg.key"
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" | sudo tee /etc/apt/sources.list.d/llvm.list
           bash scripts/ci/apt_retry.sh update -qq
-          bash scripts/ci/apt_retry.sh install -y -qq llvm-18-dev libclang-18-dev lld-18 build-essential libssl-dev
-          echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
-
-      # ══════════════════════════════════════════════════════════════════
-      # (AR) 🔑 **المصدرُ مقيسٌ لا مفترَض.** كانت الخطوةُ تطبعُ «skipping» ثمّ
-      #      تُهيّئُ بـ`-DENABLE_LLVM_BACKEND=ON` و`LLVM_DIR` **فارغًا** — أي
-      #      تتخطّى المورِدَ ثمّ تطلبُه. وكان العلاجُ حلقةَ ثلاثِ محاولاتٍ تُنزِّلُ
-      #      `LLVM-18.1.8-win64.exe` وتشغّلُه بـ`/S`.
-      #      والمقيس: ذلك المثبِّتُ سلسلةُ أدواتِ clang **لا شجرةُ تطوير**، ولا
-      #      يحوي `lib/cmake/llvm` إطلاقًا — فيُخفِقُ البحثُ عن
-      #      `LLVMConfig.cmake` **دائمًا**، فينزلقُ المجرى إلى فرعِ «هيّئ بلا
-      #      LLVM_DIR»، فيبني بلا خلفيّةٍ فعليّة. الحزمةُ الوحيدةُ التي تحملُ
-      #      الشجرةَ هي أرشيفُ msvc، وهو المُستعمَلُ هنا.
-      #      والأطوارُ الثلاثةُ مقيسةٌ (تشغيل 30911355461): تنزيلٌ ١٠ث · فكُّ xz
-      #      ١٢ث · فكُّ tar ٤٧ث = **سبعون ثانيةً** بدل سقوطٍ عند أربعينَ دقيقة.
-      #      والفرقُ ثلاثةُ أشياء: `curl.exe` بدل `Invoke-WebRequest`، و`7z` بدل
-      #      `tar -xf` (bsdtar يفكُّ xz بخيطٍ واحد)، واستثناءُ Defender **قبلَ**
-      #      أوّلِ كتابةٍ لأنّه يفحصُ عشراتِ الآلافِ من الملفّاتِ الصغيرة.
-      #      والجذرُ **يُشتقُّ من موضعِ LLVMConfig.cmake** لا يُفترَض: 7z لا
-      #      تقشّرُ الدليلَ الأعلى.
-      # (EN) Measured source, not assumed. The step used to print "skipping" and
-      #      then configure with ENABLE_LLVM_BACKEND=ON and an EMPTY LLVM_DIR —
-      #      skip the resource, then require it. The remedy was a 3-attempt loop
-      #      installing LLVM-18.1.8-win64.exe, which is a clang TOOLCHAIN with no
-      #      lib/cmake/llvm at all, so the LLVMConfig.cmake search always failed
-      #      and the run slid into a "configure without LLVM_DIR" branch. Only
-      #      the msvc archive carries the development tree. Phases measured
-      #      (run 30911355461): download 10s, xz 12s, tar 47s = 70 seconds,
-      #      against a 40-minute timeout. curl.exe over Invoke-WebRequest, 7z
-      #      over bsdtar (single-threaded xz), Defender exclusion BEFORE the
-      #      first write, and the root DERIVED from where LLVMConfig.cmake lands.
-      # ══════════════════════════════════════════════════════════════════
-      - name: "تثبيت LLVM / Install LLVM (Windows)"
-        if: matrix.os == 'windows'
-        shell: pwsh
-        timeout-minutes: 30
-        run: |
-          $نسخة = "18.1.8"
-          $اسم = "clang+llvm-$نسخة-x86_64-pc-windows-msvc"
-          $عنوان = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$نسخة/$اسم.tar.xz"
-          $جذر = "C:\llvm18"
-          $أرشيف = Join-Path $env:RUNNER_TEMP "$اسم.tar.xz"
-
-          # (AR) الاستثناءُ **قبلَ** أوّلِ كتابةٍ لا بعدَها.
-          Add-MpPreference -ExclusionPath $env:RUNNER_TEMP, $جذر -ErrorAction SilentlyContinue
-
-          Write-Host "[١] تنزيل / download"
-          & curl.exe -L --fail --retry 3 --retry-delay 5 -o $أرشيف $عنوان
-          if ($LASTEXITCODE -ne 0) { throw "تعذّر تنزيل أرشيف LLVM" }
-
-          New-Item -ItemType Directory -Force -Path $جذر | Out-Null
-          Write-Host "[٢] فكُّ xz / decompress"
-          & 7z x $أرشيف "-o$env:RUNNER_TEMP" -y | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "تعذّر فكُّ ضغطِ xz" }
-          Write-Host "[٣] فكُّ tar / untar"
-          & 7z x (Join-Path $env:RUNNER_TEMP "$اسم.tar") "-o$جذر" -y | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "تعذّر فكُّ أرشيفِ tar" }
-
-          # (AR) الجذرُ يُشتقُّ من موضعِ الملفِّ لا يُفترَض.
-          $تهيئة = Get-ChildItem -Path $جذر -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue |
-                     Select-Object -First 1
-          if ($null -eq $تهيئة) {
-            Write-Host "::error::LLVMConfig.cmake غيرُ موجودٍ في $جذر — الأرشيفُ ليس شجرةَ تطوير"
-            exit 1
-          }
-          "LLVM_DIR=$($تهيئة.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host "✅ LLVM_DIR = $($تهيئة.Directory.FullName)"
+          # (AR) SDL2 النظاميّةُ لازمةٌ للإصدارِ لا للاختبارِ فحسب: المُضمَّنُ في
+          #      الشجرةِ صيغةُ MSVC ومحروسٌ بـWIN32، فبلا الحزمةِ النظاميّةِ
+          #      تُشحَنُ حزمةُ لينكسَ **بلا خلفيّةِ سطحِ مكتب** أصلًا. مجرى CI
+          #      يُثبّتُها منذُ زمنٍ؛ مجرى الإصدارِ لم يفعل.
+          # (EN) System SDL2 is a release requirement, not just a test one: the
+          #      in-tree copy is MSVC-format and gated on WIN32, so without the
+          #      system package the Linux artifact ships with no desktop backend
+          #      at all. CI installs it; the release workflow never did.
+          bash scripts/ci/apt_retry.sh install -y -qq build-essential libssl-dev             libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
 
       # ── تهيئة البناء (مع LLVM) ──
       # (AR) حارسٌ قبلَ التهيئة: `-DENABLE_LLVM_BACKEND=ON` مع `LLVM_DIR`
@@ -460,6 +468,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           -DENABLE_LLVM_BACKEND=ON
           -DLLVM_DIR="$LLVM_DIR"
+          -DSAD_LLVM_STATIC=ON
           -DBUILD_TESTS=OFF
           ${PYTHON3_EXECUTABLE:+-DPython3_EXECUTABLE=$PYTHON3_EXECUTABLE}
 
@@ -479,6 +488,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DENABLE_LLVM_BACKEND=ON `
             -DLLVM_DIR="$env:LLVM_DIR" `
+            -DSAD_LLVM_STATIC=ON `
             -DBUILD_TESTS=OFF $pyArg
 
       # ══════════════════════════════════════════════════════════════════
@@ -504,24 +514,20 @@ jobs:
         run: |
           source scripts/ci/release_tools.sh
           sad_require_identity_table
-          sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_COMPILER"
-
-      # ── بناء بقيّةِ أدواتِ الحزمةِ الكاملة ──
-      # (AR) كانت تبني `sad-run` وحدَه ثمّ تنسخُ `sad` و`sad-lsp` و`sad-check` —
-      #      أدواتٌ لم يطلبها أحدٌ من البناء. الآن تُشتقُّ الأهدافُ من القائمة.
-      # (EN) It used to build sad-run alone and then copy sad, sad-lsp and
-      #      sad-check — tools nobody asked the build for.
-      - name: "بناء أدواتِ الحزمةِ الكاملة / Build full-package tools"
-        shell: bash
-        run: |
-          source scripts/ci/release_tools.sh
+          # (AR) 🔑 كانت خطوتان: واحدةٌ تبني `$SAD_REQUIRED_COMPILER`
+          #      وأخرى تبني `$SAD_REQUIRED_FULL`. وقد تقاعدت حزمةُ «المترجمِ
+          #      وحدَه»، والقائمةُ الكاملةُ تحوي ما كانت تحويه الأولى، فبقيت
+          #      خطوةٌ واحدة.
+          # (EN) There used to be two steps, one per list. The compiler-only
+          #      package is retired and the full list is a superset of the one it
+          #      used, so a single step remains.
           sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_FULL"
 
       - name: "بناء الأدوات الإضافيّة / Build optional tools"
         shell: bash
         continue-on-error: true
         run: |
-          for target in sad-pkg sad-repl sad-fmt; do
+          for target in sad-pkg sad-fmt; do
             cmake --build build --config ${{ env.BUILD_TYPE }} --target "$target" || \
               echo "⚠️ أداةٌ إضافيّةٌ لم تُبنَ / optional tool not built: $target"
           done
@@ -532,18 +538,13 @@ jobs:
         run: |
           source scripts/ci/release_tools.sh
           VERSION="${{ steps.version.outputs.version }}"
-          SADC_DIR="sadc-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
           FULL_DIR="sad-full-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
-
-          sad_copy_tools build "${{ env.BUILD_TYPE }}" "$SADC_DIR/bin" "$SAD_REQUIRED_COMPILER"
-          sad_require_tools "$SADC_DIR/bin" "$SAD_REQUIRED_COMPILER"
 
           mkdir -p "$FULL_DIR/stdlib"
           sad_copy_tools build "${{ env.BUILD_TYPE }}" "$FULL_DIR/bin" \
-            "$SAD_REQUIRED_FULL sad-pkg sad-repl sad-fmt"
+            "$SAD_REQUIRED_FULL sad-pkg sad-fmt"
           sad_require_tools "$FULL_DIR/bin" "$SAD_REQUIRED_FULL"
 
-          echo "SADC_DIR=$SADC_DIR" >> $GITHUB_ENV
           echo "FULL_DIR=$FULL_DIR" >> $GITHUB_ENV
 
       # ── تجميع الحزم ──
@@ -551,8 +552,6 @@ jobs:
         if: matrix.os != 'windows'
         shell: bash
         run: |
-          tar -czf "${SADC_DIR}.tar.gz" "$SADC_DIR"
-
           cp -r stdlib/* "$FULL_DIR/stdlib/" 2>/dev/null || true
           cp -r features/graphics/stdlib/* "$FULL_DIR/stdlib/" 2>/dev/null || true
           # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
@@ -560,18 +559,14 @@ jobs:
           cp README.md "$FULL_DIR/" 2>/dev/null || true
           tar -czf "${FULL_DIR}.tar.gz" "$FULL_DIR"
 
-          echo "SADC_ARCHIVE=${SADC_DIR}.tar.gz" >> $GITHUB_ENV
           echo "FULL_ARCHIVE=${FULL_DIR}.tar.gz" >> $GITHUB_ENV
 
       - name: "حزمة المترجم / Package Compiler (Windows)"
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
-          $SADC_DIR = $env:SADC_DIR
           $FULL_DIR = $env:FULL_DIR
           $BIN = "build\bin\${{ env.BUILD_TYPE }}"
-
-          Compress-Archive -Path "$SADC_DIR" -DestinationPath "${SADC_DIR}.zip"
 
           # (AR) المكتبةُ المشتركةُ للرسوم بجوارَ الثنائيّ — انظر تعليلَ نظيرِها.
           # (AR) انظر تعليلَ نظيرِها في وظيفةِ المفسّر — الغيابُ يُحاكَم.
@@ -589,17 +584,7 @@ jobs:
           Copy-Item "README.md" "$FULL_DIR\" -ErrorAction SilentlyContinue
           Compress-Archive -Path "$FULL_DIR" -DestinationPath "${FULL_DIR}.zip"
 
-          echo "SADC_ARCHIVE=${SADC_DIR}.zip" >> $env:GITHUB_ENV
           echo "FULL_ARCHIVE=${FULL_DIR}.zip" >> $env:GITHUB_ENV
-
-      - name: "رفع حزمة المترجم / Upload Compiler"
-        uses: actions/upload-artifact@v7
-        timeout-minutes: 15
-        with:
-          name: "sadc-${{ matrix.os }}-${{ matrix.arch }}"
-          path: sadc-v${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.${{ matrix.archive_ext }}
-          if-no-files-found: error
-          retention-days: 5
 
       - name: "رفع الحزمة الكاملة / Upload Full"
         uses: actions/upload-artifact@v7
@@ -640,7 +625,7 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
   verify-package:
     name: "تشغيلُ الحزمة / Run the package (${{ matrix.os }}-${{ matrix.arch }})"
-    needs: [build-interpreter, build-compiler]
+    needs: [build-standard, build-compiler]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -655,12 +640,18 @@ jobs:
             arch: x86_64
             runner: ubuntu-22.04
           # (AR) ARM أصليٌّ لا مُحاكًى — والرَّكّاضُ هو عينُه الذي بنى الحزمةَ
-          #      في `build-interpreter`. ولا تُبنى حزمةُ مترجمٍ لـaarch64، فالمتاحُ
-          #      هنا حزمةُ المفسّرِ وحدَها والسكريبتُ يشتقُّ ذلك من اسمِ الأرشيف.
+          #      في `build-standard`. ولا تُبنى الحزمةُ الكاملةُ لـaarch64، فالمتاحُ
+          #      هنا القياسيّةُ وحدَها والسكريبتُ يشتقُّ ذلك من اسمِ الأرشيف.
+          #      ⚠️ وهذا نقصُ تغطيةٍ قائمٌ قبلَ هذا التغييرِ وبعدَه: مصفوفةُ
+          #      الحزمةِ الكاملةِ خانتانِ لا ثلاث. يُوسَّعُ متى أُريد، ولا يُدَّعى
+          #      أنّه مقيس.
           # (EN) Native ARM, not emulated — the same runner that built the
-          #      package. No aarch64 compiler package is built, so only the
-          #      interpreter archive appears here; the script derives that from
-          #      the archive's own name.
+          #      package. No aarch64 full package is built, so only the standard
+          #      archive appears here; the script derives that from the archive's
+          #      own name.
+          #      ⚠️ This coverage gap predates this change and survives it: the
+          #      full-package matrix has two cells, not three. Widen it when
+          #      wanted; do not claim it is measured.
           - os: linux
             arch: aarch64
             runner: ubuntu-22.04-arm
@@ -680,33 +671,28 @@ jobs:
           pattern: "*-${{ matrix.os }}-${{ matrix.arch }}"
           path: pkgs/
 
-      # (AR) 🔑 **الشرطُ المُعلَنُ يُوفَّرُ؛ وغيرُ المُعلَنِ يُكشَفُ.**
-      #      حزمةُ المترجمِ تُعلِنُ اشتراطَ LLVM 18 في المُثبِّتَينِ وفي وثائقِها،
-      #      فتوفيرُه هنا قياسٌ للعقدِ المكتوبِ لا تحايلٌ عليه. أمّا ما لم
-      #      يُعلَنْ فيبقى مكشوفًا لـ`sad_require_shared_deps` — وهذا هو الفرقُ
-      #      بين مهيّئٍ يقيسُ الوعدَ ومهيّئٍ يُخفي خُلْفَه.
-      #      و`libllvm18` وحدَها: حزمةُ التشغيلِ لا حزمةُ التطوير، فالمستخدمُ
-      #      لا يُثبِّتُ `-dev` ليُشغِّلَ مترجمًا.
-      #      ولا تلزمُ خانةَ aarch64: لا تُبنى لها حزمةُ مترجمٍ أصلًا.
-      # (EN) The DECLARED prerequisite is provided; the undeclared one is
-      #      exposed. The compiler package declares LLVM 18 in both installers
-      #      and its docs, so providing it here measures the written contract
-      #      rather than evading it. Anything undeclared stays exposed to
-      #      sad_require_shared_deps. Runtime package only — a user does not
-      #      install -dev to run a compiler. Not needed on aarch64: no compiler
-      #      package is built for it.
-      - name: "شرطُ المترجمِ المُعلَن / The compiler's declared prerequisite"
-        if: matrix.os == 'linux' && matrix.arch == 'x86_64'
-        run: |
-          CODENAME=$(lsb_release -cs)
-          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
-            https://apt.llvm.org/llvm-snapshot.gpg.key
-          sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
-            < "$RUNNER_TEMP/llvm-snapshot.gpg.key"
-          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
-          bash scripts/ci/apt_retry.sh update
-          bash scripts/ci/apt_retry.sh install -y libllvm18
-
+      # (AR) 🔑 **حُذفت خطوةُ «شرطُ المترجمِ المُعلَن».** كانت تُثبّتُ
+      #      `libllvm18` على الرَّكّاضِ قبلَ الفحص، وعِلّتُها المكتوبةُ أنّ «حزمةَ
+      #      المترجمِ تُعلِنُ اشتراطَ LLVM 18 في المُثبِّتَين» — وهو الاشتراطُ
+      #      الذي ألغتْه هذه الدفعةُ بالربطِ الساكن.
+      #
+      #      ⚠️ وبقاؤها كان يُبطِلُ البرهانَ كلَّه: `sad_require_shared_deps`
+      #      لا يفحصُ إلّا أسطرَ `not found` من `ldd`، أي **تعذّرَ الحلِّ على
+      #      الرَّكّاض** لا وجودَ التبعيّةِ في `NEEDED`. فلو سقطَ
+      #      `SAD_LLVM_STATIC` يومًا لَحَلَّ `ldd` الرمزَ من الحزمةِ المثبَّتةِ
+      #      هنا، فلا يُطبَعُ سطرٌ، فتمرُّ القائمةُ الفارغةُ خضراءَ وقد قاست
+      #      صفرًا — «أخضرُ لأنّ الشرطَ لا يمكنُ أن يكونَ كاذبًا».
+      #      وبحذفِها يصيرُ الفحصُ قادرًا على أن يُحمِّرَ فعلًا.
+      # (EN) 🔑 The "declared prerequisite" step is deleted. It installed
+      #      libllvm18 on the runner before the check, justified by a declaration
+      #      this batch removed by linking statically.
+      #      ⚠️ Keeping it would void the whole proof: sad_require_shared_deps
+      #      only inspects `not found` lines from ldd — resolution failure on the
+      #      runner, not presence in NEEDED. Had SAD_LLVM_STATIC ever been
+      #      dropped, ldd would have resolved the symbol from the package
+      #      installed right here, no line would print, and the empty allowlist
+      #      would pass green having measured nothing. Removing it makes the
+      #      check able to redden.
       - name: "فتحُ كلِّ حزمةٍ وتشغيلُ أدواتِها / Extract every package and run its tools"
         shell: bash
         run: |
@@ -771,21 +757,29 @@ jobs:
             #      order matters: sad-full-v* before sad-v*.
             case "$base" in
               sad-full-v*) list="$SAD_REQUIRED_FULL" ;;
-              sadc-v*)     list="$SAD_REQUIRED_COMPILER" ;;
-              sad-v*)      list="$SAD_REQUIRED_INTERPRETER" ;;
+              sad-v*)      list="$SAD_REQUIRED_STANDARD" ;;
               *) echo "::error::أرشيفٌ لا يُعرَفُ صنفُه / unclassified archive: $base"; exit 1 ;;
             esac
 
             echo "── $base (${bindir})"
-            # (AR) العقدُ الخفيُّ يُنطَقُ قبلَ التشغيل. و`libLLVM-18.so` وحدَها
-            #      مأذونٌ لها: حزمةُ المترجمِ تُعلِنُ اشتراطَ LLVM 18 صراحةً في
-            #      المُثبِّتَينِ وفي وثائقِها، والمُثبِّتُ يُثبِّتُها. وما عداها عقدٌ
-            #      لم يُصرَّحْ به لأحد.
-            # (EN) The hidden contract is stated before execution. Only
-            #      libLLVM-18.so is allowed: the compiler package declares an
-            #      LLVM 18 prerequisite in both installers and its docs, and the
-            #      installer provides it. Anything else was never declared.
-            sad_require_shared_deps "$bindir" "libLLVM-18.so.1 libLLVM-18.so" || exit 1
+            # (AR) 🔑 **لا إذنَ لشيء.** كانت `libLLVM-18.so` مأذونًا لها
+            #      لأنّ الحزمةَ كانت تربطُ LLVM مشتركةً على لينكس وتُعلِنُ
+            #      اشتراطَها. وقد صارَ الربطُ ساكنًا (`SAD_LLVM_STATIC=ON` في
+            #      خطوتَي التهيئةِ أعلاه)، فالاشتراطُ زال — وبقاءُ الإذنِ بعدَه
+            #      يجعلُ الحارسَ يقبلُ عودةَ العقدِ الخفيِّ صامتًا.
+            #      وهذه القائمةُ الفارغةُ هي التي تقيسُ الربطَ الساكن: لو سقطَ
+            #      العَلَمُ يومًا لعادت `libLLVM` تبعيّةً غيرَ محلولةٍ فاحمرَّ
+            #      التحزيمُ هنا — بدلَ أن يُشحَنَ وعدٌ لا يفي به أحد.
+            # (EN) 🔑 Nothing is allowed. libLLVM-18.so was allowed because the
+            #      package linked LLVM dynamically on Linux and declared that
+            #      prerequisite. Linking is now static (SAD_LLVM_STATIC=ON in the
+            #      configure steps above), so the prerequisite is gone — and
+            #      leaving the allowance would let the hidden contract return
+            #      unnoticed. This empty list is what MEASURES the static link:
+            #      drop the flag and libLLVM reappears as an unresolved
+            #      dependency, reddening packaging instead of shipping a promise
+            #      nobody keeps.
+            sad_require_shared_deps "$bindir" "" || exit 1
             sad_smoke_package "$bindir" "$list" || exit 1
             case " $list " in
               *" sad-lsp "*) sad_smoke_lsp "$bindir/sad-lsp" || exit 1 ;;
@@ -821,7 +815,7 @@ jobs:
     # (EN) verify-package is a dependency on purpose: a package that does not
     #      run must stop the publish, not be published and found broken on a
     #      user's machine.
-    needs: [build-interpreter, build-compiler, verify-package]
+    needs: [build-standard, build-compiler, verify-package]
     runs-on: ubuntu-latest
     # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
     timeout-minutes: 30
@@ -861,12 +855,12 @@ jobs:
       # (AR) 🔑 **الحكمُ يفتحُ الأرشيفَ.** كان يعدُّ الأرشيفاتِ في المجلّدِ
       #      ويطبعُ «Artifact verification passed» — فأرشيفٌ **فارغٌ تمامًا**
       #      يجتازُه. وحزمةُ v1.0.0 شاهدةٌ: أربعةُ ملفّاتٍ، منها تنفيذيّانِ
-      #      فقط، بلا `sad-lsp` ولا `sad-run` ولا `sad-check` — ونُشِرت خضراء.
+      #      فقط، بلا `sad-lsp` ولا `sad-check` — ونُشِرت خضراء.
       #      والآن كلُّ أرشيفٍ يُفتَحُ وتُطلَبُ أعضاؤه بالاسم.
       # (EN) The judgement now opens the archive. It used to count archives in
       #      a directory and print "verification passed", so a completely empty
       #      archive passed — as the v1.0.0 package shows: four files, two of
-      #      them executables, no sad-lsp, no sad-run, no sad-check, published
+      #      them executables, no sad-lsp, no sad-check, published
       #      green.
       # ══════════════════════════════════════════════════════════════════
       - name: "التحقق من اكتمال الحزم / Verify Release Artifacts"
@@ -875,24 +869,17 @@ jobs:
           source scripts/ci/release_tools.sh
           shopt -s nullglob
 
-          # (AR) حزمةُ المفسّرِ تَعِدُ في ملاحظاتِ الإصدارِ بـ«المفسّر + المكتبة
+          # (AR) الحزمةُ القياسيّةُ تَعِدُ بـ«المترجم + المكتبةِ
           #      القياسيّة»، فتُطلَبُ المكتبةُ كما تُطلَبُ التنفيذيّات.
-          # (EN) The notes promise "interpreter + standard library" — so the
+          # (EN) The notes promise "compiler + standard library" — so the
           #      library is required exactly as the executables are.
           count=0
           for archive in release-files/sad-v*.zip release-files/sad-v*.tar.gz; do
-            sad_require_archive "$archive" "$SAD_REQUIRED_INTERPRETER"
+            sad_require_archive "$archive" "$SAD_REQUIRED_STANDARD"
             sad_require_archive_dir "$archive" stdlib 20
             count=$((count + 1))
           done
-          [ "$count" -gt 0 ] || { echo "::error::لا حزمةَ مفسّرٍ واحدة / no interpreter artifact"; exit 1; }
-
-          count=0
-          for archive in release-files/sadc-v*.zip release-files/sadc-v*.tar.gz; do
-            sad_require_archive "$archive" "$SAD_REQUIRED_COMPILER"
-            count=$((count + 1))
-          done
-          [ "$count" -gt 0 ] || { echo "::error::لا حزمةَ مترجمٍ واحدة / no compiler artifact"; exit 1; }
+          [ "$count" -gt 0 ] || { echo "::error::لا حزمةَ قياسيّةً واحدة / no standard artifact"; exit 1; }
 
           count=0
           for archive in release-files/sad-full-v*.zip release-files/sad-full-v*.tar.gz; do
@@ -933,18 +920,16 @@ jobs:
 
           | الملف | المحتوى |
           |-------|---------|
-          | `sad-v*-{OS}-{ARCH}.*` | **المفسّر** + المكتبة القياسيّة + الأدوات الأساسيّة |
-          | `sad-full-v*-{OS}-{ARCH}.*` | **المفسّر + المترجم** + كلّ الأدوات |
-          | `sadc-v*-{OS}-{ARCH}.*` | **المترجم فقط** (يتطلّب LLVM 18) |
+          | `sad-v*-{OS}-{ARCH}.*` | **المترجم** + المكتبة القياسيّة + الأدوات الأساسيّة |
+          | `sad-full-v*-{OS}-{ARCH}.*` | **المترجم** + كلّ الأدوات (LSP · مدير الحزم · المنسّق · المدقّق) |
 
           ### المنصّات المدعومة
           - Windows x86_64
           - Linux x86_64 / aarch64
 
-          ### ما الفرق بين المفسّر والمترجم؟
-          - **المفسّر (`sad-run`)**: يشغّل ملفات `.ص` مباشرةً — لا يحتاج أيّ تبعيّات إضافيّة
-          - **المترجم (`sadc`)**: يحوّل `.ص` إلى ملفّ تنفيذيّ أصليّ عبر LLVM — أداء أعلى، يتطلّب LLVM 18
-          - **مركز الأدوات (`sad`)**: واجهةٌ واحدةٌ تُنادي البقيّة — `sad run`، `sad build`، `sad check`
+          ### ما الفرق بين المترجم ومركز الأدوات؟
+          - **المترجم (`sadc`)**: يحوّل `.ص` إلى ملفّ تنفيذيّ أصليّ عبر LLVM — مربوطة ساكنًا، فلا شرطَ على جهازك
+          - **مركز الأدوات (`sad`)**: واجهةٌ واحدةٌ تُنادي البقيّة — `sad build`، `sad check`، `sad fmt`
 
           ---
           NOTES
@@ -1004,8 +989,8 @@ jobs:
   #      البرمجيّةِ، وحلُّ رابطِ التنزيل، والفكُّ، وموضعُ `bin/`.
   #
   #      ⚠️ وما لا تقيسُه معلَنٌ لا مسكوتٌ عنه — وهو **قيدُ المُثبِّتِ لا قيدُنا**:
-  #      مكوّنُ `compiler` مقيسٌ على لينكسَ ولا يُقاسُ على ويندوز، لأنّ
-  #      `install.ps1` **لا سبيلَ فيه إلى طريقٍ غيرِ تفاعليٍّ لهذا المكوّن**:
+  #      المكوّنُ `full` مقيسٌ على لينكسَ ولا يُقاسُ على ويندوز، لأنّ
+  #      `install.ps1` **لا سبيلَ فيه إلى طريقٍ غيرِ تفاعليٍّ لمترجّمِه**:
   #      لا مُعامِلَ `-LLVMPath` فيه، وإذا لم يَجدْ LLVM سألَ بـ`Read-Host`،
   #      وقراءةُ نهايةِ الملفِّ في وظيفةٍ بلا طرفيّةٍ تُرجِعُ فراغًا فيقعُ على
   #      الخيارِ الافتراضيِّ: تنزيلُ LLVM وتثبيتُه. فقياسُه اليومَ يعني إمّا
@@ -1013,6 +998,8 @@ jobs:
   #      صورةَ الرَّكّاضِ تحملُ LLVM عَرَضًا — وكلاهما قياسٌ لا يُوثَقُ به.
   #      والعلاجُ الصحيحُ رقعةٌ في `install.ps1` (مُعامِلٌ صريحٌ للمسار) تُكتَبُ
   #      وحدَها، لا حشوُها في هذا الطلب.
+  #      (وكان مكتوبًا هنا «مكوّنُ `compiler`» — وقد تقاعدَ المكوّنُ وصارت
+  #       الخانةُ `full`، فالوصفُ كان يُسمّي شيئًا لا وجودَ له في المصفوفة.)
   #      وعلى لينكسَ لا يقعُ هذا: `find_llvm` يجدُ LLVM المثبَّتةَ فلا يسألُ
   #      أصلًا، ويُمرَّرُ `--llvm-path` صريحًا فوقَ ذلك. ويبقى **فرعُ التثبيتِ
   #      التلقائيِّ** في `install.sh` غيرَ مقيسٍ عمدًا للسببِ نفسِه.
@@ -1039,9 +1026,15 @@ jobs:
   #      path. Pre-publish blocking is verify-package's job; this one judges the
   #      route a user actually takes: the API call, the download URL, the
   #      extraction, and where bin/ lands.
-  #      ⚠️ Declared gap: only the `interpreter` component is installed. The
-  #      `compiler` component pulls the installer's LLVM logic — a longer route,
-  #      not yet measured.
+  #      ⚠️ Declared gap (see the Arabic note above for the full reasoning):
+  #      the matrix measures linux×standard, linux×full and windows×standard.
+  #      windows×full is not measured because install.ps1 has no
+  #      non-interactive path for its compiler step.
+  #      🔑 This paragraph used to read "only the `interpreter` component is
+  #      installed" — a component that no longer exists — while the Arabic note
+  #      directly above already described a different gap. Two descriptions of
+  #      one matrix, both stale, disagreeing with each other and with the
+  #      matrix.
   # ════════════════════════════════════════════════════════════════════
   verify-installer:
     name: "تشغيلُ المُثبِّت / Run the installer (${{ matrix.os }} · ${{ matrix.component }})"
@@ -1062,17 +1055,21 @@ jobs:
         include:
           - os: linux
             runner: ubuntu-22.04
-            component: interpreter
+            component: standard
+          # (AR) 🔑 كانت هذه الخانةُ `component: compiler`، وقد تقاعدَ
+          #      المكوّن. وبقاؤها خانةٌ حمراءُ دائمة؛ وتبديلُها إلى `standard`
+          #      كان يترُكُ **الحزمةَ الكاملةَ بلا مُثبِّتٍ يُقاس** — أي تقلّصُ
+          #      تغطيةٍ لا نقلُها. فصارت `full`.
+          # (EN) This cell was `component: compiler`, a retired component. Leaving
+          #      it is a permanently red cell; changing it to `standard` would
+          #      have left the FULL package with no installer coverage at all —
+          #      shrinking coverage rather than moving it. It is now `full`.
           - os: linux
             runner: ubuntu-22.04
-            component: compiler
-          # (AR) لا خانةَ `windows · compiler` — انظر التعليلَ أعلى الوظيفة:
-          #      المانعُ في `install.ps1` نفسِه لا في هذا المجرى.
-          # (EN) No `windows · compiler` cell — see the note above the job: the
-          #      obstacle is in install.ps1 itself, not in this workflow.
+            component: full
           - os: windows
             runner: windows-2022
-            component: interpreter
+            component: standard
 
     steps:
       - name: "استنساخ المصدر / Checkout"
@@ -1089,45 +1086,26 @@ jobs:
             echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
           fi
 
-      # (AR) LLVM تُثبَّتُ **قبلَ** المُثبِّتِ عمدًا: عندَها يجدُها `find_llvm`
-      #      فلا يسألُ سؤالًا تفاعليًّا أصلًا، ويُمرَّرُ المسارُ صريحًا فوقَ ذلك.
-      #      والمقيسُ هنا مسارُ «LLVM موجودة» — أي ما يفعلُه مستخدمٌ مُهيَّأٌ
-      #      جهازُه — لا فرعُ التثبيتِ التلقائيِّ الذي يُنزِّلُ ٢٠٠ ميغابايت.
-      # (EN) LLVM is installed BEFORE the installer on purpose: find_llvm then
-      #      locates it and asks nothing interactively, and the path is passed
-      #      explicitly on top. What is measured is the "LLVM present" route —
-      #      a user with a prepared machine — not the 200MB auto-install branch.
-      - name: "تهيئةُ LLVM لمكوّنِ المترجم / LLVM for the compiler component"
-        if: matrix.os != 'windows' && matrix.component == 'compiler'
-        shell: bash
-        run: |
-          CODENAME=$(lsb_release -cs)
-          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
-            https://apt.llvm.org/llvm-snapshot.gpg.key
-          sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
-            < "$RUNNER_TEMP/llvm-snapshot.gpg.key"
-          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
-          bash scripts/ci/apt_retry.sh update
-          bash scripts/ci/apt_retry.sh install -y llvm-18 clang-18 lld-18
-          echo "SAD_LLVM_PATH=/usr/lib/llvm-18" >> $GITHUB_ENV
-
+      # (AR) 🔑 حُذفت خطوةُ «تهيئةُ LLVM لمكوّنِ المترجم»: مكوّنُها
+      #      تقاعدَ، وآلةُ LLVM نُزعت من المُثبِّتَينِ لأنّ الحزمَ صارت مربوطةً
+      #      ساكنًا. فلم يبقَ ما تُهيّئُه ولا مَن يقرؤه.
+      # (EN) The "LLVM for the compiler component" step is deleted: its component
+      #      is retired, and the installers' LLVM machinery is gone because the
+      #      packages link statically. Nothing left to provision, nobody to read it.
       - name: "تثبيتٌ حقيقيٌّ / Real install (POSIX)"
         if: matrix.os != 'windows'
         shell: bash
         run: |
-          # (AR) `--llvm-path` يُمرَّرُ لمكوّنِ المترجمِ وحدَه؛ ولمكوّنِ المفسّرِ
-          #      لا معنى له ولا يُمرَّرُ، فلا يُقاسُ إعدادٌ لا يستعملُه المستخدم.
-          # (EN) --llvm-path only for the compiler component; passing it for the
-          #      interpreter would measure a setting no user would use.
-          llvm_args=""
-          if [ -n "${SAD_LLVM_PATH:-}" ]; then
-            llvm_args="--llvm-path $SAD_LLVM_PATH"
-          fi
+          # (AR) 🔑 زالَ `--llvm-path`: نُزعَ العَلَمُ من المُثبِّتِ مع آلةِ
+          #      LLVM كلِّها، فتمريرُه كان يُسقِطُ الخطوةَ بـ«خيار غير معروف».
+          # (EN) --llvm-path is gone: the flag was removed from the installer with
+          #      the whole LLVM subsystem, so passing it would fail the step with
+          #      "unknown option".
           sh distribution/install.sh \
             --components "${{ matrix.component }}" \
             --version "${{ steps.version.outputs.version }}" \
             --dir "$RUNNER_TEMP/sad-home" \
-            --no-path --no-gui $llvm_args
+            --no-path --no-gui
           echo "SAD_HOME=$RUNNER_TEMP/sad-home" >> $GITHUB_ENV
 
       - name: "تثبيتٌ حقيقيٌّ / Real install (Windows)"
@@ -1142,9 +1120,9 @@ jobs:
           "SAD_HOME=$env:RUNNER_TEMP\sad-home" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       # (AR) الحكمُ على ما **ثبَّتَه المُثبِّت**، بالأدواتِ التي وعدَ بها هو —
-      #      `SAD_REQUIRED_INTERPRETER` من الجدولِ الواحد، لا قائمةً تُكتَبُ هنا.
+      #      `SAD_REQUIRED_STANDARD` من الجدولِ الواحد، لا قائمةً تُكتَبُ هنا.
       # (EN) Judge what the INSTALLER placed, against the list it promised —
-      #      SAD_REQUIRED_INTERPRETER from the single table, not a list retyped here.
+      #      SAD_REQUIRED_STANDARD from the single table, not a list retyped here.
       - name: "تشغيلُ ما ثبَّتَه المُثبِّت / Run what the installer placed"
         shell: bash
         run: |
@@ -1167,8 +1145,7 @@ jobs:
           #      matrix component with no list would otherwise go green having
           #      measured nothing.
           case "${{ matrix.component }}" in
-            interpreter) list="$SAD_REQUIRED_INTERPRETER" ;;
-            compiler)    list="$SAD_REQUIRED_COMPILER" ;;
+            standard)    list="$SAD_REQUIRED_STANDARD" ;;
             full)        list="$SAD_REQUIRED_FULL" ;;
             *) echo "::error::مكوّنٌ بلا قائمةٍ في الجدول / component with no list: ${{ matrix.component }}"; exit 1 ;;
           esac

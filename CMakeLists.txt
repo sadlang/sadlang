@@ -79,7 +79,6 @@ option(ENABLE_LLVM_BACKEND "تفعيل LLVM Backend / Enable LLVM Backend" ON)
 #      والعَلَمُ يجب أن يكون **عالميًّا** لا على هدف wasm وحدَه: الرميُ يقع في
 #      `sad_core` والالتقاطُ في `tools/wasm`، فلو حمل أحدُهما العَلَمَ دون الآخر لم
 #      تُغلَّف نداءاتُه بـ`invoke` ومرّ الاستثناءُ من فوق المِمسَك. ولذلك موضعُه هنا
-#      — قبل تعريف أيّ هدف — لا في `cmake/wasm.cmake` المُضمَّن بعدها جميعًا.
 # (EN) Emscripten disables exception *catching* by default, making every try/catch
 #      dead code. The flag must be global: throws live in sad_core, catches in
 #      tools/wasm — a partially-flagged build lets exceptions fly past the handler.
@@ -118,8 +117,11 @@ endif()
 #      bridge from sad-repl/sad-run. Note: UI tests (BUILD_TESTS) require graphics.
 
 option(SAD_ENABLE_GRAPHICS "بناء دعم الرسومات SDL / Build SDL graphics support" ON)
-option(SAD_STATIC_REPL "ربط sad-repl ساكنًا لأنظمة مضمّنة/initramfs / Static-link sad-repl" OFF)
-option(BUILD_WASM "بناء هدف WebAssembly / Build WebAssembly target" OFF)
+# (AR) 🔑 حُذف خيارُ BUILD_WASM: أداةُ `tools/wasm` و`cmake/wasm.cmake` زالتا
+#      مع المفسّر، فبقيَ الخيارُ يُقبَلُ ويطبعُ نجاحًا ولا يفعلُ شيئًا —
+#      و`-DBUILD_WASM=ON` كان يُقرَأ «بُنيَ هدفُ الويب» وهو لم يُبنَ.
+# (EN) Removed: its tool and cmake module went with the interpreter, so the
+#      option was accepted and did nothing — reading as "the wasm target built".
 
 # ══════════════════════════════════════════════════════════════════════
 # تحميل وحدات CMake / Load CMake Modules
@@ -303,11 +305,6 @@ include(${CMAKE_SOURCE_DIR}/cmake/dual_tests.cmake)
 
 # 11-ب. اختبارات استخراج التوثيق المزدوج / Doc Generation Dual Tests (sad ↔ sadc)
 include(${CMAKE_SOURCE_DIR}/cmake/doc_gen_dual_tests.cmake)
-
-# 12. WebAssembly (اختياري) / WebAssembly (optional)
-if(BUILD_WASM)
-    include(${CMAKE_SOURCE_DIR}/cmake/wasm.cmake)
-endif()
 
 # 13. قواعد التثبيت وCPack / Install Rules & CPack
 include(${CMAKE_SOURCE_DIR}/cmake/install.cmake)

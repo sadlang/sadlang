@@ -10,7 +10,7 @@
 #   - 22 اختبار regression لكلّ مشكلة موثَّقة
 #   - يغطّي: Lexer, Parser, Value, Interpreter, StdLib, Errors,
 #           Compiler, E2E, Utils/Modules, Regression
-#   - يختبر المفسّر (sad-run.exe) والمترجم (sad-build.exe) بالتوازي
+#   - يختبر المترجم (sad-build.exe) وخلفيّتَه السياديّة (sad-build-native.exe)
 #   - لا يُقبل أيّ PR بدون نجاح 100% من الاختبارات
 # ══════════════════════════════════════════════════════════════════════
 # المسؤول: سعيد — مهندس المترجم (Sprint 1)
@@ -98,7 +98,7 @@ jobs:
               echo "❌ Non-UTF-8: $f"
               errors=$((errors + 1))
             fi
-          done < <(find shared/ interpreter/ stdlib/ compiler/ features/ tools/ \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -not -path '*/third_party/*' -print0 2>/dev/null)
+          done < <(find shared/ stdlib/ compiler/ features/ tools/ \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -not -path '*/third_party/*' -print0 2>/dev/null)
           if [ $errors -gt 0 ]; then
             echo "::error::Found $errors files with non-UTF-8 encoding"
             exit 1
@@ -110,7 +110,7 @@ jobs:
         run: |
           # (AR) نفس نطاق فحص الترميز أعلاه (features/ tools/ مع استثناء third_party) — اتّساقًا
           # (EN) Same scope as the encoding check above (features/ tools/, third_party excluded) — for consistency
-          large=$(find shared/ interpreter/ stdlib/ compiler/ features/ tools/ \
+          large=$(find shared/ stdlib/ compiler/ features/ tools/ \
             \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -not -path '*/third_party/*' -size +512k 2>/dev/null)
           if [ -n "$large" ]; then
             echo "::warning::Large files found: $large"
@@ -297,9 +297,8 @@ jobs:
             -I shared/ast/include \
             -I shared/types/include \
             -I shared/errors/include \
-            -I interpreter/include \
             -I compiler/include \
-            shared/ interpreter/ compiler/ stdlib/ features/network/ 2>&1 | head -100
+            shared/ compiler/ stdlib/ features/network/ 2>&1 | head -100
           # (AR) ملحوظة: نطاق cppcheck أضيق عمدًا من نطاق فحص الترميز أعلاه
           #      (features/network/ فقط لا features/ tools/) — توسيعه قرار كلفة
           #      تحليل منفصل، لا يُغيَّر ضمن تصحيح تجميليّ.
@@ -847,6 +846,107 @@ jobs:
             exit 1
           }
           Write-Host "✅ sad-build (compiler) built successfully" -ForegroundColor Green
+
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 أبوابُ توليدِ كودِ المنصّاتِ الأربع — **هنا لا في بوّابةِ
+      #      الرسومات**. كانت هناك، وتلك البوّابةُ تُهيّئُ بـ`OFF` عمدًا لتُثبِتَ
+      #      أنّ الرسوماتِ لا تلزمُها LLVM، فكانت تطلبُ هدفًا لا يوجدُ إلّا بها.
+      #      وهذه الوظيفةُ تبني `sad-build` أصلًا، فالخطوةُ بلا تنصيبِ LLVM
+      #      إضافيٍّ ولا وظيفةٍ جديدة.
+      #
+      #      وتعمَلُ على المضيفينَ الثلاثةِ عمدًا: توليدُ الكودِ قد يختلفُ
+      #      **بالمضيفِ** لا بالهدفِ وحدَه — وهذا المستودعُ قاسَ الصنفَين
+      #      (ترميزُ العربيّةِ على ويندوز، وترتيبُ الخريطةِ عندَ النقلِ إلى
+      #      أوبونتو). واجتيازُها على مضيفٍ واحدٍ لا يُثبِتُ الحتميّة.
+      #
+      #      والحكمُ لا يُعقَدُ على رمزِ الخروج: البرنامجُ يطبعُ «باب معطوب»
+      #      ثمّ **يخرجُ بصفر** (`خروج` بلا معاملاتٍ لا تحملُ رمزًا). فالعقدُ
+      #      مزدوج: سطرُ النجاحِ حاضرٌ **وصفرُ فشل**. والمترجِمُ يُترجِمُ ولا
+      #      يُشغّل، فيُصرَّفُ أوّلًا ويُشغَّلُ الناتج.
+      # (EN) The four platform-codegen doors — here, not in the graphics gate.
+      #      That gate configures LLVM off by design yet asked for a target that
+      #      only exists with LLVM. This job already builds sad-build, so the step
+      #      needs no extra provisioning and no new job. It runs on all three
+      #      hosts deliberately: codegen can differ by HOST, not only by target,
+      #      and this repo has measured both kinds. The verdict is not the exit
+      #      code — the program prints a broken-door line and still exits 0 — so
+      #      the success line AND a zero failure count are both asserted.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🚪 أبوابُ توليدِ كودِ المنصّاتِ الأربع / Four platform codegen doors"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) البذرةُ تُلتمَسُ ولا يُكتَبُ مسارُها حرفًا: مسارٌ مكتوبٌ بيدٍ
+          #      يَرثُّ بأوّلِ نقل، وحروفُه العربيّةُ مزلقةُ ترميزٍ على ويندوز.
+          # (EN) The seed is located, not hard-coded: a typed path rots on the
+          #      first move, and its Arabic characters are an encoding hazard.
+          SEED="$(find tests/behavior -type f -name '132_ui_platform_codegen_doors.*' | head -1)"
+          if [ -z "$SEED" ]; then
+            echo "::error::بذرةُ الأبوابِ غيرُ موجودة / doors seed not found"
+            exit 1
+          fi
+          DOORS="${RUNNER_TMP:-.}/doors_gate.exe"
+          "$SADC" "$SEED" -o "$DOORS"
+          OUT="$("$DOORS")"
+          printf '%s\n' "$OUT"
+          printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
+          printf '%s' "$OUT" | grep -q 'فشل: 0'
+
+      # ══════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **حارسُ تضييقِ أمانِ العدمِ (NS-03) — يُنادَى هنا لأوّلِ مرّة.**
+      #
+      #      كان `tests/behavior/null_safety/ns03_flow_narrowing_check.sh` قائمًا
+      #      في الشجرةِ ولا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل (قِيس بمسحٍ على
+      #      كلِّ `*.cmake` و`CMakeLists.txt` و`*.yml`: صفرُ إصابة). وحارسٌ لا
+      #      يُنادَى ليس حارسًا: سكوتُه يُقرأُ خضرةً وهو صمت.
+      #
+      #      ⚠️ وهو الوحيدُ من ستّةٍ صالحٌ للوصلِ اليوم: قِيس أنّ نصفَه
+      #      المترجِميَّ أخضرُ ٤/٤، وأنّه يتخطّى المحرّكَ الغائبَ بلا إخفاق.
+      #      وإخوتُه الخمسةُ تخلطُ توكيداتِ المفسّرِ بالمترجم، ففصلُها عملٌ
+      #      مقصودٌ — وقد قُيِّدَ في ترويسةِ كلٍّ منها بأرقامٍ مقيسة.
+      #
+      #      ويحرسُ محورَ التحليلِ لا التوليد: تضييقُ `إذا (م != لاشيء)` يكبحُ
+      #      تحذيرَ الوصولِ الخام، والتحوّرُ داخلَ الحرسِ يُعيدُه.
+      # (EN) The NS-03 narrowing guard is invoked here for the first time. The
+      #      script sat in the tree with no gate or workflow calling it (measured
+      #      by a sweep over every *.cmake, CMakeLists.txt and *.yml: zero hits),
+      #      and a guard nobody calls is not a guard — its silence reads as green.
+      #      It is the only one of six wireable today: its compiler half measures
+      #      4/4 and it skips a missing engine without failing. Its five siblings
+      #      interleave interpreter and compiler assertions; separating them is
+      #      deliberate work, recorded in each header with measured numbers.
+      # ══════════════════════════════════════════════════════════════════
+      - name: "🕳️ تضييقُ أمانِ العدم (NS-03) / Null-safety narrowing"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) السكربتُ يُخرِجُ ٢ إن لم يُقَسْ محرّكٌ واحد، و١ إن أخفقَ توكيد —
+          #      فالخضرةُ الفارغةُ تحمرُّ كما يحمرُّ الانحدار.
+          # (EN) The script exits 2 when no engine was measured and 1 on a failed
+          #      assertion, so an empty green reddens just as a regression does.
+          SAD_BUILD="$SADC" bash tests/behavior/null_safety/ns03_flow_narrowing_check.sh
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
@@ -971,12 +1071,20 @@ jobs:
             exit 1
           }
 
-      - name: "🧪 اختبارات المفسّر / Interpreter & StdLib Tests"
+      - name: "🧪 اختبارات المكتبة القياسيّة / StdLib Tests"
         shell: pwsh
         run: |
           $failed = 0
+          # (AR) 🔑 حُذف `test_interpreter_comprehensive` مع المفسّر
+          #      (`cmake/tests_comprehensive.cmake:82`) — ولا هدفَ له ولا ملفّ.
+          #      وهذه الخطوةُ تعدُّ الغيابَ إخفاقًا صراحةً، فكانت ستُحمِّرُ
+          #      المنصّاتِ الثلاث. ولم تظهرْ في الشوطِ الأوّلِ لأنّ الوظائفَ
+          #      تحمل `needs: code-quality` وقد أخفقت، فتخطّت الثلاثُ ولم تُقَسْ.
+          # (EN) test_interpreter_comprehensive was deleted with the interpreter;
+          #      no target, no file. This step counts absence as failure, so it
+          #      would have reddened all three platforms — invisible in the first
+          #      run only because `needs: code-quality` skipped these jobs.
           $tests = @(
-            "test_interpreter_comprehensive",
             "test_stdlib_comprehensive"
           )
           foreach ($test in $tests) {
@@ -991,7 +1099,7 @@ jobs:
             }
           }
           if ($failed -gt 0) {
-            Write-Error "❌ $failed interpreter test suite(s) failed or missing"
+            Write-Error "❌ $failed stdlib test suite(s) failed or missing"
             exit 1
           }
 
@@ -1068,18 +1176,18 @@ jobs:
       #      it was gated on the config instead of on what it actually requires.
       #      The hole is sealed, so the gate's reason is gone. The missing-binary
       #      guard below stays — that is what stops a silent unmeasured green.
-      - name: "🧪 اختبارات Regression (المفسّر) / Regression Tests (Interpreter)"
+      - name: "🧪 اختبارات Regression (المترجم) / Regression Tests (Compiler)"
         shell: pwsh
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
+          $sad = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (Test-Path $sad) {
             if (Test-Path "tests/behavior/_regression/run_regression_tests.ps1") {
-              & "tests/behavior/_regression/run_regression_tests.ps1" -SadExe $sad -Mode interpreter
+              & "tests/behavior/_regression/run_regression_tests.ps1" -SadExe $sad -Mode compiler
             } else {
               Write-Host "⚠️ SKIP: Regression test runner not found" -ForegroundColor Yellow
             }
           } else {
-            Write-Host "❌ MISSING: sad-run.exe not built" -ForegroundColor Red
+            Write-Host "❌ MISSING: sad-build.exe not built" -ForegroundColor Red
             exit 1
           }
 
@@ -1127,16 +1235,20 @@ jobs:
       #      it was gated on the config instead of on what it actually requires.
       #      The hole is sealed, so the gate's reason is gone. The missing-binary
       #      guard below stays — that is what stops a silent unmeasured green.
-      - name: "🔄 اختبارات التنفيذ المزدوج (مستوى هرميّ + بوّابة) / Dual Execution Tests (level + gate)"
+      - name: "🔄 شوط السلوك — المترجم (مستوى هرميّ + بوّابة) / Behavior Suite — Compiler (level + gate)"
         shell: pwsh
         timeout-minutes: 30
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          # (AR) المفسّر إلزاميّ — غيابه عطلٌ حقيقيّ لا يُتخطّى.
-          # (EN) The interpreter is mandatory — its absence is a real failure, never skipped.
-          if (-not (Test-Path $sad)) {
-            Write-Error "❌ MISSING: $sad — المفسّر إلزاميّ للتنفيذ المزدوج"
+          # (AR) 🔑 مسارُ المحرّكِ الواحد: المترجمُ إلزاميّ ولا مفسّرَ يُمرَّر.
+          #      تمريرُ `--interp sad-build` كان يُبقي وضعَ المترجم-فقط في runner.py
+          #      ميّتًا (لا يُفعَّل إلّا حين يغيبُ المفسّر)، ويجعلُ العدّاءَ يقارنُ
+          #      مخرَجًا فارغًا: `sad-build x.ص` يُترجِمُ ولا يُشغّل.
+          # (EN) Single-engine track: the compiler is mandatory, no interpreter is
+          #      passed. `--interp sad-build` kept compiler-only mode dead and made
+          #      the runner compare an empty output — sad-build builds, it never runs.
+          if (-not (Test-Path $sadc)) {
+            Write-Error "❌ MISSING: $sadc — المترجمُ إلزاميٌّ لشوطِ السلوك"
             exit 1
           }
           # (AR) اختيار المستوى حسب حدث CI (ADR-002 / TEST-006):
@@ -1162,25 +1274,13 @@ jobs:
           $ev = "${{ github.event_name }}"
           $level = 'P0'
           $floor = $null
-          # (AR) أهداف المحرّكات: المفسّر دائمًا؛ المترجم إن بُني على هذا الـrunner.
-          #      حين يغيب المترجم (مثلًا ويندوز بلا مكتبات LLVM-dev) **لا نتخطّى** بل
-          #      نشغّل وضع المفسّر-فقط (يقارن runner.py مخرجَ المفسّر بـ@expected)،
-          #      فتعمل الاختبارات فعلًا بدل العلامة الخضراء المخادعة.
-          # (EN) Engine targets: interpreter always; compiler if built on this runner.
-          #      When the compiler is absent (e.g. Windows without LLVM-dev) we DON'T
-          #      skip — we run interpreter-only mode (runner.py compares interpreter
-          #      output to @expected), so the tests actually run instead of a misleading
-          #      green skip.
-          $engineArgs = @('--interp', $sad)
-          if (Test-Path $sadc) {
-            $engineArgs += @('--compiler', $sadc)
-            Write-Host "▶️ تنفيذ مزدوج كامل (مفسّر + مترجم) — المستوى: $level (حدث: $ev)" -ForegroundColor Cyan
-          } else {
-            # 🔑 (AR) التراجعُ إلى المفسّرِ وحدَه كان يطبع «PASS» لخطوةٍ اسمُها
-            #      «التنفيذ المزدوج» — أي شهادةً بما لم يُقَسْ. وقد صار عطبًا.
-            Write-Host "::error::MISSING: $sadc — «التنفيذُ المزدوجُ» لا يُقاسُ بمحرّكٍ واحد"
-            exit 1
-          }
+          # (AR) محرّكٌ واحد: المترجم. والمُسنَدُ صار `@expected` بسَندٍ من قواعدِ
+          #      اللغة، لا مخرَجَ محرّكٍ آخر — وهو قرارُ المالك: ما يُطلَبُ من
+          #      المترجمِ يُشتقُّ من قاعدةٍ مُعلَنةٍ في `language-truth/`.
+          # (EN) One engine: the compiler. The oracle is `@expected` backed by a
+          #      declared language rule, never another engine's output.
+          $engineArgs = @('--compiler', $sadc)
+          Write-Host "▶️ شوطُ السلوك — المترجمُ وحدَه — المستوى: $level (حدث: $ev)" -ForegroundColor Cyan
           # (AR) --gate يُصدر PASS/CONCERNS/FAIL؛ --gate-floor يمنع التراجع تحت الأساس (86%).
           #      P0 بلا أرضية: أي فشل دخان = FAIL.
           $gateArgs = @('--gate')
@@ -1214,18 +1314,12 @@ jobs:
         timeout-minutes: 30
         shell: pwsh
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          if (-not (Test-Path $sad)) {
-            Write-Host "::error::MISSING: $sad — المفسّر إلزاميّ"
+          if (-not (Test-Path $sadc)) {
+            Write-Host "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           }
-          $engineArgs = @('--interp', $sad)
-          if (Test-Path $sadc) { $engineArgs += @('--compiler', $sadc) }
-          else {
-            Write-Host "::error::MISSING: $sadc — التكافؤُ لا يُقاسُ بمحرّكٍ واحد"
-            exit 1
-          }
+          $engineArgs = @('--compiler', $sadc)
           # (AR) بلا `--gate` عمدًا: `rules_matrix` لا يحوي ملفَّ دخانٍ واحدًا،
           #      فالبوّابةُ تُخرِجُ CONCERNS بصفرٍ ولو أخفقَ الثلاثةُ آلاف.
           # (EN) No --gate on purpose: rules_matrix holds no smoke file, so the
@@ -1252,18 +1346,12 @@ jobs:
         timeout-minutes: 30
         shell: pwsh
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          if (-not (Test-Path $sad)) {
-            Write-Host "::error::MISSING: $sad — المفسّر إلزاميّ"
+          if (-not (Test-Path $sadc)) {
+            Write-Host "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           }
-          $engineArgs = @('--interp', $sad)
-          if (Test-Path $sadc) { $engineArgs += @('--compiler', $sadc) }
-          else {
-            Write-Host "::error::MISSING: $sadc — التكافؤُ لا يُقاسُ بمحرّكٍ واحد"
-            exit 1
-          }
+          $engineArgs = @('--compiler', $sadc)
           python tests/runner.py --level full --timeout 60 @engineArgs --report
           if ($LASTEXITCODE -ne 0) {
             python tests/system/harness/print_parity_failures.py build/_dual_report.json
@@ -1283,10 +1371,9 @@ jobs:
         timeout-minutes: 30
         shell: pwsh
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (-not (Test-Path $sadc)) {
-            Write-Host "::error::سجلُّ الحمرةِ يلزمُه المحرّكان — و sad-build.exe مبنيٌّ إلزامًا هنا الآن"
+            Write-Host "::error::سجلُّ الحمرةِ يلزمُه المترجم — و sad-build.exe مبنيٌّ إلزامًا هنا"
             exit 1
           }
           # (AR) 🔑 انهيارُ الأداةِ ليس انحرافَ السجلّ: رمزُ خروجٍ واحدٌ
@@ -1295,7 +1382,7 @@ jobs:
           # (EN) An instrument crash is not a registry drift; exit 3 means
           #      the measurement never ran, so no verdict is owed.
           python tests/system/harness/test_declared_reds_registry.py `
-            --measure --interp $sad --compiler $sadc
+            --measure --compiler $sadc
           $redsCode = $LASTEXITCODE
           if ($redsCode -eq 3) {
             Write-Host "::error::أداةُ سجلِّ الحمرةِ انهارت — لا حكمَ على السجلّ: لم يُقَس"
@@ -1438,10 +1525,9 @@ jobs:
         shell: pwsh
         if: github.event_name == 'pull_request'
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          if (-not ((Test-Path $sad) -and (Test-Path $sadc))) {
-            Write-Host "::error::MISSING: sad-run.exe أو sad-build.exe — burn-in لا يُقاسُ بمحرّكٍ واحد"
+          if (-not (Test-Path $sadc)) {
+            Write-Host "::error::MISSING: $sadc — burn-in يلزمُه المترجم"
             exit 1
           }
           # (AR) كشف ملفات .ص الجديدة/المعدَّلة في الـPR وتشغيلها 5× لاكتشاف الرفرفة (R6).
@@ -1453,7 +1539,7 @@ jobs:
           foreach ($f in $changed) {
             $name = Split-Path $f -Leaf
             Write-Host "🔥 Burn-in 5× → $name" -ForegroundColor Cyan
-            python tests/runner.py --file $name --repeat 5 --interp $sad --compiler $sadc --no-color
+            python tests/runner.py --file $name --repeat 5 --compiler $sadc --no-color
             if ($LASTEXITCODE -ne 0) { $failed++; Write-Host "  ⚠️ رفرفة/فشل في $name" -ForegroundColor Yellow }
           }
           if ($failed -gt 0) { Write-Host "❌ $failed اختبار جديد مترفرف/فاشل في burn-in" -ForegroundColor Red; exit 1 }
@@ -1585,6 +1671,107 @@ jobs:
           #      as healthy, so a later run inherited a compiler-less tree.
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc)
           echo "SAD_BUILD_FRESH=1" >> $GITHUB_ENV
+
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 أبوابُ توليدِ كودِ المنصّاتِ الأربع — **هنا لا في بوّابةِ
+      #      الرسومات**. كانت هناك، وتلك البوّابةُ تُهيّئُ بـ`OFF` عمدًا لتُثبِتَ
+      #      أنّ الرسوماتِ لا تلزمُها LLVM، فكانت تطلبُ هدفًا لا يوجدُ إلّا بها.
+      #      وهذه الوظيفةُ تبني `sad-build` أصلًا، فالخطوةُ بلا تنصيبِ LLVM
+      #      إضافيٍّ ولا وظيفةٍ جديدة.
+      #
+      #      وتعمَلُ على المضيفينَ الثلاثةِ عمدًا: توليدُ الكودِ قد يختلفُ
+      #      **بالمضيفِ** لا بالهدفِ وحدَه — وهذا المستودعُ قاسَ الصنفَين
+      #      (ترميزُ العربيّةِ على ويندوز، وترتيبُ الخريطةِ عندَ النقلِ إلى
+      #      أوبونتو). واجتيازُها على مضيفٍ واحدٍ لا يُثبِتُ الحتميّة.
+      #
+      #      والحكمُ لا يُعقَدُ على رمزِ الخروج: البرنامجُ يطبعُ «باب معطوب»
+      #      ثمّ **يخرجُ بصفر** (`خروج` بلا معاملاتٍ لا تحملُ رمزًا). فالعقدُ
+      #      مزدوج: سطرُ النجاحِ حاضرٌ **وصفرُ فشل**. والمترجِمُ يُترجِمُ ولا
+      #      يُشغّل، فيُصرَّفُ أوّلًا ويُشغَّلُ الناتج.
+      # (EN) The four platform-codegen doors — here, not in the graphics gate.
+      #      That gate configures LLVM off by design yet asked for a target that
+      #      only exists with LLVM. This job already builds sad-build, so the step
+      #      needs no extra provisioning and no new job. It runs on all three
+      #      hosts deliberately: codegen can differ by HOST, not only by target,
+      #      and this repo has measured both kinds. The verdict is not the exit
+      #      code — the program prints a broken-door line and still exits 0 — so
+      #      the success line AND a zero failure count are both asserted.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🚪 أبوابُ توليدِ كودِ المنصّاتِ الأربع / Four platform codegen doors"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) البذرةُ تُلتمَسُ ولا يُكتَبُ مسارُها حرفًا: مسارٌ مكتوبٌ بيدٍ
+          #      يَرثُّ بأوّلِ نقل، وحروفُه العربيّةُ مزلقةُ ترميزٍ على ويندوز.
+          # (EN) The seed is located, not hard-coded: a typed path rots on the
+          #      first move, and its Arabic characters are an encoding hazard.
+          SEED="$(find tests/behavior -type f -name '132_ui_platform_codegen_doors.*' | head -1)"
+          if [ -z "$SEED" ]; then
+            echo "::error::بذرةُ الأبوابِ غيرُ موجودة / doors seed not found"
+            exit 1
+          fi
+          DOORS="${RUNNER_TMP:-.}/doors_gate.exe"
+          "$SADC" "$SEED" -o "$DOORS"
+          OUT="$("$DOORS")"
+          printf '%s\n' "$OUT"
+          printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
+          printf '%s' "$OUT" | grep -q 'فشل: 0'
+
+      # ══════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **حارسُ تضييقِ أمانِ العدمِ (NS-03) — يُنادَى هنا لأوّلِ مرّة.**
+      #
+      #      كان `tests/behavior/null_safety/ns03_flow_narrowing_check.sh` قائمًا
+      #      في الشجرةِ ولا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل (قِيس بمسحٍ على
+      #      كلِّ `*.cmake` و`CMakeLists.txt` و`*.yml`: صفرُ إصابة). وحارسٌ لا
+      #      يُنادَى ليس حارسًا: سكوتُه يُقرأُ خضرةً وهو صمت.
+      #
+      #      ⚠️ وهو الوحيدُ من ستّةٍ صالحٌ للوصلِ اليوم: قِيس أنّ نصفَه
+      #      المترجِميَّ أخضرُ ٤/٤، وأنّه يتخطّى المحرّكَ الغائبَ بلا إخفاق.
+      #      وإخوتُه الخمسةُ تخلطُ توكيداتِ المفسّرِ بالمترجم، ففصلُها عملٌ
+      #      مقصودٌ — وقد قُيِّدَ في ترويسةِ كلٍّ منها بأرقامٍ مقيسة.
+      #
+      #      ويحرسُ محورَ التحليلِ لا التوليد: تضييقُ `إذا (م != لاشيء)` يكبحُ
+      #      تحذيرَ الوصولِ الخام، والتحوّرُ داخلَ الحرسِ يُعيدُه.
+      # (EN) The NS-03 narrowing guard is invoked here for the first time. The
+      #      script sat in the tree with no gate or workflow calling it (measured
+      #      by a sweep over every *.cmake, CMakeLists.txt and *.yml: zero hits),
+      #      and a guard nobody calls is not a guard — its silence reads as green.
+      #      It is the only one of six wireable today: its compiler half measures
+      #      4/4 and it skips a missing engine without failing. Its five siblings
+      #      interleave interpreter and compiler assertions; separating them is
+      #      deliberate work, recorded in each header with measured numbers.
+      # ══════════════════════════════════════════════════════════════════
+      - name: "🕳️ تضييقُ أمانِ العدم (NS-03) / Null-safety narrowing"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) السكربتُ يُخرِجُ ٢ إن لم يُقَسْ محرّكٌ واحد، و١ إن أخفقَ توكيد —
+          #      فالخضرةُ الفارغةُ تحمرُّ كما يحمرُّ الانحدار.
+          # (EN) The script exits 2 when no engine was measured and 1 on a failed
+          #      assertion, so an empty green reddens just as a regression does.
+          SAD_BUILD="$SADC" bash tests/behavior/null_safety/ns03_flow_narrowing_check.sh
       # ══════════════════════════════════════════════════════════════════════
       # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
       #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
@@ -1725,10 +1912,12 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 اختبارات المفسّر / Interpreter & StdLib Tests"
+      - name: "🧪 اختبارات المكتبة القياسيّة / StdLib Tests"
         run: |
           failed=0
-          for test in test_interpreter_comprehensive test_stdlib_comprehensive; do
+          # (AR) 🔑 حُذف `test_interpreter_comprehensive` مع المفسّر — والخطوةُ تعدُّ الغيابَ إخفاقًا.
+          # (EN) test_interpreter_comprehensive died with the interpreter; absence is counted as failure here.
+          for test in test_stdlib_comprehensive; do
             exe="build/bin/$test"
             if [ -x "$exe" ]; then
               echo "▶️ Running $test..."
@@ -1739,7 +1928,7 @@ jobs:
             fi
           done
           if [ $failed -gt 0 ]; then
-            echo "::error::$failed interpreter test(s) failed"
+            echo "::error::$failed stdlib test(s) failed"
             exit 1
           fi
 
@@ -1773,18 +1962,18 @@ jobs:
 
       - name: "🧪 اختبارات Regression / Regression Tests"
         run: |
-          sad="build/bin/sad-run"
+          sad="build/bin/sad-build"
           if [ -x "$sad" ]; then
             if [ -f "tests/behavior/_regression/run_regression_tests.sh" ]; then
               chmod +x tests/behavior/_regression/run_regression_tests.sh
-              tests/behavior/_regression/run_regression_tests.sh "$sad" interpreter
+              tests/behavior/_regression/run_regression_tests.sh "$sad" compiler
             else
               # (AR) الملفُّ مُودَعٌ في المستودع، فغيابُه سحبٌ ناقصٌ لا حالةٌ مشروعة.
               echo "::error::MISSING: tests/behavior/_regression/run_regression_tests.sh"
               exit 1
             fi
           else
-            echo "❌ MISSING: sad-run not built"
+            echo "❌ MISSING: sad-build not built"
             exit 1
           fi
 
@@ -1809,28 +1998,21 @@ jobs:
       #      needs and ran none of it — a Debug-only defect (a firing assert,
       #      /Od behaviour) stayed invisible until Release broke. The time bound
       #      is now declared explicitly instead of inheriting the 6-hour ceiling.
-      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
+      - name: "🔄 شوط السلوك — المترجم / Behavior Suite — Compiler"
         timeout-minutes: 45
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          # (AR) المفسّر إلزاميّ — غيابه عطلٌ حقيقيٌّ لا يُتخطّى، كما على ويندوز.
-          # (EN) The interpreter is mandatory — its absence is a real failure.
-          if [ ! -x "$sad" ]; then
-            echo "::error::MISSING: $sad — المفسّر إلزاميّ للتنفيذ المزدوج"
+          # (AR) 🔑 محرّكٌ واحد: المترجم. تمريرُ `--interp sad-build` كان يُبقي
+          #      وضعَ المترجم-فقط ميّتًا ويقارنُ مخرَجًا فارغًا — فالمترجمُ يُترجِمُ
+          #      ولا يُشغّل. والمُسنَدُ صار `@expected` بسَندٍ من قواعدِ اللغة.
+          # (EN) One engine: the compiler. `--interp sad-build` kept compiler-only
+          #      mode dead and compared an empty output; sad-build never runs a file.
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميٌّ لشوطِ السلوك"
             exit 1
           fi
-          # (AR) المترجم إن بُني: تكافُؤٌ ثنائيّ. وإن غاب **لا نتخطّى** بل نُشغّل
-          #      وضعَ المفسّر-فقط — فتَعملُ الاختباراتُ بدلَ علامةٍ خضراءَ مخادعة.
-          # (EN) Compiler if built → real parity. If absent we do NOT skip: run
-          #      interpreter-only, so the tests actually run instead of a fake green.
-          engine=(--interp "$sad")
-          if [ -x "$sadc" ]; then
-            engine+=(--compiler "$sadc")
-            echo "▶️ تنفيذٌ مزدوجٌ كاملٌ (مفسّر + مترجم) — المستوى: P0"
-          else
-            echo "::warning::وضعُ المفسّر-فقط — sad-build غيرُ مبنيٍّ فلا يُقاسُ التكافؤُ هنا"
-          fi
+          engine=(--compiler "$sadc")
+          echo "▶️ شوطُ السلوك — المترجمُ وحدَه — المستوى: P0"
           # (AR) ⚠️ --gate يُصدِرُ الحكم، والإخفاقُ **لا يُبتلَع**. وكان قبلَها
           #      `|| echo "… had failures"` — فمكثتِ الخطوةُ خضراءَ والتكافؤُ **صفرٌ**.
           #      وP0 بلا أرضيّةٍ مئويّةٍ عمدًا: خمسةُ ملفّاتٍ دخانٍ — أيُّ إخفاقٍ = FAIL.
@@ -1866,10 +2048,9 @@ jobs:
           # (EN) These 3002 were NEVER run in CI, on any platform, in any era: their
           #      only caller is check_grammar_conformance.py --run, which none of the
           #      15 workflows invokes. Parity was measured on 5 of 3926 files (0.13%).
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان لمصفوفةِ القواعد"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) 🔴 **بلا `--gate` عمدًا — والسببُ مقيسٌ لا مبدئيّ.** كُتِبت هذه
@@ -1893,7 +2074,7 @@ jobs:
           #      KNOWN_RED. `--gate-floor 100` is NOT a substitute: the rate counts
           #      SKIP and KNOWN_RED in its denominator, so it would always fail.
           if ! python3 tests/runner.py --dir rules_matrix --timeout 30 \
-                 --interp "$sad" --compiler "$sadc" --report; then
+                 --compiler "$sadc" --report; then
 
             # (AR) 🔑 يُعرَضُ **ما** أخفقَ لا عددُه: بوّابةٌ تقولُ «٦ من ٣٠٠٢»
             #      ولا تقولُ أيَّ ستّةٍ ولا بمَ افترقَ المحرّكان تُلزِمُ شوطًا ثانيًا
@@ -1931,10 +2112,9 @@ jobs:
           #      kept out of the step name: it rots with every new seed. `sections`
           #      alone measured locally: 715 total, 687 pass, 0 fail, 25 skip,
           #      3 declared red, 388s on 12 cores (Debug).
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان للمستوى الكامل"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) 🔴 بلا `--gate` — للسببِ المقيسِ نفسِه المشروحِ في الخطوةِ أعلاه.
@@ -1944,7 +2124,7 @@ jobs:
           #      five P0_smoke files so the gate looks alive, yet a regression in any
           #      of the other 715 exits 0.
           if ! python3 tests/runner.py --level full --timeout 60 \
-                 --interp "$sad" --compiler "$sadc" --report; then
+                 --compiler "$sadc" --report; then
 
             # (AR) 🔑 يُعرَضُ **ما** أخفقَ لا عددُه: بوّابةٌ تقولُ «٦ من ٣٠٠٢»
             #      ولا تقولُ أيَّ ستّةٍ ولا بمَ افترقَ المحرّكان تُلزِمُ شوطًا ثانيًا
@@ -1977,10 +2157,9 @@ jobs:
           #      اخضرارٌ مسجَّلٌ · احمرارٌ غيرُ مسجَّلٍ · تغيُّرُ صنفِ الإخفاق.
           # (EN) Both directions: a registered row that turns green, an unregistered
           #      red, or a changed failure kind all fail this step.
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان لسجلِّ الحمرة"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) 🔑 رمزُ ٣ = انهيارُ الأداةِ لا انحرافُ السجلّ. و`||` تُخرِج
@@ -1989,7 +2168,7 @@ jobs:
           #      out of `-e` so its code can be read instead of aborting.
           reds_code=0
           python3 tests/system/harness/test_declared_reds_registry.py \
-            --measure --interp "$sad" --compiler "$sadc" || reds_code=$?
+            --measure --compiler "$sadc" || reds_code=$?
           if [ "$reds_code" -eq 3 ]; then
             echo "::error::أداةُ سجلِّ الحمرةِ انهارت — لا حكمَ على السجلّ: لم يُقَس"
             exit 1
@@ -2281,6 +2460,107 @@ jobs:
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4
 
       # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 أبوابُ توليدِ كودِ المنصّاتِ الأربع — **هنا لا في بوّابةِ
+      #      الرسومات**. كانت هناك، وتلك البوّابةُ تُهيّئُ بـ`OFF` عمدًا لتُثبِتَ
+      #      أنّ الرسوماتِ لا تلزمُها LLVM، فكانت تطلبُ هدفًا لا يوجدُ إلّا بها.
+      #      وهذه الوظيفةُ تبني `sad-build` أصلًا، فالخطوةُ بلا تنصيبِ LLVM
+      #      إضافيٍّ ولا وظيفةٍ جديدة.
+      #
+      #      وتعمَلُ على المضيفينَ الثلاثةِ عمدًا: توليدُ الكودِ قد يختلفُ
+      #      **بالمضيفِ** لا بالهدفِ وحدَه — وهذا المستودعُ قاسَ الصنفَين
+      #      (ترميزُ العربيّةِ على ويندوز، وترتيبُ الخريطةِ عندَ النقلِ إلى
+      #      أوبونتو). واجتيازُها على مضيفٍ واحدٍ لا يُثبِتُ الحتميّة.
+      #
+      #      والحكمُ لا يُعقَدُ على رمزِ الخروج: البرنامجُ يطبعُ «باب معطوب»
+      #      ثمّ **يخرجُ بصفر** (`خروج` بلا معاملاتٍ لا تحملُ رمزًا). فالعقدُ
+      #      مزدوج: سطرُ النجاحِ حاضرٌ **وصفرُ فشل**. والمترجِمُ يُترجِمُ ولا
+      #      يُشغّل، فيُصرَّفُ أوّلًا ويُشغَّلُ الناتج.
+      # (EN) The four platform-codegen doors — here, not in the graphics gate.
+      #      That gate configures LLVM off by design yet asked for a target that
+      #      only exists with LLVM. This job already builds sad-build, so the step
+      #      needs no extra provisioning and no new job. It runs on all three
+      #      hosts deliberately: codegen can differ by HOST, not only by target,
+      #      and this repo has measured both kinds. The verdict is not the exit
+      #      code — the program prints a broken-door line and still exits 0 — so
+      #      the success line AND a zero failure count are both asserted.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🚪 أبوابُ توليدِ كودِ المنصّاتِ الأربع / Four platform codegen doors"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) البذرةُ تُلتمَسُ ولا يُكتَبُ مسارُها حرفًا: مسارٌ مكتوبٌ بيدٍ
+          #      يَرثُّ بأوّلِ نقل، وحروفُه العربيّةُ مزلقةُ ترميزٍ على ويندوز.
+          # (EN) The seed is located, not hard-coded: a typed path rots on the
+          #      first move, and its Arabic characters are an encoding hazard.
+          SEED="$(find tests/behavior -type f -name '132_ui_platform_codegen_doors.*' | head -1)"
+          if [ -z "$SEED" ]; then
+            echo "::error::بذرةُ الأبوابِ غيرُ موجودة / doors seed not found"
+            exit 1
+          fi
+          DOORS="${RUNNER_TMP:-.}/doors_gate.exe"
+          "$SADC" "$SEED" -o "$DOORS"
+          OUT="$("$DOORS")"
+          printf '%s\n' "$OUT"
+          printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
+          printf '%s' "$OUT" | grep -q 'فشل: 0'
+
+      # ══════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **حارسُ تضييقِ أمانِ العدمِ (NS-03) — يُنادَى هنا لأوّلِ مرّة.**
+      #
+      #      كان `tests/behavior/null_safety/ns03_flow_narrowing_check.sh` قائمًا
+      #      في الشجرةِ ولا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل (قِيس بمسحٍ على
+      #      كلِّ `*.cmake` و`CMakeLists.txt` و`*.yml`: صفرُ إصابة). وحارسٌ لا
+      #      يُنادَى ليس حارسًا: سكوتُه يُقرأُ خضرةً وهو صمت.
+      #
+      #      ⚠️ وهو الوحيدُ من ستّةٍ صالحٌ للوصلِ اليوم: قِيس أنّ نصفَه
+      #      المترجِميَّ أخضرُ ٤/٤، وأنّه يتخطّى المحرّكَ الغائبَ بلا إخفاق.
+      #      وإخوتُه الخمسةُ تخلطُ توكيداتِ المفسّرِ بالمترجم، ففصلُها عملٌ
+      #      مقصودٌ — وقد قُيِّدَ في ترويسةِ كلٍّ منها بأرقامٍ مقيسة.
+      #
+      #      ويحرسُ محورَ التحليلِ لا التوليد: تضييقُ `إذا (م != لاشيء)` يكبحُ
+      #      تحذيرَ الوصولِ الخام، والتحوّرُ داخلَ الحرسِ يُعيدُه.
+      # (EN) The NS-03 narrowing guard is invoked here for the first time. The
+      #      script sat in the tree with no gate or workflow calling it (measured
+      #      by a sweep over every *.cmake, CMakeLists.txt and *.yml: zero hits),
+      #      and a guard nobody calls is not a guard — its silence reads as green.
+      #      It is the only one of six wireable today: its compiler half measures
+      #      4/4 and it skips a missing engine without failing. Its five siblings
+      #      interleave interpreter and compiler assertions; separating them is
+      #      deliberate work, recorded in each header with measured numbers.
+      # ══════════════════════════════════════════════════════════════════
+      - name: "🕳️ تضييقُ أمانِ العدم (NS-03) / Null-safety narrowing"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) السكربتُ يُخرِجُ ٢ إن لم يُقَسْ محرّكٌ واحد، و١ إن أخفقَ توكيد —
+          #      فالخضرةُ الفارغةُ تحمرُّ كما يحمرُّ الانحدار.
+          # (EN) The script exits 2 when no engine was measured and 1 on a failed
+          #      assertion, so an empty green reddens just as a regression does.
+          SAD_BUILD="$SADC" bash tests/behavior/null_safety/ns03_flow_narrowing_check.sh
+
+      # ══════════════════════════════════════════════════════════════════════
       # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
       #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
       #      هدفِ `sad-build` الذي لا يُعرَّفُ إلّا إذا وُجدت LLVM، فكانت تُبنى
@@ -2545,10 +2825,12 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 اختبارات المفسّر / Interpreter & StdLib Tests"
+      - name: "🧪 اختبارات المكتبة القياسيّة / StdLib Tests"
         run: |
           failed=0
-          for test in test_interpreter_comprehensive test_stdlib_comprehensive; do
+          # (AR) 🔑 حُذف `test_interpreter_comprehensive` مع المفسّر — والخطوةُ تعدُّ الغيابَ إخفاقًا.
+          # (EN) test_interpreter_comprehensive died with the interpreter; absence is counted as failure here.
+          for test in test_stdlib_comprehensive; do
             exe="build/bin/$test"
             if [ -x "$exe" ]; then
               echo "▶️ Running $test..."
@@ -2559,7 +2841,7 @@ jobs:
             fi
           done
           if [ $failed -gt 0 ]; then
-            echo "::error::$failed interpreter test(s) failed"
+            echo "::error::$failed stdlib test(s) failed"
             exit 1
           fi
 
@@ -2593,18 +2875,18 @@ jobs:
 
       - name: "🧪 اختبارات Regression / Regression Tests"
         run: |
-          sad="build/bin/sad-run"
+          sad="build/bin/sad-build"
           if [ -x "$sad" ]; then
             if [ -f "tests/behavior/_regression/run_regression_tests.sh" ]; then
               chmod +x tests/behavior/_regression/run_regression_tests.sh
-              tests/behavior/_regression/run_regression_tests.sh "$sad" interpreter
+              tests/behavior/_regression/run_regression_tests.sh "$sad" compiler
             else
               # (AR) الملفُّ مُودَعٌ في المستودع، فغيابُه سحبٌ ناقصٌ لا حالةٌ مشروعة.
               echo "::error::MISSING: tests/behavior/_regression/run_regression_tests.sh"
               exit 1
             fi
           else
-            echo "❌ MISSING: sad-run not built"
+            echo "❌ MISSING: sad-build not built"
             exit 1
           fi
 
@@ -2626,28 +2908,21 @@ jobs:
       #      needs and ran none of it — a Debug-only defect (a firing assert,
       #      /Od behaviour) stayed invisible until Release broke. The time bound
       #      is now declared explicitly instead of inheriting the 6-hour ceiling.
-      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
+      - name: "🔄 شوط السلوك — المترجم / Behavior Suite — Compiler"
         timeout-minutes: 45
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          # (AR) المفسّر إلزاميّ — غيابه عطلٌ حقيقيٌّ لا يُتخطّى، كما على ويندوز.
-          # (EN) The interpreter is mandatory — its absence is a real failure.
-          if [ ! -x "$sad" ]; then
-            echo "::error::MISSING: $sad — المفسّر إلزاميّ للتنفيذ المزدوج"
+          # (AR) 🔑 محرّكٌ واحد: المترجم. تمريرُ `--interp sad-build` كان يُبقي
+          #      وضعَ المترجم-فقط ميّتًا ويقارنُ مخرَجًا فارغًا — فالمترجمُ يُترجِمُ
+          #      ولا يُشغّل. والمُسنَدُ صار `@expected` بسَندٍ من قواعدِ اللغة.
+          # (EN) One engine: the compiler. `--interp sad-build` kept compiler-only
+          #      mode dead and compared an empty output; sad-build never runs a file.
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميٌّ لشوطِ السلوك"
             exit 1
           fi
-          # (AR) المترجم إن بُني: تكافُؤٌ ثنائيّ. وإن غاب **لا نتخطّى** بل نُشغّل
-          #      وضعَ المفسّر-فقط — فتَعملُ الاختباراتُ بدلَ علامةٍ خضراءَ مخادعة.
-          # (EN) Compiler if built → real parity. If absent we do NOT skip: run
-          #      interpreter-only, so the tests actually run instead of a fake green.
-          engine=(--interp "$sad")
-          if [ -x "$sadc" ]; then
-            engine+=(--compiler "$sadc")
-            echo "▶️ تنفيذٌ مزدوجٌ كاملٌ (مفسّر + مترجم) — المستوى: P0"
-          else
-            echo "::warning::وضعُ المفسّر-فقط — sad-build غيرُ مبنيٍّ فلا يُقاسُ التكافؤُ هنا"
-          fi
+          engine=(--compiler "$sadc")
+          echo "▶️ شوطُ السلوك — المترجمُ وحدَه — المستوى: P0"
           # (AR) ⚠️ --gate يُصدِرُ الحكم، والإخفاقُ **لا يُبتلَع**. وكان قبلَها
           #      `|| echo "… had failures"` — فمكثتِ الخطوةُ خضراءَ والتكافؤُ **صفرٌ**.
           #      وP0 بلا أرضيّةٍ مئويّةٍ عمدًا: خمسةُ ملفّاتٍ دخانٍ — أيُّ إخفاقٍ = FAIL.
@@ -2680,15 +2955,14 @@ jobs:
       - name: "🧮 مصفوفة القواعد / Rules Matrix Parity"
         timeout-minutes: 30
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان لمصفوفة القواعد"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) بلا `--gate` عمدًا — `rules_matrix` بلا ملفِّ دخانٍ واحد.
           if ! python3 tests/runner.py --dir rules_matrix --timeout 30 \
-                 --interp "$sad" --compiler "$sadc" --report; then
+                 --compiler "$sadc" --report; then
             python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
             echo "::error::مصفوفةُ القواعد على ماك: FAIL"
             exit 1
@@ -2709,14 +2983,13 @@ jobs:
       - name: "📚 المستوى الكامل / Full Level Parity"
         timeout-minutes: 30
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان للمستوى الكامل"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           if ! python3 tests/runner.py --level full --timeout 60 \
-                 --interp "$sad" --compiler "$sadc" --report; then
+                 --compiler "$sadc" --report; then
             python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
             echo "::error::المستوى الكامل على ماك: FAIL"
             exit 1
@@ -2737,10 +3010,9 @@ jobs:
       - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
         timeout-minutes: 30
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان لسجلِّ الحمرة"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) 🔑 رمزُ ٣ = انهيارُ الأداةِ لا انحرافُ السجلّ. و`||` تُخرِج
@@ -2749,7 +3021,7 @@ jobs:
           #      out of `-e` so its code can be read instead of aborting.
           reds_code=0
           python3 tests/system/harness/test_declared_reds_registry.py \
-            --measure --interp "$sad" --compiler "$sadc" || reds_code=$?
+            --measure --compiler "$sadc" || reds_code=$?
           if [ "$reds_code" -eq 3 ]; then
             echo "::error::أداةُ سجلِّ الحمرةِ انهارت — لا حكمَ على السجلّ: لم يُقَس"
             exit 1
@@ -2815,7 +3087,7 @@ jobs:
   #      وخانةٌ تبني إحداهما وتُسمّي نفسَها «مرآةَ الإصدار» تحرسُ نصفَه: كودٌ
   #      يُرفَضُ في GCC 11 داخلَ الذراعِ الأخرى يمرُّ أخضرَ ويسقطُ في شوطِ
   #      إصدارٍ — وهو عينُ ما وُضِعت هذه الوظيفةُ لتمنعَه.
-  #      والأدواتُ الثلاثُ الإضافيّةُ (sad-pkg · sad-repl · sad-fmt) تُشحَنُ في
+  #      والأداتانِ الإضافيّتانِ (sad-pkg · sad-fmt) تُشحَنُ في
   #      الحزمِ ويبتلعُ `continue-on-error` إخفاقَ بنائِها في المُصدِر، فلا
   #      يُصرِّفُها GCC 11 في أيِّ مكانٍ ولا يحكمُ عليها أحد. تُبنى هنا **مُلزِمةً**:
   #      البوّابةُ تقولُ «يُصرَّفُ» أو «لا يُصرَّف»، وقرارُ التحزيمِ شأنٌ آخر.
@@ -2827,7 +3099,7 @@ jobs:
   #      which flips the #if in compiler_driver_cli.cpp to its other arm — two
   #      different compilation trees, not one toggled flag. A cell that builds
   #      one and calls itself a mirror of the release guards half of it.
-  #      The three extras (sad-pkg, sad-repl, sad-fmt) ship in the packages and
+  #      The two extras (sad-pkg, sad-fmt) ship in the packages and
   #      the publisher swallows their build failure with continue-on-error, so
   #      GCC 11 compiles them nowhere and nobody judges them. Here they are
   #      built as REQUIRED: this gate answers "compiles" or "does not compile";
@@ -2839,10 +3111,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - leg: compiler
+          # (AR) 🔑 الذراعانِ تُطابقانِ الحزمتَين المنشورتَين، وكلتاهما
+          #      بـLLVM: لم تعُدْ حزمةٌ تُبنى بلا خلفيّة. وكانت ذراعُ «المفسّر»
+          #      تُهيّئُ بـ`OFF` ثمّ تطلبُ `sad-build` — هدفًا لا يوجدُ إلّا بـ`ON`
+          #      — فكانت ستُخفِقُ حتمًا.
+          # (EN) The two legs mirror the two published packages, both with LLVM:
+          #      no package is built without a backend any more. The former
+          #      "interpreter" leg configured OFF and then asked for sad-build,
+          #      a target that exists only with ON, so it was bound to fail.
+          - leg: full
             llvm: true
-          - leg: interpreter
-            llvm: false
+          - leg: standard
+            llvm: true
     # (AR) الحدُّ مشتقٌّ من قياس: وظيفةُ المترجمِ في الشوطِ الجافِّ 33302076297
     #      استغرقت ٣١ دقيقةً شاملةً تثبيتَ LLVM والتحزيم. هذه بلا تحزيمٍ ولا
     #      اختبارات، والفائضُ احتياطٌ لبطءِ المرآة لا رقمٌ مُقدَّر.
@@ -2875,7 +3155,7 @@ jobs:
         run: |
           bash scripts/ci/apt_retry.sh update
           bash scripts/ci/apt_retry.sh install -y cmake g++ build-essential libssl-dev
-          if [ "${{ matrix.leg }}" = "interpreter" ]; then
+          if [ "${{ matrix.leg }}" = "standard" ]; then
             bash scripts/ci/apt_retry.sh install -y \
               libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
           fi
@@ -2920,24 +3200,27 @@ jobs:
       - name: "🔨 تهيئةُ CMake كما يُهيّئُ المُصدِر / Configure as the publisher does"
         shell: bash
         run: |
-          if [ "${{ matrix.leg }}" = "compiler" ]; then
-            test -n "$LLVM_DIR" || { echo "::error::LLVM_DIR غيرُ مُصدَّر"; exit 1; }
+          # (AR) 🔑 الذراعانِ كلتاهما بـLLVM الآن، ويفترقانِ في
+          #      الأدواتِ الإضافيّةِ التي تشحنُها الحزمةُ القياسيّةُ وحدَها
+          #      (مديرُ الحزم · خادمُ اللغة · الصدفة) — كما في `release.yml`.
+          # (EN) Both legs now use LLVM and differ only in the extra tools the
+          #      standard package ships — mirroring release.yml.
+          test -n "$LLVM_DIR" || { echo "::error::LLVM_DIR غيرُ مُصدَّر"; exit 1; }
+          if [ "${{ matrix.leg }}" = "full" ]; then
             cmake -S . -B build \
               -G "Unix Makefiles" \
               -DCMAKE_BUILD_TYPE=Release \
               -DENABLE_LLVM_BACKEND=ON \
               -DLLVM_DIR="$LLVM_DIR" \
+              -DSAD_LLVM_STATIC=ON \
               -DBUILD_TESTS=OFF
           else
-            # (AR) لا LLVM_DIR هنا عمدًا: هذه هي الذراعُ التي يرجعُ فيها
-            #      cmake/llvm.cmake باكرًا، وهي التي تبني حزمةَ المفسّرِ.
-            # (EN) Deliberately no LLVM_DIR: this is the arm where
-            #      cmake/llvm.cmake returns early — and it builds the
-            #      interpreter package.
             cmake -S . -B build \
               -G "Unix Makefiles" \
               -DCMAKE_BUILD_TYPE=Release \
-              -DENABLE_LLVM_BACKEND=OFF \
+              -DENABLE_LLVM_BACKEND=ON \
+              -DLLVM_DIR="$LLVM_DIR" \
+              -DSAD_LLVM_STATIC=ON \
               -DBUILD_TESTS=OFF \
               -DBUILD_PKG_MANAGER=ON \
               -DBUILD_LSP_SERVER=ON \
@@ -2955,13 +3238,13 @@ jobs:
         run: |
           source scripts/ci/release_tools.sh
           sad_require_identity_table
-          if [ "${{ matrix.leg }}" = "compiler" ]; then
-            sad_build_tools build Release "$SAD_REQUIRED_COMPILER"
+          if [ "${{ matrix.leg }}" = "full" ]; then
+            sad_build_tools build Release "$SAD_REQUIRED_FULL"
           else
-            sad_build_tools build Release "$SAD_REQUIRED_INTERPRETER"
+            sad_build_tools build Release "$SAD_REQUIRED_STANDARD"
             # (AR) الإضافيّاتُ مُلزِمةٌ هنا وحدَها — التعليلُ فوقَ الوظيفة.
             # (EN) The extras are required here alone — rationale above the job.
-            for target in sad-pkg sad-repl sad-fmt; do
+            for target in sad-pkg sad-fmt; do
               echo "🔨 $target"
               cmake --build build --config Release --target "$target" --parallel "$(nproc)"
             done

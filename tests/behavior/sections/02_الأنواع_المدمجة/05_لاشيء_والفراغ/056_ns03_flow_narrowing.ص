@@ -1,14 +1,27 @@
 # @description (NS-03) أمان null/تحليل التدفّق: الوصول الخام داخل حرس 'إذا (م != لاشيء)' أو بعد خروج عكسيّ 'إذا (م == لاشيء) … ارجع … نهاية' لا يُرصَد (smart narrowing)؛ التحوّر يُبطل التضييق. دوال غير مُستدعاة (رصد ساكن).
 # @priority P1
-# @skip_compiler
 # @expected OK
 #
-# (AR) @skip_compiler: المترجم لا يملك بعد codegen للوصول لعضو على نوع اختياريّ
-#      داخل كتلة شرطية ('No class mapping' — ثغرة codegen في خريطة NS-06). تحليل
-#      NS-03 الساكن صحيح في المحرّكين، لكنّ توليد LLVM لهذه الحالة يأتي في NS-06.
-# (EN) @skip_compiler: compiler codegen for optional member access inside a
-#      conditional is not implemented yet (NS-06). NS-03 static analysis is correct
-#      in both engines; LLVM lowering for this case lands in NS-06.
+# ============================================================
+# (AR) 🔑 رُفِعَ `@skip_compiler` — وسببُه المدوَّنُ كان **مغلوطًا**.
+#
+#      كان مكتوبًا: «المترجم لا يملك بعد codegen للوصول لعضو على نوع اختياريّ
+#      **داخل كتلة شرطية**». والمقيسُ (٢٠٢٦-٠٩-٠٣) أنّ الشرطَ لا شأنَ له:
+#      توأمُها ٠٥٥ لا كتلةَ شرطيّةَ فيها وتُخفِقُ إخفاقًا مطابقًا، بل
+#      `متغير س = "ابجد"` ثمّ `س.الطول` على نصٍّ عاديٍّ غيرِ اختياريٍّ
+#      يُخفِقُ كذلك. فالعلّةُ لم تكن الاختياريَّ ولا الشرط، بل **هجاءً لا
+#      وجودَ له**: «الطول» طريقةُ مصفوفةٍ، والمُعلَنُ للنصِّ «طول» بقوسَيها.
+#
+#      ⚠️ ووسمُ تخطٍّ بسببٍ مغلوطٍ أسوأُ من وسمٍ بلا سبب: يوجّهُ الإصلاحَ
+#      إلى طبقةٍ سليمةٍ (NS-06) ويصرفُه عن الطبقةِ المعطوبة.
+# (EN) @skip_compiler lifted; its recorded reason was WRONG. It blamed member
+#      access on an optional INSIDE A CONDITIONAL; measured, the conditional is
+#      irrelevant — its twin 055 has none and fails identically, and so does
+#      `س.الطول` on a plain non-optional string. The cause was a spelling that
+#      does not exist: «الطول» is an array method; the string one is «طول», called
+#      with parentheses. A skip carrying a wrong reason is worse than one with no
+#      reason: it points the fix at a healthy layer and away from the broken one.
+# ============================================================
 
 # ============================================================
 # (NS-03) تحليل التدفّق (smart narrowing) — ADR-NS-001 D1/D2/D4/D5
@@ -22,7 +35,7 @@
 # (AR) D-then: تضييق داخل الحرس الموجب — لا يُرصَد.
 دالة ضيّق_then(م: نص؟)
     إذا (م != لاشيء)
-        اطبع_سطر(م.الطول)
+        اطبع_سطر(م.طول())
     نهاية
 نهاية
 
@@ -31,7 +44,7 @@
     إذا (م == لاشيء)
         ارجع
     نهاية
-    اطبع_سطر(م.الطول)
+    اطبع_سطر(م.طول())
 نهاية
 
 اطبع_سطر("OK")

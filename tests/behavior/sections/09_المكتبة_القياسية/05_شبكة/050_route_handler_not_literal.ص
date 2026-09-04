@@ -1,0 +1,58 @@
+# @description سالب — معالجُ المسارِ يجب أن يكون اسمَ دالّةٍ حرفيًّا (SEM049)
+# @expect_error
+#
+# (AR) 🔑 التوجيهُ **بلا نمطٍ عمدًا**، وليس تساهلًا: قِيسَ أنّ رسالةَ
+#      SEM049 المعروضةَ **لا تحملُ رمزَها**. مسارُ `reportError` في الخلفيّةِ
+#      يطبعُ «error: (AR) …» بلا «[SEM049]»، بخلافِ مسارِ المحلّلِ الذي يطبعُ
+#      «⛔ [SYN001] …». فتوكيدُ الرمزِ هنا يُخفِقُ لا لأنّ الرفضَ خاطئٌ بل
+#      لأنّ العرضَ ناقص. والمُوكَّدُ اليومَ ما يمكنُ توكيدُه: **أنّ البرنامجَ
+#      يُرفَض**. وإظهارُ الرمزِ في مسارِ الخلفيّةِ دَينٌ مُقيَّدٌ يفتحُ توكيدَ
+#      الرمزِ لهذه البذرةِ ولستٍّ أخرى تُخفِقُ بالسببِ نفسِه.
+# (EN) Deliberately pattern-free, not lenient: the rendered SEM049 message
+#      carries no code. The backend reportError path prints «error: (AR) …»
+#      without «[SEM049]», unlike the parser path. Asserting the code would
+#      fail because the RENDERING is incomplete, not because the rejection is
+#      wrong. What can be asserted today is asserted: the program is rejected.
+# @priority P1
+
+# ============================================================
+# (AR) 🔑 هذه البذرةُ خلَفٌ لـ«050_http_server_oop.ص» ولها موضوعٌ آخر.
+#
+#      كانت السابقةُ تختبرُ أغلفةَ تسجيلِ المسارِ في «صنف خادم_ويب»
+#      بمعالِجاتِ لامدا. وقد **حُذفت تلك الأغلفةُ** من «شبكات.ص» لأنّها غيرُ
+#      قابلةٍ للتمثيلِ أصلًا: مدمَجةُ تسجيلِ المسارِ تبني ثانكَ «void()» وقتَ
+#      التوليد، فتلزمُها الدالّةُ **حرفيّةً في موضعِ ندائِها نفسِه** — ومقيسٌ
+#      أنّ الأمرَ ليس خاصًّا بالطرائق: حتّى دالّةٌ حرّةٌ تُمرّرُ المعالجَ معاملًا
+#      تفشلُ بالرمزِ نفسِه.
+#
+#      وبدل أن تُحذَفَ البذرةُ وتُترَكَ الفجوةُ بلا قياس، صارت **تقيسُ القيدَ
+#      نفسَه**: قبلَ اليومِ لم تكن في المستودعِ كلِّه بذرةٌ واحدةٌ تمسُّ SEM049،
+#      فكان رمزًا يُبعَثُ ولا يُحاكَم.
+#
+#      والمعالجُ هنا **متغيّرٌ** لا اسمٌ حرفيّ — وهو أضيقُ صورةٍ للقيد: القيمةُ
+#      معروفةٌ للقارئِ ومجهولةٌ للمُخفِّض، فيتبيّنُ أنّ الشرطَ شرطُ **موضعٍ** لا
+#      شرطُ معرفةٍ بالقيمة.
+# (EN) Successor to 050_http_server_oop.ص with a different subject. The route
+#      wrappers of صنف خادم_ويب were deleted because they cannot be expressed:
+#      the builtin builds a void() thunk at codegen time and needs the function
+#      literally AT ITS OWN CALL SITE — measured, even a free function that
+#      forwards the handler as a parameter fails. Rather than delete the seed and
+#      leave the constraint unmeasured, it now measures that constraint: until
+#      today not a single seed in the repository touched SEM049. The handler here
+#      is a VARIABLE, the narrowest form of the limit — its value is obvious to a
+#      reader and unknowable to the lowering, showing the rule is about POSITION,
+#      not about knowing the value.
+# ============================================================
+
+استورد شبكة
+
+دالة معالج_جذر()
+    عين_نص_الرد("مرحبا")
+نهاية
+
+متغير خ = أنشئ_خادم(0)
+
+# (AR) الاسمُ صحيحٌ والدالّةُ معرَّفة — لكنّه يصلُ في **سجلّ** لا حرفيّةً.
+# (EN) A correct, defined name — but it arrives in a REGISTER, not as a literal.
+متغير معالج = "معالج_جذر"
+اطبع_سطر(عند_طلب_جلب(خ، "/"، معالج))

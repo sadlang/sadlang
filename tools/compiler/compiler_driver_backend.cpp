@@ -224,31 +224,50 @@ namespace sad
                     diagnostics_.report_fatal("فشل توليد LLVM IR / Failed to generate LLVM IR");
                     return false;
                 }
-                // (AR) بوّابة الوضع الحرّ فقط: إن ضبط التوليد hasErrors_ (مثلاً
-                //      SEM019 لمدمجة غير آمنة حرًّا كـاقرأ_ملف) فأحبِط زمن الترجمة
-                //      بخروجٍ غير صفريّ بدل إصدار IR مكسور يفشل زمن الربط برسالة
-                //      غامضة (رمز غير معرَّف). مقصورة على --freestanding عمدًا كي لا
-                //      تكشف علل codegen المستضافة الخمس المؤجَّلة لـISSUE-073 (غير
-                //      حرّة). لا نؤلّف هنا نصًّا خامًّا: التشخيص القانونيّ (SEM019)
-                //      مصدره الوحيد كتالوج SoT وقد صاغه reportError وطبعه فعلًا؛
-                //      نُمرّره إلى محرّك تشخيص السائق ليكون عدّ «N error(s)» صادقًا
-                //      (وإلّا طُبع «0 error(s) generated» مضلِّلًا لأنّ أخطاء التوليد
-                //      في قناة مستقلّة عن error_count_).
-                // (EN) Freestanding-only gate: if codegen set hasErrors_ (e.g. the
-                //      SEM019 diagnostic for a freestanding-unsafe builtin) abort
-                //      with a non-zero exit instead of emitting broken IR that
-                //      fails opaquely at link. Scoped to --freestanding so it does
-                //      not surface the 5 hosted codegen bugs deferred to ISSUE-073.
-                //      No hand-written string here: the canonical SEM019 text's sole
-                //      source is the SoT catalog (built + already printed by
-                //      reportError). We only *count* them so the "N error(s)" tally
-                //      is honest — codegen errors live in a channel separate from
-                //      error_count_ but are already on screen.
-                // (AR) ⚠️ عَدٌّ لا إعادةُ طباعة: ‎reportError‎ يطبع فورَ وقوع الخطأ،
-                //      فتمريرُ النصّ إلى ‎report_error‎ كان يطبعه **مرّةً ثانية**.
-                //      قِيس على SEM037: سطرا رسالةٍ وإرشادٍ يظهران أربع مرّات
-                //      (وثمانيًا مع «--اشرح»). الحصيلةُ تبقى صادقةً بالعدّ وحده.
-                if (options_.freestanding && llvm_codegen_->hasErrors())
+                // ════════════════════════════════════════════════════════════
+                // (AR) بوّابةُ أخطاءِ التوليد — عامّةٌ لا مقصورةٌ على وضعٍ ولا على
+                //      قائمةِ رموز. [ISSUE-073 مُغلَقة]
+                //
+                //      🔑 كانت البوّابةُ قبلَ اليومِ في طبقتَين: طبقةٌ تُحبِطُ في
+                //      **الوضعِ الحرِّ وحدَه**، وطبقةٌ مستضافةٌ **بقائمةِ إذنٍ من
+                //      خمسةِ رموز**. وما خرجَ عنهما كان يُطبَعُ خطأً ثمّ **يخرجُ
+                //      المترجّمُ بصفرٍ ويكتبُ ثنائيًّا**. والتعليقُ نفسُه كان يقول
+                //      إنّ البوّابةَ العامّةَ «كاشفةٌ» فأُجِّلت لئلّا تُظهر عللًا
+                //      مُقنَّعة — أي أنّ التأجيلَ كان يشتري خُضرةً بإخفاءِ أعطاب.
+                //
+                //      والمقيسُ ٣ أيلول ٢٠٢٦ أنّ ما أخفتْه لم يكن خمسةً بل
+                //      **أربعةَ عشرَ انهيارًا داخليًّا** عبرَ الشجرةِ كلِّها: عشرةٌ
+                //      في عائلةِ الشبكة، واثنانِ في المولِّدات، والباقي في «هذا»
+                //      خارجَ صنفٍ وفي ربطِ الحقولِ الصنفيّة. وكلُّها كانت تُحسَبُ
+                //      **خضراءَ** في شوطِ السلوك، لأنّ العدّاءَ يحكمُ برمزِ الخروج.
+                //
+                //      وقاعدةُ اللغةِ نفسُها تحسمُ الأمر: `INT001` يقول إنّ الخطأَ
+                //      الداخليَّ **علّةُ مترجِمٍ تُبلَّغ** — لا حالةٌ يُواصَلُ بعدَها
+                //      التوليدُ ويُسلَّمُ ثنائيّ. وثنائيٌّ يُنتَجُ بعدَ انهيارِ
+                //      المولِّدِ ليس ناتجَ ترجمةٍ بل ناتجَ انهيار.
+                //
+                //      ⚠️ والعدُّ لا إعادةُ الطباعة: `reportError` طبعَ الرسالةَ
+                //      فورَ وقوعِها، وتمريرُها إلى `report_error` كان يطبعُها
+                //      مرّةً ثانية. فالحصيلةُ تبقى صادقةً بالعدِّ وحدَه.
+                // (EN) Codegen error gate — general: not scoped to a mode nor to a
+                //      code allowlist. [ISSUE-073 closed]
+                //
+                //      It used to be two layers: abort in FREESTANDING only, plus a
+                //      hosted allowlist of five codes. Anything outside them printed
+                //      an error and then EXITED 0 WITH A BINARY. The comment itself
+                //      said the general gate was "revealing" and was deferred so it
+                //      would not surface masked bugs — deferral buying green by
+                //      hiding defects.
+                //
+                //      Measured 2026-09-03: what it hid was not five but FOURTEEN
+                //      internal compiler errors across the tree, all counted GREEN by
+                //      the behavior suite because the runner judges by exit code.
+                //
+                //      The language's own rule settles it: INT001 declares an internal
+                //      error to be a compiler bug to report — not a state after which
+                //      codegen continues and a binary is delivered.
+                // ════════════════════════════════════════════════════════════
+                if (llvm_codegen_->hasErrors())
                 {
                     for (std::size_t i = 0; i < llvm_codegen_->getErrors().size(); ++i)
                     {
@@ -256,98 +275,6 @@ namespace sad
                     }
                     return false;
                 }
-                // (AR) بوّابة مستضافة مُنمَّطة بالرمز (جولة أميليا ٢ لإصلاح اختطاف
-                //      «حدث»): فشلُ ربط كائنٍ بصنفه (INT_SIR_FIELD_LAYOUT — «No class
-                //      mapping») يعني GEPًا مستحيلًا وثنائيًّا مكسورًا حتمًا، والمفسّر
-                //      يرفض نظيره زمنيًّا (RUN025) — فالإحباط الصريح هو التكافؤ الصادق،
-                //      وكان exit 0 يُبقيه انحدارًا صامتًا لا يمسكه أيّ اختبار سلوكيّ.
-                //      مقصورة على هذا الرمز عمدًا: البوّابة العامّة مؤجَّلة (ISSUE-073)
-                //      كي لا تنكشف عللُ codegen الخمس المقنَّعة (yield/مولّدات + مدى).
-                // (EN) Hosted code-scoped gate (Amelia round 2 of the «حدث» hijack fix):
-                //      failing to map an object to its class (INT_SIR_FIELD_LAYOUT —
-                //      "No class mapping") means an impossible GEP and a certainly
-                //      broken binary; the interpreter rejects the counterpart at run
-                //      time (RUN025), so an explicit abort is the honest parity —
-                //      exit 0 kept this class of regression invisible to behavioral
-                //      tests. Deliberately scoped to this code: the general gate is
-                //      deferred (ISSUE-073) to avoid exposing the 5 masked codegen
-                //      bugs (yield/generators + equality-range).
-                // (AR) وأُلحِق بالبوّابة نفسِها SEM_INDEXING_NOT_SUPPORTED: فهرسٌ نصّيٌّ
-                //      على عمليّةِ مصفوفة (معامِلٌ بلا نوعٍ يُفهرَس بمفتاح). كان يُجهِض
-                //      LLVM بتأكيدٍ حاجب؛ وبعد الحارس صار تشخيصًا مطبوعًا — ولولا هذه
-                //      البوّابة لخرج ‎0‎ ومعه ثنائيٌّ مكسور، أي **إخفاقٌ صامت** أسوأُ من
-                //      الإجهاض الظاهر. الرمز مقصورٌ عمدًا (البوّابة العامّة ISSUE-073).
-                // (EN) SEM_INDEXING_NOT_SUPPORTED joins the same gate: a string index on
-                //      an array op used to hit a blocking LLVM assert; with the guard it
-                //      is a printed diagnostic — without this gate it would exit 0 with a
-                //      broken binary, a silent failure worse than the visible abort.
-                // (AR) وأُلحِق INT_SIR_TYPE_CONSTRAINT للحجّةِ نفسِها حرفيًّا: انتهاكُ قيدِ
-                //      نوعٍ زمنَ التوليد يعني تعليمةً لم تُولَّد (مثلًا فرعُ الطباعةِ الذي
-                //      يستقبل `أي` بقيمةِ i64 خامّة) فيخرج الثنائيُّ **ناقصَ أثرٍ** بخروجٍ
-                //      ‎0‎. كان تركُه خارجَ البوّابةِ تناقضًا داخلَ الرقعةِ نفسِها: بابٌ
-                //      يُغلَق وآخَرُ من صنفِه يُترَك مفتوحًا.
-                // (EN) INT_SIR_TYPE_CONSTRAINT joins for exactly the same reason: a type
-                //      constraint violated at codegen means an instruction was not emitted,
-                //      so the binary silently lacks an effect while exiting 0.
-                // (AR) وأُلحِق SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN بالحجّةِ نفسِها: مدمجةٌ
-                //      تُخفَّض إلى تعليمةٍ من عائلةِ معالجٍ أخرى (rdtsc لهدفِ ARM) تعني
-                //      كائنًا مكسورًا حتمًا. والقيدُ **ليس خاصًّا بالوضع الحرّ** — التعليمةُ
-                //      غائبةٌ عن المعماريّة لا عن المكتبة — فبوّابةُ الوضعِ الحرِّ أعلاه لا
-                //      تبلغه. قِيس قبل هذا السطر: هدفٌ مستضافٌ على aarch64 يطبع خطأين
-                //      **ويخرج بصفر** ويكتب ملفَّ الخرج.
-                // (EN) SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN joins for the same reason and
-                //      is NOT freestanding-specific, so the gate above never sees it:
-                //      measured, a hosted aarch64 target printed two errors and exited 0.
-                // (AR) وأُلحِق SEM_INVALID_OPERATION بالحجّةِ نفسِها: `متجه_جذر` على حزمةٍ
-                //      صحيحةٍ **لا تعبيرَ دقيقًا له** (جذرُ ٢ ليس صحيحًا)، فالذراعُ ترفضُه
-                //      بتشخيصٍ مسمًّى وتربطُ صفرًا. ولولا البوّابةُ لخرج ‎0‎ ومعه ثنائيٌّ
-                //      **يطبعُ كأنّ شيئًا لم يكن** — إخفاقٌ صامت. قِيس قبل هذا السطر:
-                //      خطآن مطبوعان، رمزُ خروجٍ ‎0‎، وثنائيٌّ عامل. والرمزُ مقصورٌ فعليًّا
-                //      لأنّه **لا يُصدَرُ من أيِّ موضعٍ آخرَ في الخلفيّة** (مقيسٌ: موضعٌ
-                //      واحدٌ في simd_ops.cpp)، فلا يكشفُ عللَ ISSUE-073 الخمس المؤجَّلة.
-                // (EN) SEM_INVALID_OPERATION joins for the same reason: متجه_جذر on an
-                //      integer pack has no exact expression, so the arm rejects it by
-                //      name and binds zero. Without this gate the build exits 0 with a
-                //      binary that prints as if nothing happened. Measured before this
-                //      line: two printed errors, exit 0, working binary. The code is
-                //      effectively scoped — it is emitted from exactly one backend site.
-                if (llvm_codegen_->hasErrorCode(
-                        ::Sad::Errors::ErrorCode::SEM_INVALID_OPERATION) ||
-                    llvm_codegen_->hasErrorCode(
-                        ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT) ||
-                    llvm_codegen_->hasErrorCode(
-                        ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED) ||
-                    llvm_codegen_->hasErrorCode(
-                        ::Sad::Errors::ErrorCode::SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN) ||
-                    llvm_codegen_->hasErrorCode(
-                        ::Sad::Errors::ErrorCode::INT_SIR_TYPE_CONSTRAINT))
-                {
-                    // (AR) ⚠️ عَدٌّ لا إعادةُ طباعة — كبوّابةِ الوضعِ الحرِّ أعلاه: ‎reportError‎
-                    //      طبع الرسالةَ فورَ وقوعها، وتمريرُها إلى ‎report_error‎ كان
-                    //      يطبعها مرّةً ثانية (قِيس حيًّا: سطرُ «لا يدعم الفهرسة» مكرّرًا).
-                    // (EN) Count, don't re-print — as in the freestanding gate above.
-                    for (std::size_t i = 0; i < llvm_codegen_->getErrors().size(); ++i)
-                    {
-                        diagnostics_.count_external_error();
-                    }
-                    return false;
-                }
-                // (AR) ملاحظة [ISSUE-073]: `generate()` قد يُبلّغ خطأً داخليًّا عبر reportError()
-                //      (يضبط hasErrors_) لكنّه يُرجع وحدةً غير فارغة، فيصير الخروج 0 زائفًا
-                //      (نجاح صامت لبرنامجٍ مكسور). بوّابةٌ هنا `if (llvm_codegen_->hasErrors())`
-                //      تُصلح هذا الصنف — **لكنّها كاشفة**: تُظهر علل codegen مُقنَّعة سابقة (5
-                //      اختبارات: yield/مولّدات + equality-range) كانت تُعَدّ ناجحةً زورًا. لذا
-                //      أُجِّلت لـPR مستقلّ (ISSUE-073) يُصلح تلك الخمس أيضًا، كي لا يُبعثَر نطاق
-                //      إصلاح وصول حقل ADT (ISSUE-077 مُصلَح أصلًا بفرع buildExprMember دون حاجةٍ
-                //      لهذه البوّابة — لا يُصدر خطأ codegen بعد الإصلاح).
-                // (EN) NOTE [ISSUE-073]: generate() may report an internal error via reportError()
-                //      (sets hasErrors_) yet return a non-null module ⇒ false exit 0 (silent
-                //      success for a broken program). A gate here `if (llvm_codegen_->hasErrors())`
-                //      fixes that class — but it is REVEALING: it surfaces 5 pre-existing masked
-                //      codegen bugs (yield/generators + equality-range) previously counted as
-                //      passing. Deferred to a dedicated PR (ISSUE-073) that also fixes those five,
-                //      so the ADT field-access fix (ISSUE-077, already fixed by the buildExprMember
-                //      branch — emits no codegen error post-fix) is not entangled with them.
                 // ================================================================
                 // (AR) الخطوة 2.5: تشغيل المحسِّن العربي
                 // ================================================================

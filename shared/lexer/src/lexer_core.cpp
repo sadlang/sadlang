@@ -19,6 +19,13 @@
 
 #include <string>
 #include "lexer_core.h"
+// (AR) 🔑 رموزُ كتالوجِ الأخطاء — الرسالةُ تُبنى من مصدرِ الحقيقةِ لا
+//      تُكتَبُ حرفًا هنا. والمُعجَمُ وكتالوجُ الأخطاءِ في هدفٍ واحدٍ
+//      (sad_shared)، فلا حاجزَ طبقيًّا يُعبَر.
+// (EN) Error-catalog codes: the message is built from the SoT rather than
+//      written literally here. The lexer and the catalog live in the same
+//      target (sad_shared), so no layering boundary is crossed.
+#include "error_codes.h"
 #include "string_utils.h"
 #include <cctype>
 #include <stdexcept>
@@ -257,8 +264,16 @@ namespace Sad
          * @brief (AR) تخطي التعليقات في الكود (# للسطر الواحد، #* *# للمتعدد، ## و #** **# للتوثيق)
          * @brief (EN) Skip comments in code (# for single line, #* *# for multi-line, ## and #** **# for doc)
          *
-         * @throws (std::runtime_error) — (AR) إذا كان تعليق متعدد الأسطر غير مغلق
-         *                                 (EN) if multi-line comment is not closed
+         * @note (AR) 🔑 وُضِعَ هنا أوّلًا `@return` يصفُ رمزَ خطأِ LEX007 —
+         *            و`skipComment` **لا تُرجِعُ شيئًا** (`void`) ولا تعالجُ تعليقًا:
+         *            جسمُها كلُّه `if (peek() != '#') return;`. فالوسمُ كان على
+         *            دالّةٍ لا تصلحُ له. والتعليقُ غيرُ المغلقِ يُنتِجُ رمزَ خطأِ
+         *            LEX007 في `nextToken`، وهو موضعُ التعليلِ الصحيح.
+         *       (EN) A @return describing the LEX007 error token was first written
+         *            here, but skipComment returns nothing (void) and handles no
+         *            comment — its whole body is `if (peek() != '#') return;`. The
+         *            unterminated block comment yields a LEX007 error token in
+         *            nextToken, which is where the rationale belongs.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -301,8 +316,14 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع INTEGER أو DOUBLE
          *                   (EN) token of type INTEGER or DOUBLE
          *
-         * @throws (std::runtime_error) — (AR) إذا كان الرقم بصيغة خاطئة
-         *                                 (EN) if number has invalid format
+         * @return (AR) 🔑 رمزُ خطأٍ إذا كان الرقم بصيغة خاطئة — **لا يرمي**.
+         *              (كان هنا `@throws (std::runtime_error)`، وهو وسمٌ بائتٌ:
+         *               الرميُ الوحيدُ في هذا الملفِّ في `tokenize`، وكلُّ ماسحٍ
+         *               يُرجِعُ `makeError`. ومثلُه أربعةٌ أُخَرُ صُحّحت معه.)
+         *         (EN) An error token if the number is malformed — it does not throw.
+         *              This carried @throws (std::runtime_error), a stale tag: the
+         *              only throw in this file is in tokenize and every scanner
+         *              returns makeError. Four sibling tags were corrected with it.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -733,8 +754,8 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع LITERAL_STRING
          *                   (EN) token of type LITERAL_STRING
          *
-         * @throws (std::runtime_error) — (AR) إذا كان النص غير مغلق
-         *                                 (EN) if string is not closed
+         * @return (AR) رمزُ خطأٍ إذا كان النص غير مغلق — لا يرمي (انظر `scanNumber`).
+         *         (EN) An error token if the string is not closed — does not throw.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -979,8 +1000,8 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع STRING_RAW
          *                   (EN) token of type STRING_RAW
          *
-         * @throws (std::runtime_error) — (AR) إذا كان النص غير مغلق
-         *                                 (EN) if string is not closed
+         * @return (AR) رمزُ خطأٍ إذا كان النص غير مغلق — لا يرمي (انظر `scanNumber`).
+         *         (EN) An error token if the string is not closed — does not throw.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -1032,8 +1053,9 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع STRING_FSTRING
          *                   (EN) token of type STRING_FSTRING
          *
-         * @throws (std::runtime_error) — (AR) إذا كان النص غير مغلق أو التعبير غير صحيح
-         *                                 (EN) if string is not closed or expression is invalid
+         * @return (AR) رمزُ خطأٍ إذا كان النص غير مغلق أو التعبير غير صحيح — لا يرمي.
+         *         (EN) An error token if the string is unclosed or the expression is
+         *              invalid — it does not throw.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -1146,8 +1168,9 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع DOC_COMMENT
          *                   (EN) token of type DOC_COMMENT
          *
-         * @throws (std::runtime_error) — (AR) إذا كان التعليق التوثيقي متعدد الأسطر غير مغلق
-         *                                 (EN) if multi-line doc comment is not closed
+         * @return (AR) رمزُ خطأٍ إذا كان التعليق التوثيقي متعدد الأسطر غير مغلق — لا يرمي.
+         *         (EN) An error token if the multi-line doc comment is not closed —
+         *              it does not throw.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -1613,7 +1636,47 @@ namespace Sad
                             continue; // continue outer while(true) to get next real token
                         }
 
-                        throw std::runtime_error("تعليق متعدد الأسطر غير مغلق - Multi-line comment not closed at " + getCurrentPosition().toString());
+                        // ══════════════════════════════════════════════════════
+                        // (AR) 🔑 **تشخيصٌ لا رمية.** كان هنا `throw std::runtime_error`،
+                        //      ولا يلتقطُه أحدٌ في مسارِ الترجمة: فينتهي البرنامجُ
+                        //      بـ`std::terminate` ⇒ `abort`. والمقيسُ (تشغيل
+                        //      33897648921، لينكس وماك): إشارة **٦** بلا سطرِ
+                        //      تشخيصٍ واحد — لا stdout ولا stderr.
+                        //
+                        //      ⚠️ **وويندوز كانت خضراءَ زورًا**: الانهيارُ نفسُه
+                        //      يُخرِجُ `0xC0000409`، وهو رمزٌ غيرُ صفريّ، فيَعُدُّه
+                        //      عدّاءُ البذورِ السالبةِ «رفضًا صحيحًا». فبذرةُ
+                        //      `001_unterminated_block` كانت تمرُّ على منصّةٍ
+                        //      وتحمرُّ على أخرى **لعطبٍ واحد**، وسببُ الخضرةِ
+                        //      شكلُ رمزِ الخروجِ لا صحّةُ السلوك.
+                        //
+                        //      والصوابُ: رمزُ خطأٍ معجميٌّ يمرُّ في المسارِ الذي
+                        //      تمرُّ فيه بقيّةُ الأخطاء، فيُطبَعُ تشخيصٌ ويُرَدُّ
+                        //      رمزُ خروجٍ واحدٌ على المنصّاتِ كلِّها.
+                        // (EN) A diagnostic, not a throw. This used to be a
+                        //      std::runtime_error that nothing on the compile path
+                        //      catches, so the process ended in std::terminate →
+                        //      abort. Measured (run 33897648921, Linux and macOS):
+                        //      signal 6 with not one diagnostic line — no stdout,
+                        //      no stderr. Windows was falsely GREEN: the same crash
+                        //      exits 0xC0000409, a non-zero code, which the negative
+                        //      seed runner counts as "correctly rejected". One defect
+                        //      passed on one platform and reddened on another, and
+                        //      the greenness came from the shape of the exit code,
+                        //      not from correct behaviour. The fix is a lexical
+                        //      error code travelling the same path every other error
+                        //      takes, so a diagnostic prints and one exit code is
+                        //      returned on every platform.
+                        // ══════════════════════════════════════════════════════
+                        return makeError(
+                            "[" +
+                            ::Sad::Errors::getErrorCodeString(
+                                ::Sad::Errors::ErrorCode::LEX_UNTERMINATED_COMMENT) +
+                            "] " +
+                            ::Sad::Errors::getErrorDescription(
+                                ::Sad::Errors::ErrorCode::LEX_UNTERMINATED_COMMENT,
+                                ::Sad::Errors::Language::ARABIC) +
+                            " @ " + getCurrentPosition().toString());
                     }
 
                     // # (regular single-line comment)

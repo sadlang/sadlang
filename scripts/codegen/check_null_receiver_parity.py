@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-(AR) حارسُ تكافؤِ المستقبِلِ العدميّ — يقيسُ العائلةَ كلَّها لا منفذًا منها
+(AR) حارسُ المستقبِلِ العدميّ — يقيسُ العائلةَ كلَّها على قاعدةِ اللغة
 ==============================================================================
 
 (AR) لماذا وُلِد هذا الحارس (مقيسٌ لا مُخمَّن):
@@ -17,9 +17,17 @@
      مصدرِ الحقيقة `language-truth/type_methods.yaml`. فطريقةٌ نصّيّةٌ تُضافُ غدًا
      تدخلُ القياسَ من تلقائها، ولا تجدُ قائمةً مكتوبةً تنسى نفسَها.
 
-(AR) وما يُقاس ليس «هل ينهار المترجّم؟» بل **تطابقُ المحرّكَين**: يُشغَّل المفسّرُ
-     والمترجّمُ على البرنامجِ نفسِه، ويُقارَنُ المخرَجُ والتشخيصُ حرفًا بحرف. لأنّ
-     «لا انهيار» ليست شرطَ الصحّة — الجوابُ الكاذبُ لا ينهارُ أيضًا.
+(AR) 🔑 والمرجعُ **قاعدةٌ في اللغةِ لا مُخرَجُ محرّك**: `RUN003` في
+     `language-truth/errors/runtime.yaml` يقولُ حرفيًّا إنّ «محاولةَ الوصولِ لخاصيّةٍ
+     أو **استدعاءَ دالّةٍ** على قيمةِ لاشيء **ترفعُ هذا الخطأ»**. فالمقياسُ صار
+     مطابقةَ المترجّمِ لهذه القاعدة، لا موافقتَه مُنفِّذًا آخر.
+
+     وكان المرجعُ قبلَ اليومِ تكافؤَ المفسّرِ والمترجّم — وهو مرجعٌ هشٌّ مرّتين:
+     يزولُ بزوالِ أحدِ المحرّكَين (وقد زال)، ويُصادِقُ على عقدٍ مكسورٍ ما دام
+     المحرّكانِ مكسورَين معًا. والقاعدةُ لا تفعلُ أيًّا من الاثنَين.
+
+     و«لا انهيار» ليست شرطَ الصحّة: الجوابُ الكاذبُ الصامتُ لا ينهارُ أيضًا،
+     وهو الصنفُ الذي وُلِدَ له هذا الحارسُ أصلًا.
 
 (AR) وصيغُ النداءِ تُكتشَفُ بالقياسِ لا بجدولٍ مكتوب: تُجرَّبُ على نصٍّ **حقيقيّ**،
      وتُقاسُ **كلُّ** صيغةٍ تنجحُ لا أوّلُها — لأنّ «جزء()» تنجحُ أوّلًا، فالوقوفُ
@@ -27,11 +35,13 @@
      من لفظِ «لاشيء». أي أنّ حارسًا يقفُ عند أوّلِ صيغةٍ يعجزُ عن كشفِ الصنفِ
      الذي وُلِد له.
 
-(EN) Null-receiver parity guard. The port list is READ from the SoT (type_methods.yaml),
-     never hand-written, so a string method added tomorrow is probed automatically.
-     What is measured is engine PARITY (interpreter vs compiler), not "absence of a
-     crash": the silent-lie regression this guard exists for did not crash either.
-     EVERY valid call shape is measured, not the first one that works.
+(EN) Null-receiver conformance guard. The port list is READ from the SoT
+     (type_methods.yaml), never hand-written, so a string method added tomorrow is
+     probed automatically. The oracle is a DECLARED LANGUAGE RULE (RUN003), not
+     another engine's output: an engine reference dies with the engine and blesses a
+     contract both engines break. "No crash" is not correctness — the silent-lie
+     regression this guard exists for did not crash either. EVERY valid call shape
+     is measured, not the first one that works.
 
 الاستعمال / Usage:
     python scripts/codegen/check_null_receiver_parity.py [--بناء BUILD_DIR] [--تفصيل]
@@ -94,14 +104,37 @@ MINIMUM_MEASURED_PORTS = 16
 # (EN) Exit codes that mean a crash, not a raise.
 CRASH_EXIT_CODES = (139, 3221225477, -11)
 
+# (AR) 🔑 رمزُ القاعدةِ المُعلَنة: نداءُ طريقةٍ على قيمةِ لاشيء يرفعُ RUN003
+#      (`language-truth/errors/runtime.yaml`، الحقلُ `detailed.ar` نصًّا).
+# (EN) The declared rule: calling a method on null raises RUN003.
+SOT_NULL_RECEIVER_CODE = "RUN003"
+
+# (AR) 🔑 سقفُ الدَّينِ التشخيصيّ. المترجّمُ اليومَ **يرفعُ** على كلِّ منفذٍ
+#      (فلا كذبَ صامتًا) لكنّه يرفعُ بنثرٍ بلا رمزِ SoT. فالمخالفةُ مصنَّفةٌ صنفَين:
+#        · صامتةٌ أو منهارة ⇒ إخفاقٌ فوريّ (وهو الصنفُ الذي وُلِدَ له الحارس)؛
+#        · رافعةٌ بلا رمز  ⇒ دَينٌ معدودٌ بسقفٍ لا يُتجاوَز، فلا يتّسعُ صامتًا.
+#      والسقفُ يُخفَّضُ كلّما أُرسِيَ منفذٌ على رمزِه، ولا يُرفَعُ إلّا بقرارٍ مُدوَّن.
+# (EN) Diagnostic-debt ceiling. Today the compiler DOES raise at every port (no silent
+#      lie) but without an SoT code. Violations are graded: silent/crashing fails
+#      immediately; raising without a code is counted against a ceiling that must never
+#      grow silently. Lower it as ports get anchored; never raise it without a record.
+NO_SOT_CODE_CEILING = 19
+
 
 class Verdict:
-    """(AR) حكمُ منفذٍ واحد. / (EN) One port's verdict."""
+    """(AR) حكمُ منفذٍ واحد على قاعدةِ اللغة. / (EN) One port's verdict vs the rule."""
 
-    MATCH = "متطابق"
-    DIVERGENT = "متباعد"
+    CONFORMS = "مطابقٌ_للقاعدة"
+    SILENT = "أجابَ_صامتًا"
+    CRASHED = "انهارَ"
+    NO_CODE = "رفعَ_بلا_رمز"
     NOT_IN_LANGUAGE = "غير_مدعوم_أصلًا"
     COMPILER_MISSING = "المترجّم_لا_يبنيه"
+
+    # (AR) المخالفاتُ الحاجبة: الصنفُ الذي وُلِدَ له الحارس. `NO_CODE` ليست منها
+    #      وإنّما تُعَدُّ على سقفٍ — انظر NO_SOT_CODE_CEILING.
+    # (EN) Blocking violations; NO_CODE is counted against a ceiling instead.
+    BLOCKING = (SILENT, CRASHED)
 
 
 def read_string_methods(sot_path: Path) -> list[dict[str, object]]:
@@ -186,8 +219,8 @@ def run_program(binary: Path, source: Path, extra: list[str] | None = None) -> t
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
-# (AR) رأسُ التشخيصِ في المفسّر: «❌ error [RUN033]: ملف:سطر:عمود».
-# (EN) The interpreter's diagnostic header.
+# (AR) رأسُ التشخيصِ الحامِلُ رمزَ الكتالوج: «❌ error [RUN003]: ملف:سطر:عمود».
+# (EN) The diagnostic header carrying the catalog code.
 DIAGNOSTIC_HEADER = re.compile(r"(?:error|خطأ)\s*\[(?P<code>[A-Z]{3}\d{3})\]")
 
 # (AR) أسطرُ زخرفةِ تقريرِ التشخيصِ وأسطرُ تنقيحِ المترجّم — عرضٌ لا دلالة.
@@ -201,12 +234,12 @@ def strip_ansi(output: str) -> str:
 
 def diagnostic_sentence(output: str) -> str | None:
     """
-    (AR) يستخرجُ جملةَ التشخيصِ من تقريرِ المفسّر: السطرَ الذي يلي رأسَ الخطأ.
-         وهي الجملةُ عينُها التي يطبعها المترجّمُ من الكتالوجِ نفسِه، فالمقارنةُ
-         بها مقارنةُ **دلالةٍ** لا مقارنةُ صيغةِ عرضٍ — والصيغتان تختلفان عمدًا.
-    (EN) Extracts the interpreter's diagnostic sentence (the line after the error
-         header). It is the same catalog sentence the compiler prints, so comparing
-         it compares MEANING, not the two engines' deliberately different chrome.
+    (AR) يستخرجُ جملةَ التشخيصِ من التقرير: السطرَ الذي يلي رأسَ الخطأ. وتُعرَض
+         للقارئِ لا لِيُحكَمَ بها — فالحكمُ معقودٌ على **رمزِ** الكتالوجِ وحدَه،
+         إذ النثرُ صيغةُ عرضٍ تتبدّلُ والرمزُ عقدٌ لا يتبدّل.
+    (EN) Extracts the diagnostic sentence (the line after the error header). It is
+         shown, never judged upon: the verdict rests on the catalog CODE alone,
+         since prose is presentation and the code is the contract.
     """
     lines = strip_ansi(output).split("\n")
     for index, line in enumerate(lines):
@@ -236,16 +269,34 @@ def program_output(output: str) -> str:
     return "\n".join(kept)
 
 
+def diagnostic_prose(output: str) -> str:
+    """
+    (AR) جملةُ التشخيصِ كما طبعها المترجّمُ فعلًا — أوّلُ سطرِ «(AR)» منها.
+         و`program_output` يُسقِطُها عمدًا لأنّها ليست مخرَجَ البرنامج، فيلزمُ
+         بابٌ ثانٍ لعرضِ الدَّينِ التشخيصيّ: دَينٌ يُعرَضُ فارغًا لا يُصلَح.
+    (EN) The diagnostic sentence as the compiler actually printed it. program_output
+         drops it on purpose (it is not program output), so the debt report needs its
+         own door: a debt shown as an empty string is a debt nobody can fix.
+    """
+    for raw in strip_ansi(output).splitlines():
+        line = raw.strip()
+        if line.startswith("(AR)"):
+            return line[4:].strip()
+    for raw in strip_ansi(output).splitlines():
+        line = raw.strip()
+        if line and not line.startswith(CHROME_PREFIXES):
+            return line
+    return ""
+
+
 def discover_call_shapes(
-    interpreter: Path, method: dict[str, object], workdir: Path
+    compiler: Path, method: dict[str, object], workdir: Path
 ) -> list[str]:
     """
     (AR) يكتشفُ صيغَ النداءِ بالقياس: **كلَّ** صيغةٍ تنجحُ على نصٍّ حقيقيّ، لا أوّلَها —
-         من بينِ ما تسمحُ به الرتبةُ المُعلَنةُ في مصدرِ الحقيقة. فالمفسّرُ يُسأَلُ
-         عن الأنواعِ لا عن العدد: هو متساهلٌ في العددِ فلا يصلحُ مِعيارًا له.
-         والقائمةُ الفارغةُ تعني أنّ اللغةَ لا تعرفُ هذه الطريقةَ اليومَ أصلًا.
-    (EN) Measures EVERY working call shape within the SoT-declared arity. The
-         interpreter is asked about types, not counts — it is lenient about counts.
+         من بينِ ما تسمحُ به الرتبةُ المُعلَنةُ في مصدرِ الحقيقة. والقائمةُ الفارغةُ
+         تعني أنّ اللغةَ لا تعرفُ هذه الطريقةَ اليومَ أصلًا.
+    (EN) Measures EVERY working call shape within the SoT-declared arity.
     """
     name = str(method["name"])
     minimum = method["min"]
@@ -261,16 +312,16 @@ def discover_call_shapes(
             REAL_SUBJECT_PROGRAM.format(subject=PROBE_SUBJECT, method=name, args=shape),
             encoding="utf-8",
         )
-        code, _ = run_program(interpreter, source)
+        built, code, _ = compile_and_run(compiler, source, workdir)
         source.unlink(missing_ok=True)
-        if code != 0:
+        if not built or code != 0:
             continue
-        # (AR) صيغةٌ خارجَ الرتبةِ يقبلُها المفسّرُ **تباعدٌ قائم** لا شيءٌ يُحذَف:
-        #      المترجّمُ يفرضُ رتبةَ طرائقِ الأنواعِ والمفسّرُ لا يفرضُها بعدُ.
-        #      تُعَدُّ وتُعلَنُ ولا تُقاسُ عليها الأحكام — إذ ليست من اللغة.
-        # (EN) An out-of-arity shape the interpreter accepts is a live divergence,
-        #      not something to delete: the compiler enforces type-method arity and
-        #      the interpreter does not yet. Counted and named, never judged upon.
+        # (AR) صيغةٌ خارجَ الرتبةِ المُعلَنةِ يقبلُها المترجّمُ **مخالفةٌ لمصدرِ
+        #      الحقيقة** لا شيءٌ يُحذَف: الرتبةُ مكتوبةٌ في `type_methods.yaml`،
+        #      وقبولُ ما يجاوزُها توسيعٌ للغةِ من الأداةِ لا من اللغة.
+        #      تُعَدُّ وتُعلَنُ ولا يُقاسُ عليها المستقبِلُ العدميّ — موضوعُها آخر.
+        # (EN) An out-of-arity shape the compiler accepts violates the SoT-declared
+        #      arity — counted and named, but judged separately from null-receiver.
         (lenient if out_of_arity else shapes).append(shape)
     method["lenient"] = lenient
     return shapes
@@ -298,17 +349,19 @@ def compile_and_run(compiler: Path, source: Path, workdir: Path) -> tuple[bool, 
 
 
 def probe_shape(
-    interpreter: Path, compiler: Path, method: str, shape: str, workdir: Path
+    compiler: Path, method: str, shape: str, workdir: Path
 ) -> dict[str, object]:
-    """(AR) يقيسُ صيغةَ نداءٍ واحدةً ويُصدرُ حكمَها. / (EN) Measures one call shape."""
+    """
+    (AR) يقيسُ صيغةَ نداءٍ واحدةً على قاعدةِ اللغة (RUN003) ويُصدرُ حكمَها.
+    (EN) Measures one call shape against the declared rule (RUN003).
+    """
     port = f".{method}({shape})"
     source = workdir / f"null_{uuid.uuid4().hex[:8]}.ص"
     source.write_text(
         NULL_SUBJECT_PROGRAM.format(method=method, args=shape), encoding="utf-8"
     )
     try:
-        interpreter_code, interpreter_output = run_program(interpreter, source)
-        built, compiled_code, compiled_output = compile_and_run(compiler, source, workdir)
+        built, code, output = compile_and_run(compiler, source, workdir)
     finally:
         source.unlink(missing_ok=True)
 
@@ -316,76 +369,63 @@ def probe_shape(
         return {
             "port": port,
             "verdict": Verdict.COMPILER_MISSING,
-            "detail": program_output(compiled_output)[:180],
+            "detail": program_output(output)[:180],
         }
 
-    interpreter_sentence = diagnostic_sentence(interpreter_output)
-    interpreter_raised = interpreter_code != 0 and interpreter_sentence is not None
-    compiled_raised = compiled_code != 0
-    compiled_text = strip_ansi(compiled_output).replace("(AR) ", "").replace("(EN) ", "")
-
-    # (AR) انهيارُ التجزئةِ «رفعٌ» في نظرِ رمزِ الخروجِ وحدَه، وهو أبعدُ ما يكون عنه.
-    #      فيُسمّى باسمِه كي لا يُقرأ اختلافُ نصٍّ حيث وقع انهيار.
-    # (EN) A segfault looks like "raised" to an exit code alone; name it as what it is.
-    crash_note = " (انهيارُ تجزئة)" if compiled_code in CRASH_EXIT_CODES else ""
-
-    if interpreter_raised and compiled_raised:
-        if interpreter_sentence and interpreter_sentence in compiled_text:
-            return {"port": port, "verdict": Verdict.MATCH, "detail": interpreter_sentence[:130]}
+    # (AR) انهيارُ التجزئةِ «رفعٌ» في نظرِ رمزِ الخروجِ وحدَه، وهو أبعدُ ما يكونُ عنه.
+    # (EN) A segfault looks like "raised" to an exit code alone; it is not one.
+    if code in CRASH_EXIT_CODES:
         return {
             "port": port,
-            "verdict": Verdict.DIVERGENT,
-            "detail": (
-                "رفعَ المحرّكانِ بتشخيصَين مختلفَين — "
-                f"المفسّر: «{(interpreter_sentence or '')[:90]}» ‖ "
-                f"المترجّم[{compiled_code}]{crash_note}: "
-                f"«{program_output(compiled_output)[:90]}»"
-            ),
+            "verdict": Verdict.CRASHED,
+            "detail": f"انهيارُ تجزئة [{code}] — والقاعدةُ توجبُ رفعَ "
+                      f"{SOT_NULL_RECEIVER_CODE}",
         }
 
-    if not interpreter_raised and not compiled_raised:
-        if program_output(interpreter_output) == program_output(compiled_output):
-            return {
-                "port": port,
-                "verdict": Verdict.MATCH,
-                "detail": program_output(interpreter_output)[:130],
-            }
+    # (AR) 🔑 رمزُ خروجٍ صفرٌ على مستقبِلٍ عدميٍّ هو **الجوابُ الكاذبُ الصامت**:
+    #      البرنامجُ أجابَ حيثُ توجبُ القاعدةُ أن يرفع. وهو الصنفُ الذي وُلِدَ له
+    #      هذا الحارسُ («س.يحتوي("لا")» على خانةٍ عدميّةٍ يطبعُ «صحيح»).
+    # (EN) Exit 0 on a null receiver is the silent lie the guard was born for.
+    if code == 0:
         return {
             "port": port,
-            "verdict": Verdict.DIVERGENT,
-            "detail": (
-                f"مخرَجانِ مختلفان — المفسّر: «{program_output(interpreter_output)[:80]}» ‖ "
-                f"المترجّم: «{program_output(compiled_output)[:80]}»"
-            ),
+            "verdict": Verdict.SILENT,
+            "detail": f"أجابَ «{program_output(output)[:90]}» ورمزُ الخروجِ صفر — "
+                      f"والقاعدةُ توجبُ رفعَ {SOT_NULL_RECEIVER_CODE}",
         }
 
-    # (AR) أحدُهما رفعَ والآخرُ لم يرفع — وهذا عينُ الصنفِ الذي وُلِد له الحارس:
-    #      الجوابُ الكاذبُ الصامتُ من جهة، وانهيارُ التجزئةِ من الجهةِ الأخرى.
-    # (EN) One raised and the other did not — exactly the class this guard exists for.
-    which = "المفسّرُ وحدَه" if interpreter_raised else "المترجّمُ وحدَه"
+    sentence = diagnostic_sentence(output)
+    text = strip_ansi(output)
+    if SOT_NULL_RECEIVER_CODE in text:
+        return {
+            "port": port,
+            "verdict": Verdict.CONFORMS,
+            "detail": (sentence or program_output(output))[:130],
+        }
+
+    # (AR) رفعَ — وهذا يسدُّ بابَ الكذبِ الصامت — لكن بلا رمزِ القاعدة. دَينٌ
+    #      تشخيصيٌّ معدودٌ لا مخالفةٌ حاجبة، إذ السلوكُ صحيحٌ والتشخيصُ ناقص.
+    # (EN) It raised (so no silent lie) but without the rule's code: counted debt.
     return {
         "port": port,
-        "verdict": Verdict.DIVERGENT,
-        "detail": (
-            f"رفعَ {which} — المفسّر[{interpreter_code}]: "
-            f"«{(interpreter_sentence or program_output(interpreter_output))[:80]}» ‖ "
-            f"المترجّم[{compiled_code}]{crash_note}: «{program_output(compiled_output)[:80]}»"
-        ),
+        "verdict": Verdict.NO_CODE,
+        "detail": f"رفعَ [{code}] بلا {SOT_NULL_RECEIVER_CODE}: "
+                  f"«{(sentence or diagnostic_prose(output))[:90]}»",
     }
 
 
 def probe_method(
-    interpreter: Path, compiler: Path, method: dict[str, object], workdir: Path
+    compiler: Path, method: dict[str, object], workdir: Path
 ) -> list[dict[str, object]]:
     """
     (AR) يقيسُ **كلَّ** صيغِ نداءِ الطريقةِ التي تصحُّ في اللغة، لا صيغةً منها.
     (EN) Measures EVERY valid call shape of the method, not one of them.
     """
     name = str(method["name"])
-    shapes = discover_call_shapes(interpreter, method, workdir)
+    shapes = discover_call_shapes(compiler, method, workdir)
     if not shapes:
         return [{"port": f".{name}()", "verdict": Verdict.NOT_IN_LANGUAGE, "detail": ""}]
-    return [probe_shape(interpreter, compiler, name, shape, workdir) for shape in shapes]
+    return [probe_shape(compiler, name, shape, workdir) for shape in shapes]
 
 
 def resolve_binary(build_dir: Path, stem: str) -> Path:
@@ -407,13 +447,13 @@ def resolve_binary(build_dir: Path, stem: str) -> Path:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="حارسُ تكافؤِ المستقبِلِ العدميّ")
+    parser = argparse.ArgumentParser(
+        description="حارسُ المستقبِلِ العدميّ — على قاعدةِ اللغةِ RUN003")
     parser.add_argument("--بناء", dest="build_dir", default="build")
     parser.add_argument("--تفصيل", dest="verbose", action="store_true")
     args = parser.parse_args()
 
     build_dir = (REPO_ROOT / args.build_dir).resolve()
-    interpreter = resolve_binary(build_dir, "sad-run")
     compiler = resolve_binary(build_dir, "sad-build")
 
     methods = read_string_methods(SOT_TYPE_METHODS)
@@ -429,16 +469,19 @@ def main() -> int:
     undeclared = [str(m["name"]) for m in methods if not m["declared"]]
     print(f"🔍 طرائقُ العائلةِ من مصدرِ الحقيقة: {len(methods)}"
           f" · بلا رتبةٍ مُعلَنة: {len(undeclared)}")
-    print(f"   المفسّر:  {interpreter}")
     print(f"   المترجّم: {compiler}")
+    print(f"   القاعدةُ المرجع: {SOT_NULL_RECEIVER_CODE}"
+          f" (language-truth/errors/runtime.yaml)")
     if undeclared:
         print("   بلا حدٍّ من مصدرِ الحقيقة (تُقاسُ صيغُها كلُّها): "
               + "، ".join(undeclared))
     print("")
 
     marks = {
-        Verdict.MATCH: "✅",
-        Verdict.DIVERGENT: "❌",
+        Verdict.CONFORMS: "✅",
+        Verdict.SILENT: "❌",
+        Verdict.CRASHED: "❌",
+        Verdict.NO_CODE: "🟡",
         Verdict.NOT_IN_LANGUAGE: "⚪",
         Verdict.COMPILER_MISSING: "⚠️",
     }
@@ -447,31 +490,40 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="sad_null_parity_") as temp:
         workdir = Path(temp)
         for method in methods:
-            for result in probe_method(interpreter, compiler, method, workdir):
+            for result in probe_method(compiler, method, workdir):
                 results.append(result)
                 print(f"  {marks[str(result['verdict'])]} {result['port']}: {result['verdict']}")
                 if args.verbose and result["detail"]:
                     print(f"       {result['detail']}")
 
-    divergent = [r for r in results if r["verdict"] == Verdict.DIVERGENT]
+    blocking = [r for r in results if r["verdict"] in Verdict.BLOCKING]
+    no_code = [r for r in results if r["verdict"] == Verdict.NO_CODE]
     unsupported = [r for r in results if r["verdict"] == Verdict.NOT_IN_LANGUAGE]
     uncompiled = [r for r in results if r["verdict"] == Verdict.COMPILER_MISSING]
-    matched = [r for r in results if r["verdict"] == Verdict.MATCH]
+    conforming = [r for r in results if r["verdict"] == Verdict.CONFORMS]
+
+    # (AR) المقيسُ فعلًا = ما بلغَ حكمًا سلوكيًّا، مطابقًا كان أو مخالفًا. وما لم
+    #      يُبنَ ليس مقيسًا، وعدُّه في الأرضيّةِ يجعلُ عطبَ البيئةِ يشتري خُضرة.
+    # (EN) "Measured" = reached a behavioural verdict; unbuilt ports are not measured.
+    measured = len(conforming) + len(blocking) + len(no_code)
 
     print("")
     print("═" * 70)
-    print(f"  متطابق: {len(matched)}   متباعد: {len(divergent)}")
+    print(f"  مطابقٌ للقاعدة: {len(conforming)}   مخالفٌ حاجب: {len(blocking)}")
+    print(f"  رفعَ بلا {SOT_NULL_RECEIVER_CODE}: {len(no_code)}"
+          f" (السقف {NO_SOT_CODE_CEILING})")
     print(f"  خارجَ اللغةِ اليوم: {len(unsupported)}   لا يبنيه المترجّم: {len(uncompiled)}")
     lenient_total = sum(len(m.get("lenient", [])) for m in methods)
     if lenient_total:
-        print(f"  يقبلُها المفسّرُ خارجَ الرتبةِ المُعلَنة: {lenient_total} صيغة")
+        print(f"  يقبلُها المترجّمُ خارجَ الرتبةِ المُعلَنة في مصدرِ الحقيقة: "
+              f"{lenient_total} صيغة")
     print("═" * 70)
 
     # (AR) ما لم يُقَس يُذكَر: بوّابةٌ تصمتُ عمّا أسقطته تُقرأ «غطّيتُ الكلَّ».
     # (EN) No silent caps: what was skipped is named, or green reads as "all covered".
     if unsupported:
         print("")
-        print("⚪ خارجَ اللغةِ اليومَ (لا يقبلُها المفسّرُ على نصٍّ حقيقيّ):")
+        print("⚪ خارجَ اللغةِ اليومَ (لا يبنيها المترجّمُ على نصٍّ حقيقيّ):")
         print("   " + "، ".join(str(r["port"]) for r in unsupported))
     if uncompiled:
         print("")
@@ -491,10 +543,10 @@ def main() -> int:
     #      proven by running it against fake binaries. The likeliest CI failure is not
     #      divergence but a broken environment, which would otherwise read as green.
     # ════════════════════════════════════════════════════════════════════
-    if len(matched) < MINIMUM_MEASURED_PORTS:
+    if measured < MINIMUM_MEASURED_PORTS:
         print("")
-        print(f"❌ لم يُقَس إلّا {len(matched)} منفذًا والأرضيّةُ {MINIMUM_MEASURED_PORTS}.")
-        print("   هذا عطبُ بيئةٍ أو قياسٍ لا براءةَ سلوك: المحرّكانِ لم يُشغَّلا كما يجب.")
+        print(f"❌ لم يُقَس إلّا {measured} منفذًا والأرضيّةُ {MINIMUM_MEASURED_PORTS}.")
+        print("   هذا عطبُ بيئةٍ أو قياسٍ لا براءةَ سلوك: المترجّمُ لم يُشغَّلْ كما يجب.")
         print("   (EN) Too few ports measured — an environment failure, not a pass.")
         exit_code = 1
 
@@ -506,21 +558,38 @@ def main() -> int:
     if uncompiled:
         exit_code = 1
 
-    if divergent:
+    if blocking:
         print("")
-        print("❌ تباعُدٌ في المستقبِلِ العدميّ:")
-        for entry in divergent:
-            print(f"   • {entry['port']}")
+        print("❌ مخالفةٌ حاجبةٌ للقاعدة — أجابَ أو انهارَ حيثُ يجبُ أن يرفع:")
+        for entry in blocking:
+            print(f"   • {entry['port']}  [{entry['verdict']}]")
             print(f"     {entry['detail']}")
         print("")
-        print("(AR) المطلوبُ أن يُطابِقَ المترجّمُ المفسّرَ — لا أن «لا ينهار».")
-        print("     منفذُ العمليّةِ يمرُّ بـ`normalizeStringPtr` (فيرفعُ RUN033)،")
-        print("     والوسيطُ غيرُ المستقبِلِ يمرُّ بـ`normalizeStringArgPtr` (فيُعرَض).")
+        print(f"(AR) القاعدةُ {SOT_NULL_RECEIVER_CODE} في `language-truth/errors/"
+              f"runtime.yaml`: نداءُ طريقةٍ على قيمةِ لاشيء **يرفعُ** هذا الخطأ.")
+        print("     والجوابُ الصامتُ أخبثُ من الانهيار: لا يراه أحد.")
+        exit_code = 1
+
+    # (AR) 🔑 الدَّينُ التشخيصيُّ لا يُفشِلُ بذاتِه، لكنّه **لا يتّسعُ صامتًا**:
+    #      تجاوُزُ السقفِ إخفاقٌ، لأنّ اتّساعَ دَينٍ بلا قرارٍ انحدارٌ لا حالةٌ راهنة.
+    # (EN) The diagnostic debt does not fail on its own, but it may never grow
+    #      silently: exceeding the ceiling is a regression, not a status quo.
+    if no_code:
+        print("")
+        print(f"🟡 رفعَ بلا رمزِ {SOT_NULL_RECEIVER_CODE} "
+              f"({len(no_code)} منفذًا · السقف {NO_SOT_CODE_CEILING}):")
+        for entry in no_code:
+            print(f"   • {entry['port']}: {entry['detail']}")
+    if len(no_code) > NO_SOT_CODE_CEILING:
+        print("")
+        print(f"❌ الدَّينُ التشخيصيُّ اتّسعَ: {len(no_code)} > {NO_SOT_CODE_CEILING}.")
+        print("   ارسِ المنفذَ الجديدَ على رمزِه، أو ارفعِ السقفَ بقرارٍ مُدوَّن.")
         exit_code = 1
 
     if exit_code == 0:
         print("")
-        print(f"✅ {len(matched)} منفذًا مقيسًا، كلُّها متطابقةٌ بين المحرّكَين.")
+        print(f"✅ {measured} منفذًا مقيسًا على القاعدة: "
+              f"{len(conforming)} مطابقٌ · {len(no_code)} دَينٌ تشخيصيٌّ داخلَ السقف.")
     return exit_code
 
 

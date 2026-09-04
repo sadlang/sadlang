@@ -118,8 +118,8 @@ irm https://sad-lang.org/install.ps1 | iex
 
 - 🌐 الموقع: [sad-lang.org](https://sad-lang.org)
 - 📖 التوثيق: [sad-lang.org/docs](https://sad-lang.org/docs)
-- 💬 المجتمع: [GitHub Discussions](https://github.com/SalehKadah/s-programming-language/discussions)
-- 🐛 الإبلاغ عن مشكلة: [GitHub Issues](https://github.com/SalehKadah/s-programming-language/issues)
+- 💬 المجتمع: [GitHub Discussions](https://github.com/sadlang/sadlang/discussions)
+- 🐛 الإبلاغ عن مشكلة: [GitHub Issues](https://github.com/sadlang/sadlang/issues)
 
 ---
 

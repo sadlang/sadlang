@@ -4,6 +4,8 @@
 #include <string>
 #include <set>
 #include "sir_builder.h"
+#include "error_manager.h"
+#include "error_codes.h"
 #include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -569,58 +571,42 @@ namespace Sad
 
                 // (AR) TupleDestructureStmt - تفكيك صف إلى متغيرات: متغير (أ، ب) = صف
                 // (EN) Tuple destructuring: var (a, b) = tuple
+                // ================================================================
+                // (AR) 🔑 فكُّ الصفِّ **يُرفَضُ ولا يُخفَّضُ** — تراجُعٌ مقيس.
+                //
+                //      خُفِّضَ هنا بحجزِ خانةٍ وتخزينِ عنصرِ الصفّ، فمرّتِ البذرتانِ
+                //      ٠٠١٥/٠٠١٦ خضراوَين — **بمصادفةِ فيضٍ حسابيّ** لا بصحّة:
+                //      العنصرانِ يُقرآنِ **موسومَين** ببتِّ ٢^٦٣، فيتلاشى الوسمانِ
+                //      في الجمعِ ويصحُّ `أ + ب` وحدَه. مقيسٌ (٢٠٢٦-٠٩-٠٣):
+                //        «أ» ⇒ «لاشيء» · «ب» ⇒ ‎-9223372036854775806‎ · «أ+ب» ⇒ ٣
+                //        و«إذا (أ == ١)» **لا يُطلَق**؛ والنصوصُ تطبعُ مؤشّرات،
+                //        والمنطقيّاتُ أعدادًا هائلة — والخروجُ صفرٌ في ذلك كلِّه.
+                //      أي أنّ الخفضَ حوّلَ إخفاقَ بناءٍ ظاهرًا إلى **كذبٍ يُشحَن**،
+                //      وهو الثمنُ الذي تقولُ هذه الشجرةُ في عشرةِ مواضعَ إنّه لا
+                //      يُدفَع. وزيادةً: الصيغةُ غيرُ معلَنةٍ في `gr.decl.variable`
+                //      (EBNF لا يعرفُ إلّا `Identifier`)، فخفضُها توسيعٌ للّغةِ من
+                //      الخلفيّة — وذلك قرارُ مالكٍ لا ترقيعُ باني.
+                //
+                //      والمسارُ الصحيحُ موجودٌ ومقيس: «متغير ص = (١، ٢)» ثمّ
+                //      «ص[0]» يطبعُ ١ صحيحًا — لأنّ مسارَ الفهرسةِ يفكُّ الوسم.
+                // (EN) 🔑 Tuple destructuring is REJECTED, not lowered — a measured
+                //      retraction. The lowering made two seeds pass BY ARITHMETIC
+                //      ACCIDENT: both elements are read TAGGED with bit 2^63, so only the
+                //      sum is right («أ» printed "لاشيء", «ب» printed
+                //      -9223372036854775806, «if (أ == 1)» never fired, strings printed
+                //      pointers) — all with exit code 0. It converted a visible build
+                //      failure into a shippable lie. The form is also undeclared in
+                //      gr.decl.variable, so lowering it widens the language from the
+                //      backend. The correct path exists and is measured: «ص[0]».
+                // ================================================================
                 if (auto tupleDestr = dynamic_cast<Sad::AST::TupleDestructureStmt *>(stmt))
                 {
-#ifndef NDEBUG
-                    SAD_DEBUG_LOG_LINE("[DEBUG] Found TupleDestructureStmt with " << tupleDestr->names.size() << " names");
-#endif
-                    // (AR) بناء تعبير الصف المصدر
-                    // (EN) Build source tuple expression
-                    auto tupleResult = b_.buildExpression(tupleDestr->initializer.get());
-
-                    // (AR) استخراج كل عنصر وتسجيله كمتغير محلي
-                    // (EN) Extract each element and register as local variable
-                    for (size_t i = 0; i < tupleDestr->names.size(); ++i)
-                    {
-                        const std::string &name = tupleDestr->names[i];
-                        if (name == "_")
-                            continue; // (AR) تجاهل / (EN) Skip placeholder
-
-                        // (AR) استخراج العنصر من الصف باستخدام TUPLE_GET
-                        // (EN) Extract element from tuple using TUPLE_GET
-                        std::string elemReg = b_.newTempRegister();
-                        if (b_.currentBlock_)
-                        {
-                            SIRInstruction getInst(SIROpcode::TUPLE_GET);
-                            getInst.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
-                            getInst.operands.push_back(SIROperand::Register(tupleResult.registerName, tupleResult.type));
-                            getInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
-                            getInst.comment = "tuple destructure: " + name + " = tuple[" + std::to_string(i) + "]";
-                            b_.currentBlock_->addInstruction(getInst);
-                        }
-
-                        // (AR) تسجيل المتغير المحلي
-                        // (EN) Register local variable
-                        VariableInfo varInfo;
-                        varInfo.name = name;
-                        varInfo.type = SadTypeKind::Integer;
-                        varInfo.registerName = "%" + name;
-                        varInfo.isGlobal = false;
-                        varInfo.isMutable = !tupleDestr->isConst;
-                        varInfo.scopeLevel = b_.currentScopeLevel_;
-                        b_.addVariable(varInfo);
-
-                        // (AR) تخزين القيمة المستخرجة في السجل
-                        // (EN) Store extracted value in register
-                        if (b_.currentBlock_)
-                        {
-                            SIRInstruction storeInst(SIROpcode::STORE);
-                            storeInst.operands.push_back(SIROperand::Register(varInfo.registerName, SadTypeKind::Integer));
-                            storeInst.operands.push_back(SIROperand::Register(elemReg, SadTypeKind::Integer));
-                            storeInst.comment = "store destructured: " + name;
-                            b_.currentBlock_->addInstruction(storeInst);
-                        }
-                    }
+                    Sad::Errors::RenderContext context;
+                    context.placeholders = {
+                        {"count", std::to_string(tupleDestr->names.size())}};
+                    b_.errors_.push_back(
+                        Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                            Sad::Errors::ErrorCode::SEM_TUPLE_DESTRUCTURE_UNSUPPORTED, context));
                     return;
                 }
 

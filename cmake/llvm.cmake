@@ -327,22 +327,199 @@ if(MSVC AND TARGET LLVMDebugInfoPDB)
     endif()
 endif()
 
-# (AR) مكتبات LLVM المطلوبة / (EN) Required LLVM libraries
+# ══════════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **قائمةُ الأهدافِ تُشتَقُّ من LLVM المُثبَّتة، ولا تُكتَبُ يدًا.**
+#
+#      `llvm_codegen_init.cpp` ينادي `InitializeAllTargetInfos/Targets/TargetMCs/
+#      AsmParsers/AsmPrinters`، وهذه ماكروهاتٌ تتوسّعُ وقتَ الترجمةِ على
+#      `llvm/Config/Targets.def` — أي على **مجموعةِ الأهدافِ التي بُنيت بها
+#      LLVM المُثبَّتةُ على هذه الآلة**. فكلُّ قائمةٍ مكتوبةٍ هنا باليدِ هي
+#      **نسخةٌ ثانيةٌ من تلك الحقيقة**، وتتباعدُ عنها بلا أن ينبّهَ أحد.
+#
+#      وقد تباعدت فعلًا: القائمةُ السابقةُ لم تذكرْ `M68k` ولا `Xtensa`، وLLVM 18
+#      من apt.llvm.org تبنيهما.
+#
+#      🚫 **وتصحيحٌ لِما كُتِبَ هنا أوّلًا**: قيلَ في هذا الموضعِ إنّ ذلك الانجرافَ
+#      هو علّةُ إخفاقِ ربطِ أرضيّةِ GCC 11 — **وذلك خطأٌ يناقضُه سجلُّ الشوطِ
+#      نفسِه**. الرموزُ غيرُ المحلولةِ كانت لثمانيةَ عشرَ هدفًا لا لاثنَين، وستّةَ
+#      عشرَ منها كانت **مذكورةً في القائمةِ القديمةِ صراحةً** وأسماؤها مطبوعةٌ في
+#      `LLVM_LIBS` في السجلّ. والعلّةُ الحقيقيّةُ **ترتيبُ ربطٍ** في
+#      `compiler/CMakeLists.txt` — ثَمَّ شرحُها وثَمَّ عِلاجُها.
+#
+#      ⚠️ ويُترَكُ هذا التصحيحُ مكتوبًا لا يُمحى: تشخيصٌ خاطئٌ في تعليقٍ دائمٍ
+#      يصرفُ القارئَ التاليَ عن الملفِّ الذي فيه العطب — وهو ضررٌ أبقى من الخطأ.
+#
+#      فاشتقاقُ القائمةِ هنا صحيحٌ لذاتِه — يرفعُ نسخةً ثانيةً لحقيقةٍ واحدةٍ —
+#      لا لأنّه ما أخفقَ الربط.
+#
+#      و`AllTargets*` تتوسّعُ داخلَ `LLVM-Config.cmake` على `LLVM_TARGETS_TO_BUILD`
+#      مُرشَّحةً بما هو متوفّرٌ فعلًا (`IN_LIST LLVM_AVAILABLE_LIBS` للـInfos
+#      والDescs والAsmParsers والDisassemblers، و`if(TARGET …)` للـCodeGens —
+#      قُرِئَتِ الدالّةُ ولم يُفترَضْ توحُّدُ الشرطَين). وهو المصدرُ عينُه الذي
+#      وُلِّد منه `Targets.def`. فالطرفانِ من أصلٍ واحدٍ بنيةً، لا بتزامنٍ يدويّ.
+#
+#      وتغطيةُ ما يُنادَى:
+#        InitializeAllTargetInfos  ⇐ AllTargetsInfos
+#        InitializeAllTargets      ⇐ AllTargetsCodeGens
+#        InitializeAllTargetMCs    ⇐ AllTargetsDescs
+#        InitializeAllAsmParsers   ⇐ AllTargetsAsmParsers
+#        InitializeAllAsmPrinters  ⇐ AllTargetsCodeGens (أُدمِجت فيها)
+#      و`AllTargetsDisassemblers` تبقى لأنّ القائمةَ القديمةَ كانت تجرُّها ضمنًا
+#      (مكوّنُ الهدفِ يشملُ مفكِّكَه)، فلا يضيقُ المبنيُّ عمّا كان.
+#
+#      ⚠️ **والفرقُ قِيس لا قُدِّر**: على LLVM 18.1.8 المحلّيّة تُنتِجُ القائمةُ
+#      القديمةُ ١٠٧ مكتبةً والجديدةُ ١٠٣، والفارقُ أربعٌ بعينِها:
+#      `LLVMAArch64Utils` و`LLVMAMDGPUUtils` و`LLVMARMUtils` و`LLVMWebAssemblyUtils`.
+#      وقِيسَ أنّ كلًّا منها في `INTERFACE_LINK_LIBRARIES` لهدفِ `*CodeGen`
+#      المناظرِ له، فتجرُّها CMake عبورًا. أي أنّ النقصانَ في **الأسماءِ
+#      المكتوبةِ** لا في **المربوطِ فعلًا**.
+# (EN) The delta is measured, not estimated: on the local LLVM 18.1.8 the old
+#      list yields 107 libraries and the derived one 103, and the four missing
+#      are LLVMAArch64Utils, LLVMAMDGPUUtils, LLVMARMUtils, LLVMWebAssemblyUtils
+#      — each measured to sit in its matching *CodeGen target'''s
+#      INTERFACE_LINK_LIBRARIES, so CMake pulls them transitively. The shrink is
+#      in the names written, not in what actually links.
+# (EN) The target list is DERIVED from the installed LLVM, never hand-written.
+#      llvm_codegen_init.cpp calls InitializeAll*, macros that expand at compile
+#      time over llvm/Config/Targets.def — the target set the *installed* LLVM was
+#      built with. Any list written here is a second copy of that fact and drifts
+#      silently. It did: the previous list omitted M68k and Xtensa, which
+#      apt.llvm.org's LLVM 18 does build.
+#      CORRECTION to what was first written here: this comment claimed that drift
+#      was the cause of the GCC 11 floor link failure. That is wrong, and the run
+#      log refutes it — eighteen targets went unresolved, not two, and sixteen of
+#      them were named explicitly in the old list and printed in LLVM_LIBS. The
+#      real cause is link ORDER in compiler/CMakeLists.txt, explained and fixed
+#      there. The correction stays written rather than erased: a wrong diagnosis
+#      in a permanent comment steers the next reader away from the file that
+#      holds the defect, which outlasts the error itself. Deriving the list is
+#      right on its own terms — it removes a second copy of one fact — not
+#      because it is what fixed the link.
+#      AllTargets* expands inside LLVM-Config.cmake over LLVM_TARGETS_TO_BUILD,
+#      filtered by what actually exists (IN_LIST LLVM_AVAILABLE_LIBS for Infos,
+#      Descs, AsmParsers and Disassemblers; if(TARGET ...) for CodeGens — the
+#      function was read, the two conditions not assumed identical). Same source
+#      Targets.def is generated from. Structurally coupled, not hand-synced.
+# ══════════════════════════════════════════════════════════════════════════════
 set(LLVM_LINK_COMPONENTS
-    Core Support ExecutionEngine MCJIT OrcJIT RuntimeDyld Target
-    X86 AArch64 AMDGPU ARM AVR BPF Hexagon Lanai LoongArch
-    Mips MSP430 NVPTX PowerPC RISCV Sparc SystemZ VE
-    WebAssembly XCore native MC CodeGen AsmParser AsmPrinter
+    Core Support IRReader Passes
+    ExecutionEngine MCJIT OrcJIT RuntimeDyld Target
+    AllTargetsCodeGens AllTargetsAsmParsers AllTargetsDescs
+    AllTargetsDisassemblers AllTargetsInfos
+    native MC CodeGen AsmParser AsmPrinter
 )
 
-# (AR) على لينكس: ربط بمكتبة LLVM المشتركة الواحدة
-# (EN) On Linux with shared LLVM, link to single shared lib
-if(EXISTS "${LLVM_LIBRARY_DIRS}/libLLVM-${LLVM_VERSION_MAJOR}.so")
+# ══════════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **الربطُ الساكنُ خيارٌ صريحٌ لبناءِ الإصدار.**
+#
+#      الفرعُ أدناه يُفضّلُ `libLLVM-18.so` متى وُجدت. وهو صحيحٌ للتطويرِ
+#      المحلّيِّ (ربطٌ أسرعُ وثنائيٌّ أصغر)، وخاطئٌ لما يُشحَنُ إلى الناس:
+#      الثنائيُّ المنشورُ يصيرُ مشترِطًا `libLLVM-18.so` على جهازِ المستخدم.
+#
+#      والفارقُ مقيسٌ لا مُقدَّر: على ويندوز LLVM مربوطةٌ ساكنًا سلفًا —
+#      فُحِصَت مستورَداتُ `sad-build.exe` فلا DLL لـLLVM فيها، والثنائيُّ
+#      ٩٢ م.بايت. فكانت المنصّتانِ تشحنانِ عقدَينِ مختلفَين للمستخدمِ نفسِه.
+#
+#      وبهذا الخيارِ تصيرُ الحزمُ **مكتفيةً بذاتِها على المنصّاتِ كلِّها**،
+#      فلا يحتاجُ المُثبِّتُ أن يُنصِّبَ LLVM ولا أن يتراجعَ حين لا يجدُها.
+#
+#      ⚠️ والافتراضُ `OFF` عمدًا: البناءُ المحلّيُّ يبقى سريعًا كما كان،
+#      ومجرى الإصدارِ وحدَه يمرّرُ `-DSAD_LLVM_STATIC=ON`. ولئلّا يكونَ هذا
+#      وعدًا مُعلَنًا لا يقيسُه أحد، فحصُ التبعيّاتِ في التحزيمِ لا يأذنُ
+#      بـ`libLLVM` البتّة — فلو سقطَ العَلَمُ يومًا احمرَّ التحزيمُ ولم يُشحَنْ
+#      عقدٌ خفيّ.
+# (EN) 🔑 Static linking is an explicit choice for release builds.
+#
+#      The branch below prefers libLLVM-18.so when present. That is right for
+#      local development (faster link, smaller binary) and wrong for what ships:
+#      the published binary would then require libLLVM-18.so on the user's
+#      machine. Measured, not assumed: on Windows LLVM is already linked
+#      statically — sad-build.exe imports no LLVM DLL and weighs 92 MB — so the
+#      two platforms were shipping different contracts to the same user.
+#      With this option the packages are self-contained everywhere, so the
+#      installer neither provisions LLVM nor needs a fallback when it is absent.
+#      ⚠️ Default OFF on purpose: local builds stay fast, and only the
+#      release workflow passes -DSAD_LLVM_STATIC=ON. So that this is not a
+#      declared promise nobody measures, the packaging dependency check allows
+#      no libLLVM at all — if the flag is ever dropped, packaging reddens
+#      instead of shipping a hidden contract.
+# ══════════════════════════════════════════════════════════════════════════════
+option(SAD_LLVM_STATIC
+    "اربط LLVM ساكنًا (حزمٌ مكتفيةٌ بذاتها) / Link LLVM statically (self-contained packages)"
+    OFF)
+
+# (AR) على لينكس: ربط بمكتبة LLVM المشتركة الواحدة — ما لم يُطلَبِ الساكن
+# (EN) On Linux with shared LLVM, link to the single shared lib — unless static
+if(NOT SAD_LLVM_STATIC AND EXISTS "${LLVM_LIBRARY_DIRS}/libLLVM-${LLVM_VERSION_MAJOR}.so")
     set(LLVM_LIBS LLVM-${LLVM_VERSION_MAJOR})
     message(STATUS "   Using shared LLVM library: libLLVM-${LLVM_VERSION_MAJOR}.so")
 else()
     llvm_map_components_to_libnames(LLVM_LIBS ${LLVM_LINK_COMPONENTS})
-    message(STATUS "   LLVM libs count: ${LLVM_LIBS}")
+    list(LENGTH LLVM_LIBS _sad_llvm_count)
+    message(STATUS "   LLVM libs: ${_sad_llvm_count} مكوّنًا / components")
+
+    # ══════════════════════════════════════════════════════════════════════
+    # (AR) 🔑 **حلُّ كلِّ اسمٍ يُقاسُ هنا، لا عندَ الرابطِ بعدَ ثماني دقائق.**
+    #
+    #      `llvm_map_components_to_libnames` تُرجِعُ **أسماءً**، ولا تَعِدُ بأنّ
+    #      لكلِّ اسمٍ ملفًّا على القرص: `LLVM_AVAILABLE_LIBS` نصٌّ مُولَّدٌ وقتَ
+    #      بناءِ LLVM، وملفّاتُ التصديرِ الحديثةُ أسقطت فحصَ الوجودِ الذي كانت
+    #      تحملُه. فاسمٌ بلا هدفٍ ولا ملفٍّ يمرُّ صامتًا هنا ثمّ يظهرُ
+    #      `undefined reference` بعدَ ترجمةِ المشروعِ كلِّه.
+    #
+    #      ⚠️ والحكمُ ضيّقٌ عمدًا: نُخفِقُ على الاسمِ الذي **لا هدفَ له ولا
+    #      ملفَّ**. أمّا ما له هدفٌ مستورَدٌ فنتركُه لِـCMake — هي تُخفِقُ عليه
+    #      وقتَ التوليدِ إن غابَ ملفُّه. والتقريرُ يُطبَعُ في الحالَينِ ليكونَ
+    #      الجوابُ في السجلِّ مقيسًا لا مستنتَجًا.
+    # (EN) Every name is resolved HERE, not at the linker eight minutes later.
+    #      llvm_map_components_to_libnames returns NAMES and promises no file on
+    #      disk: LLVM_AVAILABLE_LIBS is text generated when LLVM was built, and
+    #      modern export files dropped the existence check they used to carry.
+    #      A name with neither target nor file passes silently and reappears as
+    #      an undefined reference after the whole project has compiled.
+    #      The verdict is deliberately narrow: fail only on a name with NO target
+    #      and NO file. Names backed by imported targets are left to CMake, which
+    #      fails at generate time if their file is gone. The census is printed
+    #      either way so the answer is measured, not inferred.
+    # ══════════════════════════════════════════════════════════════════════
+    set(_sad_llvm_as_target 0)
+    set(_sad_llvm_as_file 0)
+    set(_sad_llvm_unresolved "")
+    foreach(_sad_lib IN LISTS LLVM_LIBS)
+        if(TARGET ${_sad_lib})
+            math(EXPR _sad_llvm_as_target "${_sad_llvm_as_target} + 1")
+        elseif(IS_ABSOLUTE "${_sad_lib}" AND EXISTS "${_sad_lib}")
+            math(EXPR _sad_llvm_as_file "${_sad_llvm_as_file} + 1")
+        else()
+            set(_sad_lib_found FALSE)
+            foreach(_sad_pat
+                "${CMAKE_STATIC_LIBRARY_PREFIX}${_sad_lib}${CMAKE_STATIC_LIBRARY_SUFFIX}"
+                "lib${_sad_lib}.a"
+                "${_sad_lib}.lib")
+                if(EXISTS "${LLVM_LIBRARY_DIRS}/${_sad_pat}")
+                    set(_sad_lib_found TRUE)
+                    break()
+                endif()
+            endforeach()
+            if(_sad_lib_found)
+                math(EXPR _sad_llvm_as_file "${_sad_llvm_as_file} + 1")
+            else()
+                list(APPEND _sad_llvm_unresolved "${_sad_lib}")
+            endif()
+        endif()
+    endforeach()
+    message(STATUS "   حلُّ الأسماء / name resolution: "
+                   "${_sad_llvm_as_target} هدفًا · ${_sad_llvm_as_file} ملفًّا")
+    if(_sad_llvm_unresolved)
+        list(LENGTH _sad_llvm_unresolved _sad_llvm_bad_count)
+        string(REPLACE ";" "\n     • " _sad_llvm_bad_text "${_sad_llvm_unresolved}")
+        message(FATAL_ERROR
+            "مكوّناتُ LLVM لا تُحَلُّ إلى هدفٍ ولا إلى ملفٍّ "
+            "(${_sad_llvm_bad_count} من ${_sad_llvm_count}):\n"
+            "     • ${_sad_llvm_bad_text}\n"
+            "   مجلّدُ مكتباتِ LLVM: ${LLVM_LIBRARY_DIRS}\n"
+            "   LLVM components resolve to neither a target nor a file.")
+    endif()
 endif()
 
 # (AR) بعض توزيعات LLVM (مثل Homebrew) تبني PassBuilder بدمج Polly، فيُشار إلى

@@ -525,7 +525,24 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] buildVariableAccess: variable NOT FOUND!");
 #endif
-                    b_.errors_.push_back("Error: Undefined variable '" + var->name + "'");
+                    // ============================================================
+                    // (AR) 🔑 كان هنا نصٌّ **إنجليزيٌّ حرٌّ مكتوبٌ في الشفرة**
+                    //      («Error: Undefined variable '…'») لا يمرُّ بالكتالوجِ
+                    //      أصلًا: بلا رمز، وبلا عربيّة، وبلا إرشادِ إصلاح — بينما
+                    //      `SEM001` مُعلَنٌ في مصدرِ الحقيقةِ بنصَّيه وعلاجِه.
+                    //      وبذرةُ `N02_undefined_variable.ص` تطلبُ `SEM001` فتُخفِق
+                    //      مع أنّ الرفضَ صحيح.
+                    // (EN) A raw ENGLISH string literal that bypassed the catalog
+                    //      entirely — no code, no Arabic, no fix hint — while SEM001
+                    //      is declared in the SoT with both renderings and a remedy.
+                    // ============================================================
+                    Sad::Errors::RenderContext undefinedVariableContext;
+                    undefinedVariableContext.placeholders = {{"name", var->name},
+                                                             {"suggestion", std::string()}};
+                    b_.errors_.push_back(
+                        Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                            Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
+                            undefinedVariableContext));
                     return BuildResult();
                 }
 

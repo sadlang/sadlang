@@ -108,15 +108,13 @@ if(UNIX AND NOT SADNET_FREESTANDING)
 endif()
 
 # ═══════════════════════════════════════════════════════════════════
-# (AR) ملف ربط المفسر (يُضاف لـ sad_core إذا تم تفعيل صNet)
+# (AR) 🔑 حُذف `SADNET_BINDINGS_SOURCE`: كان متغيّرًا **فارغًا** يوثّقُ ربطًا
+#      بهدفٍ اسمُه `sad_core` — وقد زالَ الهدفُ وزالَ ملفُّ الربطِ معه.
+#      ومتغيّرٌ فارغٌ في الواجهةِ يُقرأُ «الربطُ متاحٌ ولم يُفعَّل»، وهو ليس
+#      متاحًا أصلًا. وربطُ صNet بالمترجّمِ عملٌ لم يُبدأ.
+# (EN) Removed: an EMPTY variable documenting a link to the deleted sad_core
+#      target. An empty variable in the interface reads as "available but off".
 # ═══════════════════════════════════════════════════════════════════
-set(SADNET_BINDINGS_SOURCE
-    "${CMAKE_CURRENT_SOURCE_DIR}/interpreter/src/builtins/builtin_module_sadnet.cpp"
-)
-
-# (AR) يمكن للملف الرئيسي CMakeLists.txt استخدام:
-#   target_sources(sad_core PRIVATE ${SADNET_BINDINGS_SOURCE})
-#   target_link_libraries(sad_core PRIVATE sadnet)
 # لتفعيل: استورد شبكة_لامركزية
 
 message(STATUS "[صNet] SadNet library configured")

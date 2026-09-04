@@ -767,8 +767,13 @@ namespace sad
         {
             // تسجيل جميع الأوامر الافتراضية
             register_command(std::make_shared<BuildCommand>());
-            register_command(std::make_shared<RunCommand>());
-            register_command(std::make_shared<TestCommand>());
+            // (AR) 🔑 نُزِعَ تسجيلُ RunCommand وTestCommand: تنفيذُهما كان في
+            //      run_command.cpp وtest_command.cpp، وهما شفرةٌ ميّتةٌ مُصرَّفة
+            //      حُذِفت (CommandManager لا يُنشَأُ إلّا داخلَ #ifdef SAD_CLI_MAIN
+            //      ولا أحدَ يُعرّفُه). وبقاءُ التسجيلِ بلا تعريفٍ يكسِرُ الربط.
+            //      ⚠️ دَينٌ مُقيَّد: `sad run` و`sad test` غيرُ مُنفَّذَين.
+            // (EN) Removed: their implementations were compiled-but-unreachable
+            //      code and are deleted; keeping the registration breaks the link.
             register_command(std::make_shared<FormatCommand>());     // 📝 أمر التنسيق
             register_command(std::make_shared<NewProjectCommand>()); // 📁 أمر مشروع جديد
             register_command(std::make_shared<MobileCommand>());     // 📱 أمر الهاتف
@@ -981,8 +986,6 @@ namespace sad
         // ==============================================================================
         // (AR) التنفيذ الحقيقي للأوامر موجود في الملفات التالية:
         //   - build_command.cpp → BuildCommand::execute(), get_options(), print_examples()
-        //   - run_command.cpp   → RunCommand::execute(), get_options(), print_examples()
-        //   - test_command.cpp  → TestCommand::execute(), get_options(), print_examples()
         //   - formatter.cpp     → formatter_main()
         //
         // (EN) Real command implementations are in their respective files.

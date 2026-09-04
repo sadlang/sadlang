@@ -28,64 +28,10 @@ namespace Sad
         BorrowChecker::BorrowChecker()
             : tracker_(std::make_unique<OwnershipTracker>()), useArabicMessages_(true), debugMode_(false), nllMode_(true), currentFile_(""), currentFunction_("")
         {
-            initializeCopyTypes();
         }
 
         BorrowChecker::~BorrowChecker() = default;
 
-        // ============================================================================
-        // تهيئة الأنواع القابلة للنسخ / Initialize Copy Types
-        // ============================================================================
-
-        void BorrowChecker::initializeCopyTypes()
-        {
-            // (AR) الأنواع البدائية قابلة للنسخ دائماً
-            // (EN) Primitive types are always Copy
-
-            // الأرقام الصحيحة / Integers
-            copyTypes_.insert("ح8");  // i8
-            copyTypes_.insert("ح16"); // i16
-            copyTypes_.insert("ح32"); // i32
-            copyTypes_.insert("ح64"); // i64
-            copyTypes_.insert("ع8");  // u8
-            copyTypes_.insert("ع16"); // u16
-            copyTypes_.insert("ع32"); // u32
-            copyTypes_.insert("ع64"); // u64
-            copyTypes_.insert("رقم"); // default integer
-            copyTypes_.insert("عدد"); // alias for integer
-
-            // الأرقام العشرية / Floats
-            copyTypes_.insert("عش32"); // f32
-            copyTypes_.insert("عش64"); // f64
-            copyTypes_.insert("عشري"); // default float
-
-            // المنطقي / Boolean
-            copyTypes_.insert("منطقي");
-            copyTypes_.insert("bool");
-
-            // الحرف / Character
-            copyTypes_.insert("حرف");
-            copyTypes_.insert("char");
-
-            // المؤشرات الخام (unsafe) / Raw pointers
-            copyTypes_.insert("*ثابت");
-            copyTypes_.insert("*متغير");
-
-            // English aliases
-            copyTypes_.insert("i8");
-            copyTypes_.insert("i16");
-            copyTypes_.insert("i32");
-            copyTypes_.insert("i64");
-            copyTypes_.insert("u8");
-            copyTypes_.insert("u16");
-            copyTypes_.insert("u32");
-            copyTypes_.insert("u64");
-            copyTypes_.insert("f32");
-            copyTypes_.insert("f64");
-            copyTypes_.insert("int");
-            copyTypes_.insert("float");
-            copyTypes_.insert("double");
-        }
 
         // ============================================================================
         // واجهة الفحص الرئيسية / Main Check Interface
@@ -648,7 +594,13 @@ namespace Sad
             // (AR) استخراج اسم النوع من DataType
             // (EN) Extract type name from DataType
             std::string typeName = dataTypeToString(stmt.type);
-            bool isCopy = isCopyType(typeName);
+            // (AR) 🔑 الحكمُ بمفتاحِ النوعِ لا باسمِه: `sadTypeKindArabicName`
+            //      تُرجِعُ «كائن» لـClass وStruct كليهما، فالاسمُ لا يميّزُ أصلًا.
+            //      والاسمُ يبقى للتشخيصِ وحدَه.
+            // (EN) The verdict is keyed on the kind, not its name: the Arabic-name
+            //      function returns one word for both Class and Struct, so the name
+            //      cannot discriminate. The name is kept for diagnostics only.
+            bool isCopy = isCopyKind(stmt.type);
 
             // (AR) إذا كان النوع غير محدد ولكن المُعيِّن قيمة حرفية، استنتج النوع
             // (EN) If type is unspecified but initializer is a literal, infer the type

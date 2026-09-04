@@ -1,48 +1,45 @@
 {
     "version": "1.0.0",
     "description": "لغة ص — لغة برمجة عربية حديثة / Sad Arabic Programming Language",
-    "homepage": "https://github.com/SalehKadah/s-programming-language",
+    "homepage": "https://github.com/sadlang/sadlang",
     "license": "MIT",
     "notes": [
         "لغة ص — Sad Programming Language",
         "",
-        "المفسر: sad script.ص",
-        "المترجم: sadc script.ص (يتطلب LLVM 18)",
+        "التشغيل: sad build script.ص -o script.exe",
+        "المترجم: sadc script.ص (LLVM مربوطة ساكنًا — لا شرطَ على جهازك)",
         "مدير الحزم: sad-pkg init",
         "",
         "التوثيق: https://sad-lang.org/docs"
     ],
     "architecture": {
         "64bit": {
-            "url": "https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-windows-x64.zip",
-            "hash": "0A803F2ED02753C9A7D18B8AA790A960A857E14EF0C0BF87BB94D77918F1BB96",
-            "extract_dir": "sad-1.0.0-windows-x64"
+            "url": "https://github.com/sadlang/sadlang/releases/download/v1.0.0/sad-v1.0.0-windows-x86_64.zip",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "extract_dir": "sad-v1.0.0-windows-x86_64"
         }
     },
     "bin": [
         "bin\\sad.exe",
         "bin\\sad-pkg.exe",
         "bin\\sad-lsp.exe",
-        "bin\\sad-fmt.exe",
-        "bin\\sad-repl.exe"
+        "bin\\sad-fmt.exe"
     ],
     "env_add_path": "bin",
     "checkver": {
-        "github": "https://github.com/SalehKadah/s-programming-language"
+        "github": "https://github.com/sadlang/sadlang"
     },
     "autoupdate": {
         "architecture": {
             "64bit": {
-                "url": "https://github.com/SalehKadah/s-programming-language/releases/download/v$version/sad-$version-windows-x64.zip",
-                "extract_dir": "sad-$version-windows-x64"
+                "url": "https://github.com/sadlang/sadlang/releases/download/v$version/sad-v$version-windows-x86_64.zip",
+                "extract_dir": "sad-v$version-windows-x86_64"
             }
         },
         "hash": {
             "url": "$baseurl/SHA256SUMS.txt",
-            "regex": "([a-f0-9]{64})\\s+sad-$version-windows-x64.zip"
+            "regex": "([a-f0-9]{64})\\s+sad-v$version-windows-x86_64.zip"
         }
     },
-    "suggest": {
-        "LLVM (للمترجم)": "llvm"
-    }
+    "_ملاحظة": "البصمة صفرٌ عمدًا: لا إصدارَ منشورًا بعدُ من sadlang/sadlang — تُولَّد مع أوّلِ وسم. و«suggest: llvm» أُزيل لأنّ LLVM تُربَطُ ساكنًا فلا تُشترَط."
 }

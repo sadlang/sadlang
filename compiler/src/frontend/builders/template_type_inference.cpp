@@ -518,8 +518,48 @@ namespace Sad
                     if (tokenType == Lexer::TokenType::LITERAL_TRUE ||
                         tokenType == Lexer::TokenType::LITERAL_FALSE)
                         return SadTypeKind::Boolean;
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 العدمُ يُصنَّفُ **عدمًا** لا عددًا صحيحًا.
+                    //
+                    //      كان يُرجِعُ `Integer` — وهو الافتراضيُّ الذي يليه حرفًا،
+                    //      فالسطرُ حشوٌ لا قرار. وأثرُه أنّ مسحَ مواضعِ النداءِ يرى
+                    //      موضعَين متّفقَين حيث لا اتّفاق:
+                    //
+                    //          دالة ض(أ، ب) ارجع أ + ب نهاية
+                    //          ض("أ:"، لاشيء)  و  ض(1، 2)
+                    //
+                    //      الوسومُ المسجَّلةُ لـ`ب` تصيرُ {Integer, Integer} ⇒ حجمُها
+                    //      واحدٌ ⇒ **بوّابةُ الخلافِ لا تُفتَحُ** ⇒ تبقى الخانةُ ساكنةً
+                    //      `i64` (مقيسٌ في التوقيعِ المُخرَج: `@ض(%SadDyn, i64)`).
+                    //      فيصلُ العدمُ حارسَه i64 خامًّا، ويُوسَمُ `Int` عندَ التغليف،
+                    //      فيُعرَضُ عددًا: `أ:-9223372036854775807` بدل `أ:لاشيء`.
+                    //
+                    //      وهذا خرقٌ لعقدٍ مكتوبٍ في `types.yaml` عند `type.null`:
+                    //      «خانةٌ نوعُها المُصرَّحُ «نصّ» تقبلُ نصًّا في موقعِ نداءٍ
+                    //      وعدمًا في آخر، فلا وسمَ ساكنًا واحدًا يصدُقُ على الاثنَين
+                    //      — والسؤالُ نفسُه سؤالُ زمنِ تشغيل».
+                    //
+                    //      ⚠️ ولا يُصلَحُ في التغليف: `types.yaml` نفسُه يقضي أنّ
+                    //      «الحكمَ عليه يلزمُ أن يقومَ على وسمِ النوعِ لا على شكلِ
+                    //      التمثيل» — فشمُّ نمطِ بتّاتِ الحارسِ زمنَ التشغيلِ يجعلُ
+                    //      كلَّ عددٍ مشروعٍ قيمتُه الحارسُ عدمًا.
+                    // (EN) 🔑 A null literal is classified Null, not Integer.
+                    //
+                    //      It used to return Integer — literally the default on the next line,
+                    //      so the branch was filler rather than a decision. Its effect: the
+                    //      call-site scan saw two agreeing sites where there is no agreement,
+                    //      the disagreement gate never opened, and the slot stayed a static
+                    //      i64 (measured in the emitted signature). The null sentinel then
+                    //      arrived as a raw i64, was boxed with the Int tag, and printed as a
+                    //      number instead of «لاشيء».
+                    //      This breaks a contract written in types.yaml under `type.null`: a
+                    //      slot receiving a string at one site and null at another has no
+                    //      single true static tag — the question is a runtime one. And it
+                    //      cannot be fixed at boxing time: the same entry requires the verdict
+                    //      to rest on the type TAG, not on the shape of the representation.
+                    // ════════════════════════════════════════════════════════
                     if (tokenType == Lexer::TokenType::LITERAL_NULL)
-                        return SadTypeKind::Integer;
+                        return SadTypeKind::Null;
                     return SadTypeKind::Integer;
                 }
 

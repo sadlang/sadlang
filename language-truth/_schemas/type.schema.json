@@ -31,6 +31,11 @@
       "type": "string",
       "description": "اسم النوع الذي تُرجعه نوع() زمن التشغيل — عند اختلافه عن word (مثل Class: word=صنف لكن نوع(كائن)=كائن). افتراضيًّا = word."
     },
+    "value_semantics": {
+      "description": "(AR) دلالةُ القيمة: `copy` تُنسَخُ فلا يُبطَلُ المصدر، `move` تملكُ موردًا فنقلُها يُبطِلُه. مصدرُ حكمِ فاحصِ الاستعارة. (EN) Value semantics: `copy` leaves the source valid, `move` invalidates it. Source of the borrow checker's verdict.",
+      "type": "string",
+      "enum": ["copy", "move"]
+    },
     "numeric": {
       "type": "string",
       "enum": ["signed", "unsigned", "float"],

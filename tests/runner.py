@@ -109,6 +109,14 @@ class TestMetadata:
     description: str = ""
     priority: str = "P1"
     expect_error: str = ""  # (AR) إذا غير فارغ: الاختبار يتوقع خطأ يحتوي هذا النص
+    # (AR) 🔑 وضعُ المترجم-فقط: `@expect_error` **بلا نمط** (`__ANY_ERROR__`) لا
+    #      يقارنُ رسالةً، فدلالتُه «البرنامجُ لا يعمل بنجاح» — وهي دلالةٌ تُحاكَمُ
+    #      على المترجمِ بلا خسارة: يُرفَضُ ترجمةً **أو** يُخفقُ الثنائيُّ زمنيًّا.
+    #      يُضبَطُ آليًّا حين يغيبُ المفسّر؛ لا يُكتَبُ في بذرة.
+    # (EN) Compiler-only: a pattern-free @expect_error means "this program must not
+    #      run successfully" — judgeable on the compiler with nothing lost: rejected
+    #      at compile time OR the produced binary fails at runtime. Set automatically.
+    expect_reject_any: str = ""
     # (AR) @expect_compile_error: اختبار سلبيّ للمترجم — يشغّل sad-build ويتوقّع فشل
     #      الترجمة (exit غير صفريّ)، مع نمط رسالة اختياريّ يُطابَق ضدّ stderr.
     #      التصميم: كلّ توجيه يحكم محرّكه — @expect_compile_error وحده ⇒ لا يشغَّل
@@ -211,6 +219,15 @@ _RE_REQUIRES = re.compile(r"^#\s*@requires:?\s+(.+)$")
 _RE_TIMEOUT = re.compile(r"^#\s*@timeout:?\s+(\d+)$")
 _RE_KNOWN_RED = re.compile(r"^#\s*@known_red:?\s+(.+)$")   # (AR) حمرةٌ مُعلَنةٌ بسببِها
 _RE_SKIP_COMPILER = re.compile(r"^#\s*@skip_compiler\b")
+
+# (AR) رمزُ خطأٍ من كتالوجِ `language-truth/errors/` (SYN006، SEM024، RUN020…).
+#      الرمزُ **مستقلٌّ عن المحرّك** — يُشتقُّ من مصدرِ الحقيقةِ لا من صياغةِ
+#      مُنفِّذ — فيبقى عقدًا صالحًا بعد استبدالِ المحرّك. أمّا النصُّ النثريُّ
+#      فصياغةُ محرّكٍ بعينِه ولا يُحمَلُ على غيره. مقيسًا: من ٣٢٨ سالبةً يتيمة
+#      ٢٧٨ بلا نمط · ٨ برمزٍ (تُوجَّه) · ٤٢ بنثرٍ (تبقى دَينًا مُسمّى).
+# (EN) An SoT error code is engine-independent, so it survives engine replacement
+#      as a contract; prose wording does not.
+_RE_ERROR_CODE = re.compile(r"^[A-Z]{2,4}[0-9]{3}$")
 _RE_SKIP_INTERP = re.compile(r"^#\s*@skip_interpreter\b")
 _RE_EXPECT_ERROR = re.compile(r"^#\s*@expect_error:?\s*(.*)$")
 _RE_EXPECT_COMPILE_ERROR = re.compile(r"^#\s*@expect_compile_error:?\s*(.*)$")
@@ -541,6 +558,82 @@ def run_interpreter(sad_exe: Path, test_file: Path, timeout: int,
         return "", elapsed, str(e), _EXIT_UNKNOWN
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 رمزُ الخروجِ وحدَه لا يكفي للحكم على المصرّف.
+#
+#      قِيسَ (٢٠٢٦-٠٩-٠٣) على `050_this_outside_class`: المترجّمُ يطبعُ سطرَين
+#      «خطأ مترجم داخلي … يُرجى الإبلاغ» ثمّ **يرجعُ صفرًا ويُنتِجُ ثنائيًّا
+#      ٨٣٩٦٨ بايتًا**. فحكمُ العدّاءِ برمزِ الخروجِ وحدَه كان يقرأُ انهيارَ
+#      المحرّكِ ترجمةً ناجحة، وكلُّ انهيارٍ داخليٍّ في المحرّكِ الباقي غيرُ مرئيّ.
+# (EN) The exit code alone cannot judge the compiler: measured, it prints
+#      "internal compiler error" twice, returns 0 and emits an 83,968-byte binary.
+# ═══════════════════════════════════════════════════════════════════════════════
+_ICE_MARKERS = ("خطأ مترجم داخلي", "internal compiler error")
+
+# (AR) رموزُ خروجٍ تعني انهيارًا لا حكمًا — ويندوز وPOSIX.
+# (EN) Exit codes that mean a crash, not a verdict.
+_CRASH_EXIT_CODES = (-11, -6, -4, 139, 134, 132,
+                     3221225477, -1073741819, 3221225620, -1073741676)
+
+
+def internal_compiler_error(stdout: str, stderr: str) -> str:
+    """(AR) أوّلُ سطرِ انهيارٍ داخليٍّ إن وُجد. / (EN) First ICE line, if any."""
+    for line in ((stdout or "") + chr(10) + (stderr or "")).splitlines():
+        if any(marker in line for marker in _ICE_MARKERS):
+            return line.strip()[:300]
+    return ""
+
+
+def not_a_rejection(compiler_err: str, compiler_code: int) -> str:
+    """
+    (AR) 🔑 ليس كلُّ إخفاقٍ رفضًا. `compiler_err` يُضبَطُ من أربعةِ مصادرَ لا واحد:
+         تشخيصُ ترجمةٍ · انهيارُ المصرّفِ بإشارةٍ · إخفاقُ ربطٍ · عطبُ أداةٍ
+         (قفلُ ملفٍّ على ويندوز، OSError). والثلاثةُ الأخيرةُ ليست حكمًا على
+         البرنامجِ المُقاس، فقبولُها «رفضًا صحيحًا» يشتري خُضرةً بانهيارِ المترجم —
+         وأكثرُ سوالبِ المصفوفةِ مُدخَلاتٌ مشوّهةٌ عمدًا، أي أرجى ما يُنتِجُ انهيارًا.
+         الرجوعُ: سببُ عدمِ كونِه رفضًا، أو نصٌّ فارغٌ إن كان رفضًا مُشخَّصًا.
+    (EN) Not every failure is a rejection: compiler_err is set from four sources —
+         a compile diagnostic, a signal crash, a link failure, and a tool fault.
+         Accepting the last three as "correctly rejected" buys green with a crash.
+    """
+    if not compiler_err:
+        return ""
+    if any(marker in compiler_err for marker in _ICE_MARKERS):
+        return "انهيارٌ داخليٌّ في المترجم"
+    if compiler_err.startswith("COMPILE_ERROR: لم يُنتج ملف تنفيذي"):
+        return "إخفاقُ ربطٍ لا رفضُ ترجمة"
+    if compiler_err.startswith("COMPILE_ERROR"):
+        # (AR) «COMPILE_ERROR (رمز N)» — الرمزُ السالبُ أو رمزُ الانهيارِ إشارةٌ لا حكم.
+        marker = "(رمز "
+        start = compiler_err.find(marker)
+        if start != -1:
+            end = compiler_err.find(")", start)
+            raw_code = compiler_err[start + len(marker):end].strip()
+            try:
+                if int(raw_code) in _CRASH_EXIT_CODES:
+                    return "انهيارُ المصرّفِ بإشارة (" + raw_code + ")"
+            except ValueError:
+                pass
+        return ""
+    if compiler_err.startswith("RUNTIME_EXIT:"):
+        if compiler_code in _CRASH_EXIT_CODES:
+            return "انهيارُ الثنائيِّ بإشارة (" + str(compiler_code) + ")"
+        return ""
+    # (AR) 🔑 نصٌّ حرٌّ مصدرُه اثنان لا واحد، والمُميِّزُ رمزُ العمليّةِ لا شكلُ
+    #      النصّ: تشخيصُ الثنائيِّ المُنتَجِ على stderr برمزِ خروجٍ حقيقيّ **رفضٌ
+    #      زمنيّ**، بينما `str(e)` من `except Exception` يأتي بـ_EXIT_UNKNOWN.
+    #      وقد صنّفتُ أوّلًا بشكلِ النصّ فقرأتُ «خطأ رماه الكود ولم يُلتقط» —
+    #      وهو رفضٌ صحيحٌ تمامًا — عطبَ أداة. فالشكلُ لا يُميّز، والرمزُ يُميّز.
+    # (EN) Free text has two sources and the exit code tells them apart: the
+    #      produced binary's stderr with a real exit code IS a runtime rejection;
+    #      an `except Exception` string arrives with _EXIT_UNKNOWN.
+    if compiler_code is not _EXIT_UNKNOWN and compiler_code:
+        if compiler_code in _CRASH_EXIT_CODES:
+            return "انهيارُ الثنائيِّ بإشارة (" + str(compiler_code) + ")"
+        return ""
+    return "عطبُ أداةٍ لا حكمَ برنامج: " + compiler_err[:120]
+
+
 def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
                  stdin_data: str = "", capture_exit: bool = False) -> tuple[str, float, str, int]:
     """
@@ -591,6 +684,16 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
                 detail = "[ذيل stdout] " + compile_result.stdout.strip()[-600:]
             return "", elapsed, (f"COMPILE_ERROR (رمز {compile_result.returncode}): "
                                  f"{detail}"), _EXIT_UNKNOWN
+
+        # (AR) 🔑 رمزُ خروجٍ صفرٌ مع «خطأ مترجم داخلي»: المحرّكُ انهارَ وأنتجَ
+        #      ثنائيًّا. تشغيلُه بعدَ ذلك يقيسُ ناتجَ انهيارٍ لا ناتجَ ترجمة.
+        # (EN) Exit 0 with an internal compiler error: the engine crashed and still
+        #      emitted a binary; running it would measure the output of a crash.
+        ice = internal_compiler_error(compile_result.stdout, compile_result.stderr)
+        if ice:
+            elapsed = (time.perf_counter() - start) * 1000
+            return "", elapsed, ("COMPILE_ERROR (خطأ مترجم داخلي، رمزُ الخروج "
+                                 f"{compile_result.returncode}): {ice}"), _EXIT_UNKNOWN
 
         if not exe_path.exists():
             elapsed = (time.perf_counter() - start) * 1000
@@ -993,6 +1096,54 @@ def _run_single_test_raw(
     timeout = meta.timeout or default_timeout
     rel_path = str(test_file)
 
+    # ═══════════════════════════════════════════════════════════════
+    # (AR) 🔑 وضعُ المترجم-فقط (sad_exe=None) — نظيرُ وضعِ المفسّر-فقط أدناه.
+    #      ثلاثةُ أحكامٍ لا واحد، لأنّ التوجيهاتِ تخاطبُ محرّكاتٍ بعينها:
+    #      ١. `@skip_interpreter` يُفرَض، فيسلكُ المسارُ فرعًا **قائمًا ومُختبَرًا**
+    #         يقارنُ مخرَجَ المترجمِ بـ`@expected` وحدَه.
+    #      ٢. `@expect_error` **سالبٌ مفسِّريٌّ**: يدّعي أنّ *المفسّرَ* يخطئ. لا
+    #         يجوزُ توجيهُه إلى المترجمِ آليًّا — رسائلُ المحرّكَين مختلفة، فالتوجيهُ
+    #         الآليُّ يُنتِجُ أحمرَ كاذبًا أو أخضرَ كاذبًا. وبلا مقابلٍ مترجَمٍ
+    #         (`@expect_compile_error` / `@expect_error_compiled`) تصيرُ البذرةُ
+    #         **بلا عقدٍ على المحرّكِ الباقي** ⇒ تُعلَنُ تخطّيًا مُسمّى ولا تُبتلَع.
+    #      ٣. سالبٌ مزدوجٌ (له مقابلٌ مترجَم): يُمحى `expect_error` فقط، فتُحاكَمُ
+    #         البذرةُ على كتلةِ المترجمِ وحدَها.
+    # (EN) Compiler-only mode — the mirror of interpreter-only below. An
+    #      @expect_error seed asserts the INTERPRETER errs; it must never be
+    #      auto-routed to the compiler (different diagnostics ⇒ false verdicts).
+    #      Without a compiled counterpart it has no contract on the surviving
+    #      engine, so it is reported as a NAMED skip rather than swallowed.
+    # ═══════════════════════════════════════════════════════════════
+    if sad_exe is None:
+        meta.skip_interpreter = True
+        if meta.expect_error and not (meta.expect_compile_error
+                                      or meta.expect_error_compiled):
+            # (AR) 🔑 التمييزُ مقيسٌ لا مُفترَض: أكثرُ السوالبِ اليتيمةِ **بلا
+            #      نمطٍ أصلًا**، فالتعليلُ الأوّل («رسائلُ المحرّكَين مختلفة
+            #      فالتوجيهُ يُنتِجُ حكمًا كاذبًا») **لا ينطبقُ عليها: لا رسالةَ
+            #      تُقارَنُ كي تخطئ**. حجبُها اشترى صفرًا بحجبِ خُضرةٍ مجّانيّة —
+            #      وأخفى أعطابَ مترجِمٍ مقيسة، منها ما هو غيرُ حتميّ.
+            #      فالقاعدة: بلا نمطٍ ⇒ يُحاكَمُ على المترجم. وبنمطٍ بصيغةِ
+            #      المفسّرِ ⇒ تخطٍّ مُسمًّى، وهو الدَّينُ الحقيقيّ.
+            #      ⚠️ ولا رقمَ هنا عمدًا: كان التعليقُ يقولُ «٣٢٨» و«٢٧٨» و«٥٠»
+            #      ثمّ تباعدَ عن الشجرةِ ثلاثتُها. والعددُ يُقاسُ بأمرٍ لا يُنقَل —
+            #      انظر عدّادَ «د» في CLAUDE.md ومصدرَه: مسحُ توجيهاتِ البذور.
+            # (EN) The split is measured, not assumed: most orphan negatives
+            #      carry no pattern, so "the engines word errors differently" cannot
+            #      apply — there is no message to compare. Judge them on the compiler.
+            if (meta.expect_error == "__ANY_ERROR__"
+                    or _RE_ERROR_CODE.match(meta.expect_error)):
+                meta.expect_reject_any = meta.expect_error
+                meta.expect_error = ""
+            else:
+                return TestResult(
+                    file=rel_path, status=Status.SKIP, metadata=meta,
+                    error_message="تخطي: @expect_error بنمطٍ بصيغةِ المفسّرِ بلا "
+                                  "مقابلٍ مترجَم (@expect_compile_error / "
+                                  "@expect_error_compiled)")
+        else:
+            meta.expect_error = ""
+
     # (AR) لا مترجم متاح (sadc_exe=None): وضع المفسّر-فقط — نفرض skip_compiler.
     #      هذا هو المقصد المُصرَّح في dual_tests.cmake (يُمرَّر --compiler فقط حين
     #      يوجد هدف sad-build؛ وإلا تُقارَن مخرجات المفسّر بـ@expected).
@@ -1122,6 +1273,66 @@ def _run_single_test_raw(
     #      pattern against stderr. Successful compilation fails the negative
     #      test (a real safety net for compile-time guards — Amelia M-4).
     # ═══════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════
+    # (AR) سالبٌ عامٌّ على المترجم: «هذا البرنامجُ يجب ألّا يعملَ بنجاح».
+    #      يمرُّ إن رفضَه المترجمُ **ترجمةً** أو أخفقَ الثنائيُّ **زمنيًّا**؛
+    #      ويحمرُّ إن تُرجِمَ وعملَ ورجعَ بصفر — وهو بالضبط الثقبُ الذي كشفَ
+    #      `10 - [1، 2، 3]` يُربَطُ ويطبعُ قمامةً مختلفةً كلَّ تشغيلة.
+    #      ولا يُقارَنُ نصٌّ هنا: البذرةُ لم تطلبْ نصًّا.
+    # (EN) Generic compiler negative: "this program must not run successfully."
+    #      Passes if rejected at compile time OR the binary fails at runtime;
+    #      reddens only when it compiles, runs and returns zero.
+    # ═══════════════════════════════════════════════════════════════
+    if meta.expect_reject_any:
+        if meta.skip_compiler:
+            return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
+                              error_message="تخطي: سالبٌ عامٌّ مع @skip_compiler")
+        compiler_out, compiler_time, compiler_err, compiler_code = run_compiler(
+            sadc_exe, test_file, temp_dir, timeout,
+            stdin_data=meta.stdin_data, capture_exit=True)
+        if compiler_err == "TIMEOUT":
+            return TestResult(file=rel_path, status=Status.FAIL_TIMEOUT,
+                              compiler_time_ms=compiler_time, metadata=meta,
+                              error_message="المترجم تجاوز المهلة")
+        if compiler_err:
+            # (AR) 🔑 رفضٌ مُشخَّصٌ فقط. وقبلَ هذا الحارسِ كان انهيارُ المصرّفِ
+            #      بـSEGV وإخفاقُ الربطِ وقفلُ الملفِّ كلُّها تُقرأ «رُفِضَ بحقّ»،
+            #      و٢٧٥ من هذه البذورِ في مجلّداتِ السوالبِ — أي مُدخَلاتٌ مشوّهةٌ
+            #      عمدًا، أرجى ما يُنتِجُ انهيارَ محلّل. فكان الحارسُ يشتري خُضرةً
+            #      بالعطبِ الذي وُضِعَ ليكشفَه.
+            # (EN) Diagnosed rejection only: a SEGV, a link failure or a locked file
+            #      used to read as "correctly rejected" — buying green with the very
+            #      defect the check exists to surface.
+            not_rejection = not_a_rejection(compiler_err, compiler_code)
+            if not_rejection:
+                return TestResult(
+                    file=rel_path, status=Status.FAIL_COMPILE,
+                    compiler_output=compiler_err, compiler_time_ms=compiler_time,
+                    metadata=meta,
+                    error_message="أخفقَ لسببٍ ليس رفضًا — " + not_rejection)
+            code = meta.expect_reject_any
+            if code == "__ANY_ERROR__":
+                return TestResult(file=rel_path, status=Status.PASS,
+                                  compiler_output=compiler_out,
+                                  compiler_time_ms=compiler_time, metadata=meta)
+            # (AR) رمزٌ مذكور: يُطابَقُ ضدّ المخرَجِ والتشخيصِ معًا. الرمزُ عقدٌ
+            #      مشتركٌ بين المحرّكات، فمطابقتُه ليست حملًا لصياغةِ محرّكٍ على آخر.
+            combined = (compiler_out or "") + chr(10) + (compiler_err or "")
+            if code in combined:
+                return TestResult(file=rel_path, status=Status.PASS,
+                                  compiler_output=compiler_out,
+                                  compiler_time_ms=compiler_time, metadata=meta)
+            return TestResult(
+                file=rel_path, status=Status.FAIL_OUTPUT,
+                compiler_output=combined, compiler_time_ms=compiler_time,
+                metadata=meta,
+                error_message="رُفِضَ لكنْ بلا الرمزِ المطلوب: " + code)
+        return TestResult(
+            file=rel_path, status=Status.FAIL_OUTPUT,
+            compiler_output=compiler_out, compiler_time_ms=compiler_time,
+            metadata=meta,
+            error_message="سالبٌ لم يُرفَض: تُرجِمَ وعملَ ورجعَ بصفر")
+
     if meta.expect_compile_error:
         if meta.skip_compiler:
             # (AR) لا مترجم متاحًا (وضع مفسّر-فقط) أو @skip_compiler صريح — لا
@@ -1467,11 +1678,19 @@ def print_result(result: TestResult, verbose: bool, use_colors: bool):
     r = _RESET if use_colors else ""
 
     line = f"  {icon} {c}{result.status.value:14s}{r}  {name}"
+    # (AR) ⚠️ زمنُ المفسّرِ يُطبَعُ إن قِيسَ فقط. وكان يُطبَعُ دائمًا، فيظهرُ
+    #      «مفسر: 0ms» في مسارِ المحرّكِ الواحد — رقمٌ يُقرأُ «عملَ في صفرِ
+    #      ميلي» وهو «لم يعملْ أصلًا».
+    # (EN) The interpreter timing prints only when it was measured. It used to
+    #      print unconditionally, showing "interp: 0ms" on the single-engine
+    #      path — a number that reads as "ran in 0ms" and means "never ran".
     if result.interp_time_ms > 0 or result.compiler_time_ms > 0:
-        line += f"  (مفسر: {result.interp_time_ms:.0f}ms"
+        parts = []
+        if result.interp_time_ms > 0:
+            parts.append(f"مفسر: {result.interp_time_ms:.0f}ms")
         if result.compiler_time_ms > 0:
-            line += f" | مترجم: {result.compiler_time_ms:.0f}ms"
-        line += ")"
+            parts.append(f"مترجم: {result.compiler_time_ms:.0f}ms")
+        line += "  (" + " | ".join(parts) + ")"
     print(line)
 
     # (AR) أخطاء المفسّر/الترجمة/التشغيل تُطبع دائمًا — نصّ الخطأ ضروريّ للتشخيص في CI.
@@ -1598,7 +1817,16 @@ def print_summary(results: list[TestResult], use_colors: bool, elapsed_total: fl
 
     print()
     print(f"{b}═══════════════════════════════════════════════════{r}")
-    print(f"{b}  ملخص اختبارات التنفيذ المزدوج{r}")
+    # (AR) 🔑 العنوانُ يتبعُ ما جرى: «تنفيذٌ مزدوج» متى عملَ محرّكان،
+    #      و«المحرّكُ الواحد» متى عملَ المترجمُ وحدَه. وكان ثابتًا يَعِدُ
+    #      بازدواجٍ لا يقعُ في مسارِ المحرّكِ الواحد.
+    # (EN) The title follows what happened: "dual execution" when two engines
+    #      ran, "single engine" when only the compiler did. It used to be a
+    #      constant promising a duality that never occurs on this path.
+    dual_ran = (c["dual_parity_passed"] + c["dual_parity_failed"]
+                + c["interp_only_passed"] + c["interp_only_failed"]) > 0
+    print(f"{b}  " + ("ملخص اختبارات التنفيذ المزدوج" if dual_ran
+                       else "ملخص اختبارات السلوك — المحرّك الواحد") + f"{r}")
     print(f"{b}═══════════════════════════════════════════════════{r}")
     print(f"  إجمالي: {total}")
     print(f"  {g}نجح:    {passed}{r}")
@@ -1614,9 +1842,18 @@ def print_summary(results: list[TestResult], use_colors: bool, elapsed_total: fl
         print(f"  {rd}حمراءُ مُعلَنة (@known_red): {c['known_red']}{r}")
     print()
     print(f"{b}  ── تفصيل النجاح ──{r}")
-    print(f"  {g}تكافؤ مزدوج (مفسر+مترجم): {c['dual_parity_passed']}{r}")
-    print(f"  {cy}مفسر فقط (@expected):      {c['interp_only_passed']}{r}")
-    print(f"  {cy}مترجم فقط (سالبٌ مترجَم):  {c['compiler_only_passed']}{r}")
+    # (AR) ⚠️ عدّادا المفسّرِ يُعرَضانِ متى عملَ محرّكان فقط. وكانا
+    #      يُطبَعانِ صفرَينِ دائمًا في مسارِ المحرّكِ الواحد — وصفرٌ يُقرأُ
+    #      «قِيسَ فلم يوجد» لا «لم يُقَسْ». وسطرٌ لا يمكنُ أن يحملَ غيرَ الصفرِ
+    #      لا يُخبِرُ شيئًا، ويُوهِمُ بأنّ ثمّةَ محورًا يُقاس.
+    # (EN) The interpreter counters appear only when two engines ran. They used to
+    #      print zeros on every single-engine run, and a zero reads as "measured and
+    #      found none" rather than "not measured". A line that can only ever be zero
+    #      says nothing and implies an axis is being measured.
+    if dual_ran:
+        print(f"  {g}تكافؤ مزدوج (مفسر+مترجم): {c['dual_parity_passed']}{r}")
+        print(f"  {cy}مفسر فقط (@expected):      {c['interp_only_passed']}{r}")
+    print(f"  {cy}مترجم فقط (@expected/سالبٌ مترجَم): {c['compiler_only_passed']}{r}")
     if (c["dual_parity_failed"] > 0 or c["interp_only_failed"] > 0
             or c["compiler_only_failed"] > 0):
         print(f"{b}  ── تفصيل الفشل ──{r}")
@@ -1860,7 +2097,8 @@ def main():
                         help="أدنى نسبة نجاح مقبولة للبوّابة (مثل 86.0). دونها = FAIL.")
     parser.add_argument("--timeout", type=int, default=0,
                         help="مهلة التنفيذ بالثواني (يتجاوز القيمة في config.yaml)")
-    parser.add_argument("--interp", help="مسار المفسر")
+    parser.add_argument("--interp",
+                        help="مسار مفسّر خارجيّ للمقارنة (اختياريّ — لا افتراضَ له)")
     parser.add_argument("--compiler", help="مسار المترجم")
     parser.add_argument(
         "--save-baselines",
@@ -1897,7 +2135,13 @@ def main():
     config = load_config(runner_dir / "config.yaml")
 
     # (AR) المسارات
-    sad_exe = Path(args.interp) if args.interp else project_root / config["paths"]["interpreter"]
+    # (AR) 🔑 لا افتراضَ للمفسّر: `None` ما لم يُمرَّرْ `--interp` صراحةً.
+    #      وكان يُقرأُ من `config["paths"]["interpreter"]` فيصيرُ الوضعُ رهنَ
+    #      وجودِ ملفٍّ على القرص — انظر تعليلَ `tests/config.yaml`.
+    # (EN) No default interpreter: None unless --interp is passed explicitly.
+    #      It used to come from the config, making the mode depend on a file
+    #      being on disk — see the rationale in tests/config.yaml.
+    sad_exe = Path(args.interp) if args.interp else None
     # (AR) المترجم اختياريّ: إن مُرِّر صراحةً نلتزمه (ونتحقّق من وجوده لاحقًا)؛
     #      وإلّا نستعمل الافتراضيّ فقط إن وُجد، وإلّا None ⇒ وضع المفسّر-فقط.
     # (EN) Compiler is optional: honor an explicit --compiler; otherwise use the
@@ -1943,12 +2187,22 @@ def main():
     else:
         max_parallel = config["execution"]["max_parallel"]
 
-    sad_exe = _resolve_binary(sad_exe)
+    sad_exe = _resolve_binary(sad_exe) if sad_exe is not None else None
     sadc_exe = _resolve_binary(sadc_exe)
 
-    # (AR) التحقق من المفسر — إلزاميّ دائمًا
-    if not sad_exe.exists():
-        print(f"❌ المفسر غير موجود: {sad_exe}")
+    # (AR) 🔑 مسارُ المحرّكِ الواحد — انقلبَ الإلزام: المترجمُ هو المحرّك،
+    #      والمفسّرُ إن غاب فوضعُ **المترجم-فقط**، لا خطأ. وكان العكسُ: مفسّرٌ
+    #      إلزاميٌّ ومترجمٌ اختياريّ — عقدٌ يصفُ مستودعًا لم يعد قائمًا.
+    # (EN) Single-engine track — the obligation flipped: the compiler is THE
+    #      engine; a missing interpreter means compiler-only mode, not an error.
+    if sad_exe is None:
+        print("ℹ️ المحرّكُ الواحد — وضعُ المترجم فقط (تُقارَن المخرجات بـ@expected)")
+    elif not sad_exe.exists():
+        # (AR) ⚠️ ما مُرِّرَ صراحةً وغاب خطأٌ لا تراجُع: التراجعُ الصامتُ هنا
+        #      هو ما جعلَ الوضعَ يُستنتَجُ بدل أن يُعلَن.
+        # (EN) What was explicitly passed and is missing is an error, not a
+        #      fallback: the silent fallback is what made the mode inferred.
+        print("❌ المفسّرُ المُمرَّرُ بـ--interp غير موجود: %s" % sad_exe)
         sys.exit(1)
     # (AR) المترجم: إن مُرِّر صراحةً (--compiler) فغيابه خطأ حقيقيّ ⇒ خروج.
     #      وإلّا (لم يُطلَب صراحةً، أي LLVM/sad-build غير مبنيّ) ننتقل إلى وضع
@@ -1957,10 +2211,10 @@ def main():
     #      Otherwise (not requested — LLVM/sad-build not built) fall back to
     #      interpreter-only mode (sadc_exe=None) instead of failing.
     if not sadc_exe.exists():
-        if compiler_explicit:
+        if compiler_explicit or sad_exe is None:
             print(f"❌ المترجم غير موجود: {sadc_exe}")
             sys.exit(1)
-        print(f"⚠️ المترجم غير مبنيّ — وضع المفسّر-فقط (تُقارَن المخرجات بـ@expected)")
+        print("⚠️ المترجم غير مبنيّ — وضع المفسّر-فقط (تُقارَن المخرجات بـ@expected)")
         sadc_exe = None
 
     # (AR) إنشاء مجلد مؤقت
@@ -2075,7 +2329,7 @@ def main():
         cpu_label = f"{max_parallel} أنوية متوازية"
 
     print(f"\n{b}═══ اختبارات التنفيذ المزدوج ═══{r}")
-    print(f"  مفسر:   {sad_exe.name}")
+    print(f"  مفسر:   {sad_exe.name if sad_exe else '(محذوف — مسار المحرّك الواحد)'}")
     print(f"  مترجم: {sadc_exe.name if sadc_exe else '(غير متاح — مفسّر فقط)'}")
     print(f"  ملفات:  {len(test_files)}")
     print(f"  CPU:    {cpu_label}")
