@@ -1,14 +1,36 @@
 # ═══════════════════════════════════════════════════════════════════════════════════
-# إعدادات runner.py — اختبارات التنفيذ المزدوج (المفسر + المترجم)
-# Dual Execution Test Runner Configuration
+# إعدادات runner.py — عدّاء اختبارات السلوك (المترجم محرّكًا وحيدًا)
+# Behaviour Test Runner Configuration (compiler as the sole engine)
 # ═══════════════════════════════════════════════════════════════════════════════════
 
 # (AR) مسارات الملفات التنفيذية — عدّل حسب بيئتك
 # (EN) Executable paths — adjust for your environment
-# (AR) ملاحظة: منذ إعادة هيكلة الأدوات، `sad.exe` صار موزِّع أوامر (Hub).
-#      المفسر الفعلي هو `sad-run.exe` ويُستدعى مباشرة لتفادي الحمل الزائد.
-# (EN) Note: After tools restructure, `sad.exe` is the dispatcher hub.
-#      The real interpreter is `sad-run.exe`; invoked directly for less overhead.
+# (AR) 🔑 **لا مفتاحَ `interpreter` هنا — والغيابُ قرارٌ لا سهو.**
+#
+#      كان هنا `interpreter: "build/bin/Debug/sad-run.exe"`، ويقرؤه العدّاءُ
+#      إلزامًا ثمّ يقرّرُ وضعَه **بوجودِ الملفِّ على القرص**: إن وُجِد فوضعُ
+#      محرّكَين، وإن غابَ فوضعُ المترجم-فقط.
+#
+#      ⚠️ وذلك يجعلُ «المحرّكَ الواحد» حالةً تُستنتَجُ من غيابِ ملفٍّ لا
+#      عقدًا يُعلَن. فأيُّ `sad-run.exe` بائتٍ يبقى في `build/bin/Debug` — وشجرةُ
+#      البناءِ القديمةُ ما زالت تحملُ سقالاتِه — يُعيدُ العدّاءَ صامتًا إلى
+#      مقارنةِ محرّكَين، أحدُهما شبحٌ حُذفَ كودُه من المستودع. ولا سطرَ تحذيرٍ
+#      واحد.
+#
+#      فصارَ الافتراضُ: **لا مفسّر**. ومن أرادَ مقارنةً بثنائيٍّ قديمٍ يمرّرُ
+#      `--interp <مسار>` صراحةً — وغيابُ ما مُرِّرَ صراحةً خطأٌ يُخرِجُ بـ١،
+#      كما هي حالُ `--compiler` سواءً بسواء.
+# (EN) 🔑 There is no `interpreter` key here, and its absence is a decision.
+#      The runner used to read it unconditionally and then pick its mode from
+#      whether the FILE EXISTS: present => two engines, absent => compiler-only.
+#      That makes "single engine" a state inferred from a missing file rather
+#      than a declared contract: any stale sad-run.exe left in build/bin/Debug —
+#      and the old build tree still carries its scaffolding — silently returns
+#      the runner to comparing two engines, one of them a ghost whose code is no
+#      longer in the repository, without a single warning line.
+#      The default is now: no interpreter. Anyone wanting to compare against an
+#      old binary passes --interp <path> explicitly, and the absence of what was
+#      explicitly passed is an error exiting 1 — exactly as --compiler behaves.
 # (AR) المترجم: هدف CMake `sad-build` يُنتج `sad-build.exe` — وحَّدنا اسم الهدف مع
 #      اسم المخرج، فلم يَعُد اسم `sadc.exe` البائت (الذي لا يُنتجه أيّ هدف) مستعملاً.
 #      كلا المسارين من تهيئة Debug نفسها: أُصلح بناء المترجم في Debug جذريًا في
@@ -22,7 +44,6 @@
 #      removing the _ITERATOR_DEBUG_LEVEL/RuntimeLibrary mismatch. This removes the
 #      "stale binary" and "Debug interp + Release compiler" gotchas together.
 paths:
-  interpreter: "build/bin/Debug/sad-run.exe"
   compiler: "build/bin/Debug/sad-build.exe"
   tests_dir: "tests/behavior"
 

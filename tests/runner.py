@@ -1678,11 +1678,19 @@ def print_result(result: TestResult, verbose: bool, use_colors: bool):
     r = _RESET if use_colors else ""
 
     line = f"  {icon} {c}{result.status.value:14s}{r}  {name}"
+    # (AR) ⚠️ زمنُ المفسّرِ يُطبَعُ إن قِيسَ فقط. وكان يُطبَعُ دائمًا، فيظهرُ
+    #      «مفسر: 0ms» في مسارِ المحرّكِ الواحد — رقمٌ يُقرأُ «عملَ في صفرِ
+    #      ميلي» وهو «لم يعملْ أصلًا».
+    # (EN) The interpreter timing prints only when it was measured. It used to
+    #      print unconditionally, showing "interp: 0ms" on the single-engine
+    #      path — a number that reads as "ran in 0ms" and means "never ran".
     if result.interp_time_ms > 0 or result.compiler_time_ms > 0:
-        line += f"  (مفسر: {result.interp_time_ms:.0f}ms"
+        parts = []
+        if result.interp_time_ms > 0:
+            parts.append(f"مفسر: {result.interp_time_ms:.0f}ms")
         if result.compiler_time_ms > 0:
-            line += f" | مترجم: {result.compiler_time_ms:.0f}ms"
-        line += ")"
+            parts.append(f"مترجم: {result.compiler_time_ms:.0f}ms")
+        line += "  (" + " | ".join(parts) + ")"
     print(line)
 
     # (AR) أخطاء المفسّر/الترجمة/التشغيل تُطبع دائمًا — نصّ الخطأ ضروريّ للتشخيص في CI.
@@ -1809,7 +1817,16 @@ def print_summary(results: list[TestResult], use_colors: bool, elapsed_total: fl
 
     print()
     print(f"{b}═══════════════════════════════════════════════════{r}")
-    print(f"{b}  ملخص اختبارات التنفيذ المزدوج{r}")
+    # (AR) 🔑 العنوانُ يتبعُ ما جرى: «تنفيذٌ مزدوج» متى عملَ محرّكان،
+    #      و«المحرّكُ الواحد» متى عملَ المترجمُ وحدَه. وكان ثابتًا يَعِدُ
+    #      بازدواجٍ لا يقعُ في مسارِ المحرّكِ الواحد.
+    # (EN) The title follows what happened: "dual execution" when two engines
+    #      ran, "single engine" when only the compiler did. It used to be a
+    #      constant promising a duality that never occurs on this path.
+    dual_ran = (c["dual_parity_passed"] + c["dual_parity_failed"]
+                + c["interp_only_passed"] + c["interp_only_failed"]) > 0
+    print(f"{b}  " + ("ملخص اختبارات التنفيذ المزدوج" if dual_ran
+                       else "ملخص اختبارات السلوك — المحرّك الواحد") + f"{r}")
     print(f"{b}═══════════════════════════════════════════════════{r}")
     print(f"  إجمالي: {total}")
     print(f"  {g}نجح:    {passed}{r}")
@@ -1825,8 +1842,17 @@ def print_summary(results: list[TestResult], use_colors: bool, elapsed_total: fl
         print(f"  {rd}حمراءُ مُعلَنة (@known_red): {c['known_red']}{r}")
     print()
     print(f"{b}  ── تفصيل النجاح ──{r}")
-    print(f"  {g}تكافؤ مزدوج (مفسر+مترجم): {c['dual_parity_passed']}{r}")
-    print(f"  {cy}مفسر فقط (@expected):      {c['interp_only_passed']}{r}")
+    # (AR) ⚠️ عدّادا المفسّرِ يُعرَضانِ متى عملَ محرّكان فقط. وكانا
+    #      يُطبَعانِ صفرَينِ دائمًا في مسارِ المحرّكِ الواحد — وصفرٌ يُقرأُ
+    #      «قِيسَ فلم يوجد» لا «لم يُقَسْ». وسطرٌ لا يمكنُ أن يحملَ غيرَ الصفرِ
+    #      لا يُخبِرُ شيئًا، ويُوهِمُ بأنّ ثمّةَ محورًا يُقاس.
+    # (EN) The interpreter counters appear only when two engines ran. They used to
+    #      print zeros on every single-engine run, and a zero reads as "measured and
+    #      found none" rather than "not measured". A line that can only ever be zero
+    #      says nothing and implies an axis is being measured.
+    if dual_ran:
+        print(f"  {g}تكافؤ مزدوج (مفسر+مترجم): {c['dual_parity_passed']}{r}")
+        print(f"  {cy}مفسر فقط (@expected):      {c['interp_only_passed']}{r}")
     print(f"  {cy}مترجم فقط (@expected/سالبٌ مترجَم): {c['compiler_only_passed']}{r}")
     if (c["dual_parity_failed"] > 0 or c["interp_only_failed"] > 0
             or c["compiler_only_failed"] > 0):
@@ -2071,7 +2097,8 @@ def main():
                         help="أدنى نسبة نجاح مقبولة للبوّابة (مثل 86.0). دونها = FAIL.")
     parser.add_argument("--timeout", type=int, default=0,
                         help="مهلة التنفيذ بالثواني (يتجاوز القيمة في config.yaml)")
-    parser.add_argument("--interp", help="مسار المفسر")
+    parser.add_argument("--interp",
+                        help="مسار مفسّر خارجيّ للمقارنة (اختياريّ — لا افتراضَ له)")
     parser.add_argument("--compiler", help="مسار المترجم")
     parser.add_argument(
         "--save-baselines",
@@ -2108,7 +2135,13 @@ def main():
     config = load_config(runner_dir / "config.yaml")
 
     # (AR) المسارات
-    sad_exe = Path(args.interp) if args.interp else project_root / config["paths"]["interpreter"]
+    # (AR) 🔑 لا افتراضَ للمفسّر: `None` ما لم يُمرَّرْ `--interp` صراحةً.
+    #      وكان يُقرأُ من `config["paths"]["interpreter"]` فيصيرُ الوضعُ رهنَ
+    #      وجودِ ملفٍّ على القرص — انظر تعليلَ `tests/config.yaml`.
+    # (EN) No default interpreter: None unless --interp is passed explicitly.
+    #      It used to come from the config, making the mode depend on a file
+    #      being on disk — see the rationale in tests/config.yaml.
+    sad_exe = Path(args.interp) if args.interp else None
     # (AR) المترجم اختياريّ: إن مُرِّر صراحةً نلتزمه (ونتحقّق من وجوده لاحقًا)؛
     #      وإلّا نستعمل الافتراضيّ فقط إن وُجد، وإلّا None ⇒ وضع المفسّر-فقط.
     # (EN) Compiler is optional: honor an explicit --compiler; otherwise use the
@@ -2154,7 +2187,7 @@ def main():
     else:
         max_parallel = config["execution"]["max_parallel"]
 
-    sad_exe = _resolve_binary(sad_exe)
+    sad_exe = _resolve_binary(sad_exe) if sad_exe is not None else None
     sadc_exe = _resolve_binary(sadc_exe)
 
     # (AR) 🔑 مسارُ المحرّكِ الواحد — انقلبَ الإلزام: المترجمُ هو المحرّك،
@@ -2162,9 +2195,15 @@ def main():
     #      إلزاميٌّ ومترجمٌ اختياريّ — عقدٌ يصفُ مستودعًا لم يعد قائمًا.
     # (EN) Single-engine track — the obligation flipped: the compiler is THE
     #      engine; a missing interpreter means compiler-only mode, not an error.
-    if not sad_exe.exists():
-        print("ℹ️ لا مفسّر — وضعُ المترجم-فقط (تُقارَن المخرجات بـ@expected)")
-        sad_exe = None
+    if sad_exe is None:
+        print("ℹ️ المحرّكُ الواحد — وضعُ المترجم فقط (تُقارَن المخرجات بـ@expected)")
+    elif not sad_exe.exists():
+        # (AR) ⚠️ ما مُرِّرَ صراحةً وغاب خطأٌ لا تراجُع: التراجعُ الصامتُ هنا
+        #      هو ما جعلَ الوضعَ يُستنتَجُ بدل أن يُعلَن.
+        # (EN) What was explicitly passed and is missing is an error, not a
+        #      fallback: the silent fallback is what made the mode inferred.
+        print("❌ المفسّرُ المُمرَّرُ بـ--interp غير موجود: %s" % sad_exe)
+        sys.exit(1)
     # (AR) المترجم: إن مُرِّر صراحةً (--compiler) فغيابه خطأ حقيقيّ ⇒ خروج.
     #      وإلّا (لم يُطلَب صراحةً، أي LLVM/sad-build غير مبنيّ) ننتقل إلى وضع
     #      المفسّر-فقط (sadc_exe=None) بدل الفشل — تشغيل بيئيّ لا عيب في الكود.
