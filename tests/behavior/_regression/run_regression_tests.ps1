@@ -2,13 +2,12 @@
 .SYNOPSIS
     Regression Tests Runner for Sad Language
 .DESCRIPTION
-    Runs all 22 regression tests against interpreter or compiler
+    Runs every regression test found beside this script, against the compiler
 .PARAMETER SadExe
     Path to executable (sad.exe or sadc.exe)
 .PARAMETER Mode
-    Run mode: interpreter or compiler
+    Run mode: compiler (the only engine)
 .EXAMPLE
-    .\run_regression_tests.ps1 -SadExe .\build\bin\Debug\sad.exe -Mode interpreter
     .\run_regression_tests.ps1 -SadExe .\build\bin\Release\sad-build.exe -Mode compiler
 #>
 
@@ -17,15 +16,19 @@ param(
     [string]$SadExe,
     
     [Parameter(Mandatory=$false)]
-    [ValidateSet("interpreter", "compiler")]
-    [string]$Mode = "interpreter",
-
-    # (AR) مسار المفسّر: حين يُمرَّر في وضع المترجِم يُقاس **تكافؤ** المحرّكَين لا مجرّد
-    #      غياب كلمة FAIL. وبدونه يعمل الحارس كما كان.
-    # (EN) Interpreter path: when supplied in compiler mode, engine PARITY is measured
-    #      instead of merely the absence of a FAIL marker.
-    [Parameter(Mandatory=$false)]
-    [string]$InterpExe = ""
+    # (AR) 🔑 كان الافتراضيُّ `interpreter` و`ValidateSet` يقبلُه، فمن نسيَ
+    #      `-Mode` شغَّلَ فرعَ المفسّرِ على `sad-build`. صار `compiler` وحدَه،
+    #      و`ValidateSet` يردُّ الاسمَ القديمَ برسالةٍ صريحةٍ لا بسلوكٍ خاطئ.
+    #      وحُذف `-InterpExe`: كان يقيسُ تكافؤَ محرّكَين، وأحدُهما زال. ولم
+    #      يُمرَّرْ من أيِّ موضعٍ في المستودعِ قطُّ (CI يُمرِّرُ `-Mode compiler` فقط).
+    # (EN) The default was interpreter and ValidateSet accepted it, so omitting
+    #      -Mode ran the interpreter branch against sad-build. compiler is now
+    #      the only value, and ValidateSet rejects the old name with an explicit
+    #      message instead of misbehaving. -InterpExe was removed: it measured
+    #      parity between two engines, one of which is gone, and it was never
+    #      passed anywhere in the repository (CI passes -Mode compiler only).
+    [ValidateSet("compiler")]
+    [string]$Mode = "compiler"
 )
 
 # ======================================================================
@@ -90,7 +93,14 @@ $xfailNames = @()
 # ======================================================================
 Write-Host ""
 Write-Host "================================================================"
-Write-Host "  Regression Tests -- Sad Language (22 tests)"
+# (AR) 🔑 كان مكتوبًا «(22 tests)» والسطرُ الذي يليه يطبعُ العددَ المقيسَ
+#      من `$TestFiles.Count` — وهو **٣٧**. فعددٌ منثورٌ نسخةٌ ثانيةٌ من حقيقةٍ
+#      تحتَه مباشرةً، وتباعدَ عنها بخمسةَ عشرَ. والعددُ يُشتَقُّ ولا يُكتَب.
+# (EN) The banner said "(22 tests)" while the very next line printed the
+#      measured $TestFiles.Count — 37. A prose number is a second copy of a
+#      fact printed directly beneath it, and it had drifted by fifteen. The
+#      count is derived, never written.
+Write-Host "  Regression Tests -- Sad Language"
 Write-Host "  Mode: $Mode"
 Write-Host "  Tool: $SadExe"
 Write-Host "  Count: $($TestFiles.Count) tests"
@@ -113,99 +123,75 @@ foreach ($testFile in $TestFiles) {
     try {
         $startTime = Get-Date
         
-        if ($Mode -eq "interpreter") {
-            # Run interpreter with 30 second timeout
-            $process = Start-Process -FilePath $SadExe -ArgumentList $testFile.FullName `
-                -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\sad_test_out.txt" `
-                -RedirectStandardError "$env:TEMP\sad_test_err.txt"
-            
-            # (AR) المقبضُ يُخزَّن قبلَ الانتظار: بدونه تعود ExitCode فارغةً في PS 5.1
-            #      بعد WaitForExit(<مهلة>)، فيقرأ الحارسُ $null ويحكم بالإخفاقِ دائمًا.
-            # (EN) Cache the handle before waiting: otherwise ExitCode is $null in PS 5.1
-            #      after WaitForExit(<timeout>), so the guard always reports failure.
-            $null = $process.Handle
+        # (AR) 🔑 حُذف فرعُ `$Mode -eq "interpreter"` — انظرَ التعليلَ عندَ
+        #      المُعامِلِ أعلاه.
+        # (EN) The $Mode -eq "interpreter" branch was removed; see the rationale
+        #      at the parameter above.
+        # Compiler mode: sadc compile then run
+        $outExe = "$env:TEMP\sad_test_$testNum.exe"
+        
+        # Compile
+        $compileProcess = Start-Process -FilePath $SadExe -ArgumentList $testFile.FullName, "-o", $outExe `
+            -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\sad_compile_out.txt" `
+            -RedirectStandardError "$env:TEMP\sad_compile_err.txt"
+        # (AR) المقبضُ يُخزَّن قبلَ الانتظار: بدونه تعود ExitCode فارغةً في PS 5.1
+        #      بعد WaitForExit(<مهلة>)، فيقرأ الحارسُ $null ويحكم بالإخفاقِ دائمًا.
+        # (EN) Cache the handle before waiting: otherwise ExitCode is $null in PS 5.1
+        #      after WaitForExit(<timeout>), so the guard always reports failure.
+        $null = $compileProcess.Handle
 
-            $completed = $process.WaitForExit(30000)
-            
-            if (-not $completed) {
-                $process.Kill()
-                $duration = [math]::Round(((Get-Date) - $startTime).TotalMilliseconds)
-                
-                if ($knownFailures -contains $testName) {
-                    $xfailTests++
-                    $xfailNames += "$testName (timeout)"
-                    Write-Host "XFAIL (timeout -- known issue) (${duration}ms)"
-                } else {
-                    $failedTests++
-                    $failedNames += $testName
-                    Write-Host "FAIL (timeout -- possible infinite loop)"
-                }
-                continue
-            }
-            
-            $exitCode = $process.ExitCode
-            $output = Get-Content "$env:TEMP\sad_test_out.txt" -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
-            $stderr = Get-Content "$env:TEMP\sad_test_err.txt" -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
-            
-        } else {
-            # Compiler mode: sadc compile then run
-            $outExe = "$env:TEMP\sad_test_$testNum.exe"
-            
-            # Compile
-            $compileProcess = Start-Process -FilePath $SadExe -ArgumentList $testFile.FullName, "-o", $outExe `
-                -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\sad_compile_out.txt" `
-                -RedirectStandardError "$env:TEMP\sad_compile_err.txt"
-            # (AR) المقبضُ يُخزَّن قبلَ الانتظار: بدونه تعود ExitCode فارغةً في PS 5.1
-            #      بعد WaitForExit(<مهلة>)، فيقرأ الحارسُ $null ويحكم بالإخفاقِ دائمًا.
-            # (EN) Cache the handle before waiting: otherwise ExitCode is $null in PS 5.1
-            #      after WaitForExit(<timeout>), so the guard always reports failure.
-            $null = $compileProcess.Handle
-
-            $compileProcess.WaitForExit(60000)
-            
-            if ($compileProcess.ExitCode -ne 0 -or -not (Test-Path $outExe)) {
-                $duration = [math]::Round(((Get-Date) - $startTime).TotalMilliseconds)
-                if ($knownFailures -contains $testName) {
-                    $xfailTests++
-                    $xfailNames += "$testName (compile)"
-                    Write-Host "XFAIL (compile error -- known issue) (${duration}ms)"
-                } else {
-                    $failedTests++
-                    $failedNames += "$testName (compile)"
-                    Write-Host "FAIL (compile error)"
-                    $compErr = Get-Content "$env:TEMP\sad_compile_err.txt" -Raw -ErrorAction SilentlyContinue
-                    if ($compErr) { Write-Host "    $compErr" }
-                }
-                continue
-            }
-            
-            # Run compiled binary
-            $process = Start-Process -FilePath $outExe `
-                -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\sad_test_out.txt" `
-                -RedirectStandardError "$env:TEMP\sad_test_err.txt"
-            # (AR) المقبضُ يُخزَّن قبلَ الانتظار: بدونه تعود ExitCode فارغةً في PS 5.1
-            #      بعد WaitForExit(<مهلة>)، فيقرأ الحارسُ $null ويحكم بالإخفاقِ دائمًا.
-            # (EN) Cache the handle before waiting: otherwise ExitCode is $null in PS 5.1
-            #      after WaitForExit(<timeout>), so the guard always reports failure.
-            $null = $process.Handle
-
-            $completed = $process.WaitForExit(30000)
-            
-            if (-not $completed) {
-                $process.Kill()
+        # (AR) ⚠️ `$null =` لازمة: `WaitForExit(<مهلة>)` تُرجِعُ قيمةً منطقيّةً
+        #      تتسرَّبُ إلى مجرى المخرَجِ فيطبعُ العدّاءُ «True» لكلِّ بذرةٍ بعدَ
+        #      ملخّصِه، ومن التقطَ خرجَه بـ`$out = .\run_...` أخذَ مصفوفةَ
+        #      منطقيّاتٍ لا نصًّا.
+        # (EN) The $null = is required: WaitForExit(<timeout>) returns a boolean
+        #      that leaks into the output stream, so the runner printed "True"
+        #      once per seed after its summary, and anyone capturing its output
+        #      got an array of booleans instead of text.
+        $null = $compileProcess.WaitForExit(60000)
+        
+        if ($compileProcess.ExitCode -ne 0 -or -not (Test-Path $outExe)) {
+            $duration = [math]::Round(((Get-Date) - $startTime).TotalMilliseconds)
+            if ($knownFailures -contains $testName) {
+                $xfailTests++
+                $xfailNames += "$testName (compile)"
+                Write-Host "XFAIL (compile error -- known issue) (${duration}ms)"
+            } else {
                 $failedTests++
-                $failedNames += "$testName (runtime timeout)"
-                Write-Host "FAIL (runtime timeout)"
-                continue
+                $failedNames += "$testName (compile)"
+                Write-Host "FAIL (compile error)"
+                $compErr = Get-Content "$env:TEMP\sad_compile_err.txt" -Raw -ErrorAction SilentlyContinue
+                if ($compErr) { Write-Host "    $compErr" }
             }
-            
-            $exitCode = $process.ExitCode
-            $output = Get-Content "$env:TEMP\sad_test_out.txt" -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
-            $stderr = Get-Content "$env:TEMP\sad_test_err.txt" -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
-            
-            # Cleanup
-            Remove-Item $outExe -ErrorAction SilentlyContinue
+            continue
         }
+        
+        # Run compiled binary
+        $process = Start-Process -FilePath $outExe `
+            -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\sad_test_out.txt" `
+            -RedirectStandardError "$env:TEMP\sad_test_err.txt"
+        # (AR) المقبضُ يُخزَّن قبلَ الانتظار: بدونه تعود ExitCode فارغةً في PS 5.1
+        #      بعد WaitForExit(<مهلة>)، فيقرأ الحارسُ $null ويحكم بالإخفاقِ دائمًا.
+        # (EN) Cache the handle before waiting: otherwise ExitCode is $null in PS 5.1
+        #      after WaitForExit(<timeout>), so the guard always reports failure.
+        $null = $process.Handle
+
+        $completed = $process.WaitForExit(30000)
+        
+        if (-not $completed) {
+            $process.Kill()
+            $failedTests++
+            $failedNames += "$testName (runtime timeout)"
+            Write-Host "FAIL (runtime timeout)"
+            continue
+        }
+        
+        $exitCode = $process.ExitCode
+        $output = Get-Content "$env:TEMP\sad_test_out.txt" -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+        $stderr = Get-Content "$env:TEMP\sad_test_err.txt" -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+        
+        # Cleanup
+        Remove-Item $outExe -ErrorAction SilentlyContinue
         
         $duration = [math]::Round(((Get-Date) - $startTime).TotalMilliseconds)
         
@@ -223,55 +209,37 @@ foreach ($testFile in $TestFiles) {
         #      with exit 0 and no marker, so it passed. Compare both engines'
         #      output whenever -InterpExe is supplied.
         # ==================================================================
-        $parityBroken = $false
-        if ($Mode -eq "compiler" -and $InterpExe -ne "" -and -not $hasError) {
-            $parityOut = "$env:TEMP\sad_parity_out.txt"
-            $parityErr = "$env:TEMP\sad_parity_err.txt"
-            # (AR) 🔑 يُمسحان قبل كلّ إطلاق: `SilentlyContinue` تبتلع **غيابَ** الملفّ
-            #      لا **قِدَمَه**، فإخفاقُ إطلاقٍ كان يقارن خرجَ الاختبارِ السابقِ
-            #      ⇒ حكمٌ يتبع ترتيبَ التنفيذِ لا الشيفرة.
-            # (EN) Cleared before every launch: SilentlyContinue swallows a MISSING file,
-            #      not a STALE one, so a failed launch compared the previous test's output,
-            #      making the verdict depend on execution order rather than on the code.
-            Remove-Item $parityOut, $parityErr -Force -ErrorAction SilentlyContinue
-            $ip = Start-Process -FilePath $InterpExe -ArgumentList $testFile.FullName `
-                -NoNewWindow -PassThru -RedirectStandardOutput $parityOut `
-                -RedirectStandardError $parityErr
-            $null = $ip.Handle
-            $ipDone = $ip.WaitForExit(30000)
-            if (-not $ipDone) {
-                # (AR) مهلةٌ ليست تباعدًا: الخرجُ مبتورٌ فلا يُقارَن، ويُسمّى ما وقع.
-                # (EN) A timeout is not a divergence: truncated output is not compared.
-                $ip.Kill()
-                $ip.WaitForExit()
-                $parityBroken = $true
-                $parityDetail = "PARITY: interpreter timed out (not an output difference)"
-            }
-            else {
-                $iOut = Get-Content $parityOut -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
-                if ($null -eq $iOut) { $iOut = "" }
-                $cOut = $output
-                if ($null -eq $cOut) { $cOut = "" }
-                if ($iOut.Trim() -ne $cOut.Trim()) {
-                    $parityBroken = $true
-                    $parityDetail = "PARITY: interpreter and compiler outputs differ"
-                }
-                # (AR) 🔑 ورمزُ الخروجِ كذلك. كان يُلتقَط ولا يُقرَأ، فمحرّكٌ يرمي خطأً
-                #      قابلًا للالتقاطِ وآخرُ يُكمِل يمرّان أخضرَين ما دام المطبوعُ قبلَ
-                #      الرميِ متطابقًا — وهو عينُ صنفِ التباعدِ الذي تُنشئه RUN007/RUN011،
-                #      أي الذي وُضِع هذا الحارسُ ليقيسه.
-                # (EN) And the exit code. It was captured but never read, so one engine
-                #      raising a catchable error while the other carried on passed green
-                #      whenever the pre-error output matched — exactly the divergence class
-                #      RUN007/RUN011 create, i.e. the one this guard exists to measure.
-                elseif ($ip.ExitCode -ne $exitCode) {
-                    $parityBroken = $true
-                    $parityDetail = "PARITY: exit codes differ (interpreter=$($ip.ExitCode) compiler=$exitCode)"
-                }
-            }
-        }
-
-        if ($hasError -or $hasFail -or $parityBroken) {
+        # ==================================================================
+        # (AR) ⚠️ **دَينٌ مُقيَّد: معيارُ النجاحِ هنا أضعفُ ممّا كان.**
+        #      كان يقيسُ ما بعدَ «لا FAIL ورمزُ خروجٍ صفر»: يُقارِنُ خرجَ
+        #      المحرّكَين ورمزَيهما حين يُمرَّر `-InterpExe`. وقد زالَ أحدُ
+        #      المحرّكَين، فلا طرفَ يُقارَنُ به — وحُذفت الكتلةُ لأنّها لا
+        #      تشتعلُ أبدًا، لا لأنّ العلّةَ زالت.
+        #      والعلّةُ مقيسةٌ ومُدوَّنة: ص٣٥ طبعَ مؤشِّرًا خامًّا حيثُ يُطبَعُ
+        #      الكائن، برمزِ خروجٍ صفرٍ وبلا كلمةِ FAIL — فمرّ أخضرَ. ومثلُه
+        #      محرّكٌ يرمي خطأً قابلًا للالتقاطِ وآخرُ يُكمِل: يمرّان أخضرَين
+        #      ما دام المطبوعُ قبلَ الرميِ متطابقًا (صنفُ RUN007/RUN011).
+        #      فالبديلُ الصحيحُ توكيدٌ مُدوَّنٌ لكلِّ بذرةٍ (`@expected`) يُقاسُ
+        #      عليه الخرجُ — وهو ما يفعلُه `tests/runner.py`. وحتّى يُنقَلَ إلى
+        #      هنا، **لا يُقرَأُ خُضرةُ هذا العدّاءِ أنّ المخرجاتِ صحيحة**؛
+        #      تُقرَأُ أنّها لم تطبعْ FAIL ولم تُخفِقْ بخروجٍ غيرِ صفر.
+        # (EN) RECORDED DEBT: this runner's pass criterion is now WEAKER than it
+        #      was. It used to go beyond "no FAIL marker and exit 0" by comparing
+        #      both engines' output and exit codes whenever -InterpExe was given.
+        #      One engine is gone, so there is nothing to compare against; the
+        #      block was deleted because it can never fire, not because the
+        #      weakness went away. The weakness is measured and on record: p35
+        #      printed a raw pointer where the object should be, with exit 0 and
+        #      no FAIL marker, and passed green; likewise one engine raising a
+        #      catchable error while the other carried on passed whenever the
+        #      pre-error output matched (the RUN007/RUN011 class). The right
+        #      replacement is a recorded per-seed assertion (@expected) compared
+        #      against the output, which is what tests/runner.py already does.
+        #      Until that is brought here, green from this runner must NOT be
+        #      read as "the output is correct" — only as "it printed no FAIL and
+        #      did not exit non-zero".
+        # ==================================================================
+        if ($hasError -or $hasFail) {
             if ($knownFailures -contains $testName) {
                 $xfailTests++
                 $xfailNames += $testName
@@ -280,9 +248,6 @@ foreach ($testFile in $TestFiles) {
                 $failedTests++
                 $failedNames += $testName
                 Write-Host "FAIL (${duration}ms)"
-                if ($parityBroken) {
-                    Write-Host "    PARITY: interpreter and compiler outputs differ"
-                }
                 if ($hasFail) {
                     $failLines = ($output -split "`n") | Where-Object { $_ -match "FAIL:" }
                     foreach ($line in $failLines) {

@@ -4,14 +4,22 @@
 # Sad Programming Language — Linux/macOS
 # ======================================================================
 # الاستخدام:
-#   ./run_regression_tests.sh <sad_executable> <mode>
-#   mode: interpreter | compiler
+#   ./run_regression_tests.sh <sad_executable> [compiler]
+#   (AR) 🔑 الوضعُ الوحيدُ `compiler`. كان الافتراضيُّ `interpreter`،
+#        فمن نسيَ الوسيطَ الثاني يُشغَّلُ فرعُ المفسّرِ على `sad-build`:
+#        يُنادَى المصرّفُ بلا `-o` فيُترجِمُ ولا يُنفِّذ، ويُقارَنُ خرجُ
+#        الترجمةِ بعلامتَي PASS/FAIL فلا توجدان ⇒ حكمٌ بلا معنًى.
+#   (EN) The only mode is `compiler`. The default used to be `interpreter`,
+#        so anyone omitting the second argument ran the interpreter branch
+#        against sad-build: the compiler is invoked without -o, it compiles
+#        instead of running, and its output is searched for PASS/FAIL
+#        markers that are not there — a verdict about nothing.
 # ======================================================================
 
 set -euo pipefail
 
 SAD_EXE="${1:-}"
-MODE="${2:-interpreter}"
+MODE="${2:-compiler}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # ألوان
@@ -31,8 +39,14 @@ failed_names=()
 
 # التحقق من المعاملات
 if [ -z "$SAD_EXE" ]; then
-    echo -e "${RED}Usage: $0 <sad_executable> [interpreter|compiler]${RESET}"
+    echo -e "${RED}Usage: $0 <sad_executable> [compiler]${RESET}"
     exit 1
+fi
+
+if [ "$MODE" != "compiler" ]; then
+    echo -e "${RED}❌ الوضع '$MODE' لم يعد موجودًا — المحرّك الواحد: compiler فقط${RESET}"
+    echo -e "${RED}   Mode '$MODE' no longer exists; the single engine is compiler${RESET}"
+    exit 2
 fi
 
 if [ ! -x "$SAD_EXE" ]; then
@@ -92,43 +106,40 @@ for test_file in $test_files; do
     
     start_time=$(date +%s%N 2>/dev/null || date +%s)
     
-    if [ "$MODE" = "interpreter" ]; then
-        # تشغيل المفسر مع timeout
-        output=$(timeout 30 "$SAD_EXE" "$test_file" 2>/tmp/sad_test_err.txt || true)
-        exit_code=$?
-        stderr=$(cat /tmp/sad_test_err.txt 2>/dev/null || echo "")
-    else
-        # وضع المترجم
-        out_exe="/tmp/sad_test_$(echo "$test_name" | tr -dc '0-9').out"
+    # (AR) 🔑 حُذف فرعُ `$MODE = interpreter`: المحرّكُ زال، والفرعُ
+    #      كان يُنادي `"$SAD_EXE" "$test_file"` بلا `-o`.
+    # (EN) The $MODE = interpreter branch was removed: the engine is gone and
+    #      the branch invoked "$SAD_EXE" "$test_file" with no -o.
+    # وضع المترجم
+    out_exe="/tmp/sad_test_$(echo "$test_name" | tr -dc '0-9').out"
+    
+    # ترجمة
+    compile_output=$("$SAD_EXE" "$test_file" -o "$out_exe" 2>/tmp/sad_compile_err.txt || true)
+    compile_exit=$?
+    
+    if [ $compile_exit -ne 0 ] || [ ! -x "$out_exe" ]; then
+        end_time=$(date +%s%N 2>/dev/null || date +%s)
         
-        # ترجمة
-        compile_output=$("$SAD_EXE" "$test_file" -o "$out_exe" 2>/tmp/sad_compile_err.txt || true)
-        compile_exit=$?
-        
-        if [ $compile_exit -ne 0 ] || [ ! -x "$out_exe" ]; then
-            end_time=$(date +%s%N 2>/dev/null || date +%s)
-            
-            if printf "%s
+        if printf "%s
 " "$KNOWN_FAILURES" | grep -qxF "$test_name"; then
-                xfail=$((xfail + 1))
-                xfail_names+=("$test_name (compile)")
-                echo -e "${YELLOW}XFAIL (compile error)${RESET}"
-            else
-                failed=$((failed + 1))
-                failed_names+=("$test_name (compile)")
-                echo -e "${RED}FAIL (compile error)${RESET}"
-                compile_err=$(cat /tmp/sad_compile_err.txt 2>/dev/null | head -3)
-                [ -n "$compile_err" ] && echo -e "    ${RED}$compile_err${RESET}"
-            fi
-            continue
+            xfail=$((xfail + 1))
+            xfail_names+=("$test_name (compile)")
+            echo -e "${YELLOW}XFAIL (compile error)${RESET}"
+        else
+            failed=$((failed + 1))
+            failed_names+=("$test_name (compile)")
+            echo -e "${RED}FAIL (compile error)${RESET}"
+            compile_err=$(cat /tmp/sad_compile_err.txt 2>/dev/null | head -3)
+            [ -n "$compile_err" ] && echo -e "    ${RED}$compile_err${RESET}"
         fi
-        
-        # تشغيل
-        output=$(timeout 30 "$out_exe" 2>/tmp/sad_test_err.txt || true)
-        exit_code=$?
-        stderr=$(cat /tmp/sad_test_err.txt 2>/dev/null || echo "")
-        rm -f "$out_exe"
+        continue
     fi
+    
+    # تشغيل
+    output=$(timeout 30 "$out_exe" 2>/tmp/sad_test_err.txt || true)
+    exit_code=$?
+    stderr=$(cat /tmp/sad_test_err.txt 2>/dev/null || echo "")
+    rm -f "$out_exe"
     
     end_time=$(date +%s%N 2>/dev/null || date +%s)
     

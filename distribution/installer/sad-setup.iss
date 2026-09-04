@@ -302,7 +302,25 @@ Source: "..\..\build\bin\Release\sad-build.exe";      DestDir: "{app}\bin"; Dest
 Source: "..\..\build\bin\Release\sad-build.exe";      DestDir: "{app}\bin"; DestName: "sadc.exe";      Flags: ignoreversion; Components: Tools\Compiler
 
 ; ──── خادم LSP + المنسَّق
-Source: "..\..\build\bin\Release\sad-lsp.exe";       DestDir: "{app}\bin"; DestName: "sad-lsp.exe"; Flags: ignoreversion skipifsourcedoesntexist; Components: Tools\LSP
+; (AR) 🔑 **`sad-check` مُلزَمٌ في كلِّ حزمةٍ ولم يكنْ يُشحَنُ في أيِّ
+;      مُثبِّتِ ويندوز.** `scripts/ci/release_tools.sh` يُعلِنُه في
+;      `SAD_REQUIRED_STANDARD` — أي «ما يجبُ أن يوجدَ وإلّا سقطَ الشوط» —
+;      وحارسُ `check_installer_tool_lists.py` كان يقيسُ `install.sh`
+;      و`install.ps1` وحدَهما، فلم يرَ المُثبِّتَين هذين أصلًا. ووُضِعَ
+;      تحتَ `Core\Hub` المثبَّتِ (`Flags: fixed`) لأنّه مُلزَمٌ لا اختياريّ.
+; (EN) sad-check is hard-required in every package and was shipped by NEITHER
+;      Windows installer. release_tools.sh declares it in
+;      SAD_REQUIRED_STANDARD, and check_installer_tool_lists.py measured only
+;      install.sh and install.ps1, so it never looked at these files. Placed
+;      under the fixed Core\Hub component because it is required, not optional.
+Source: "..\..\build\bin\Release\sad-check.exe";      DestDir: "{app}\bin"; DestName: "sad-check.exe"; Flags: ignoreversion; Components: Core\Hub
+; (AR) 🔑 نُزِعَ `skipifsourcedoesntexist` عن `sad-lsp`: هو مُلزَمٌ في
+;      `SAD_REQUIRED_STANDARD`، والعَلَمُ يجعلُ غيابَه صامتًا فتُبنى حزمةٌ
+;      ناقصةٌ بلا كلمة. المُلزَمُ يُنسَخُ أو يُخفِقُ البناء.
+; (EN) skipifsourcedoesntexist removed from sad-lsp: it is hard-required by
+;      SAD_REQUIRED_STANDARD, and the flag made its absence silent, building
+;      an incomplete package without a word. Required means copied or fail.
+Source: "..\..\build\bin\Release\sad-lsp.exe";       DestDir: "{app}\bin"; DestName: "sad-lsp.exe"; Flags: ignoreversion; Components: Tools\LSP
 Source: "..\..\build\bin\Release\sad-fmt.exe";       DestDir: "{app}\bin"; DestName: "sad-fmt.exe"; Flags: ignoreversion skipifsourcedoesntexist; Components: Tools\LSP
 
 ; ──── مدير الحزم

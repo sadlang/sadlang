@@ -989,8 +989,8 @@ jobs:
   #      البرمجيّةِ، وحلُّ رابطِ التنزيل، والفكُّ، وموضعُ `bin/`.
   #
   #      ⚠️ وما لا تقيسُه معلَنٌ لا مسكوتٌ عنه — وهو **قيدُ المُثبِّتِ لا قيدُنا**:
-  #      مكوّنُ `compiler` مقيسٌ على لينكسَ ولا يُقاسُ على ويندوز، لأنّ
-  #      `install.ps1` **لا سبيلَ فيه إلى طريقٍ غيرِ تفاعليٍّ لهذا المكوّن**:
+  #      المكوّنُ `full` مقيسٌ على لينكسَ ولا يُقاسُ على ويندوز، لأنّ
+  #      `install.ps1` **لا سبيلَ فيه إلى طريقٍ غيرِ تفاعليٍّ لمترجّمِه**:
   #      لا مُعامِلَ `-LLVMPath` فيه، وإذا لم يَجدْ LLVM سألَ بـ`Read-Host`،
   #      وقراءةُ نهايةِ الملفِّ في وظيفةٍ بلا طرفيّةٍ تُرجِعُ فراغًا فيقعُ على
   #      الخيارِ الافتراضيِّ: تنزيلُ LLVM وتثبيتُه. فقياسُه اليومَ يعني إمّا
@@ -998,6 +998,8 @@ jobs:
   #      صورةَ الرَّكّاضِ تحملُ LLVM عَرَضًا — وكلاهما قياسٌ لا يُوثَقُ به.
   #      والعلاجُ الصحيحُ رقعةٌ في `install.ps1` (مُعامِلٌ صريحٌ للمسار) تُكتَبُ
   #      وحدَها، لا حشوُها في هذا الطلب.
+  #      (وكان مكتوبًا هنا «مكوّنُ `compiler`» — وقد تقاعدَ المكوّنُ وصارت
+  #       الخانةُ `full`، فالوصفُ كان يُسمّي شيئًا لا وجودَ له في المصفوفة.)
   #      وعلى لينكسَ لا يقعُ هذا: `find_llvm` يجدُ LLVM المثبَّتةَ فلا يسألُ
   #      أصلًا، ويُمرَّرُ `--llvm-path` صريحًا فوقَ ذلك. ويبقى **فرعُ التثبيتِ
   #      التلقائيِّ** في `install.sh` غيرَ مقيسٍ عمدًا للسببِ نفسِه.
@@ -1024,9 +1026,15 @@ jobs:
   #      path. Pre-publish blocking is verify-package's job; this one judges the
   #      route a user actually takes: the API call, the download URL, the
   #      extraction, and where bin/ lands.
-  #      ⚠️ Declared gap: only the `interpreter` component is installed. The
-  #      `compiler` component pulls the installer's LLVM logic — a longer route,
-  #      not yet measured.
+  #      ⚠️ Declared gap (see the Arabic note above for the full reasoning):
+  #      the matrix measures linux×standard, linux×full and windows×standard.
+  #      windows×full is not measured because install.ps1 has no
+  #      non-interactive path for its compiler step.
+  #      🔑 This paragraph used to read "only the `interpreter` component is
+  #      installed" — a component that no longer exists — while the Arabic note
+  #      directly above already described a different gap. Two descriptions of
+  #      one matrix, both stale, disagreeing with each other and with the
+  #      matrix.
   # ════════════════════════════════════════════════════════════════════
   verify-installer:
     name: "تشغيلُ المُثبِّت / Run the installer (${{ matrix.os }} · ${{ matrix.component }})"

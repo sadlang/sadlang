@@ -8,32 +8,37 @@
         ① الأساس المشترك    : sad_shared (نواة اللغة الحقيقيّة).
         Ⓑ الحزام المشترك     : sad_type_system / sad_semantic / sad_memory_* /
                               sad_security_core / sad_null_safety / sad_mobile.
-        ② نظام المفسّر فقط   : sad_interp(=sad_core) / sad_runtime / sad_builtins /
-                              sad_lowlevel / sad_graphics_bridge / sad_graphics /
+        ② زمنُ التشغيل     : sad_builtins / sad_lowlevel / sad_graphics /
                               sad_graphics_runtime / sad_network / sad_http /
-                              sad_websocket / sadnet / sad_rt_runtime /
-                              sad_profiler_lib.
-                              (sad_runtime = خدمات وقت التشغيل المشتركة؛ يُرقَّى إلى
-                               الحزام عند عودة الآلة الافتراضية كمستهلكٍ ثانٍ.)
+                              sad_websocket / sadnet / sad_rt_runtime.
         ③ نظام المترجم فقط   : sad_compiler / sad_frontend / sad_optimizer /
                               sad_llvm_backend / sad_tools / sad_ui_ir /
                               sad_abstraction / sad_security.
-        التنفيذيّان (L2)     : sad-run (مفسّر) / sad-build (مترجم).
+        التنفيذيُّ (L2)      : sad-build (المترجّم).
 
-    اللامتغيِّر المفروض (G4 — «لا روابط مباشرة بين زمنِ التشغيلِ والمترجم»):
-        • لا يربط هدفُ نظامِ المفسّر أيَّ هدف من نظام المترجم، والعكس.
-        • sad-run لا يربط أيَّ هدف من نظام المترجم.
-        • sad-build لا يربط أيَّ هدف من نظام المفسّر.
+    اللامتغيِّر المفروض (G4 — «نظامُ المترجّمِ لا يربطُ زمنَ التشغيلِ مباشرةً»):
+        • لا يربط هدفُ زمنِ التشغيلِ أيَّ هدف من نظام المترجم، والعكس.
+        • sad-build لا يربط أيَّ هدف من زمنِ التشغيل.
         • الأساس sad_shared لا يربط أيَّ هدف من زمنِ التشغيلِ والمترجم (يبقى قاعدةً نقيّة).
 
+    ⚠️ **هذه الترويسةُ تباعدت عن شفرتِها.** كانت تصفُ الطبقةَ ② بـ
+    «نظام المفسّر فقط» وتعدُّ فيها `sad_interp(=sad_core)` و`sad_runtime`
+    و`sad_graphics_bridge` و`sad_profiler_lib` — وأربعتُها أهدافٌ محذوفةٌ
+    نُزِعت من `RUNTIME` في الشفرةِ أدناه، والمجموعةُ نفسُها أُعيدت تسميتُها
+    من `INTERP` إلى `RUNTIME` مع تعليلِها. وتعدُّ `sad-run` تنفيذيًّا ثانيًا
+    وقد زال. فمن قرأ الترويسةَ وحدَها ظنَّ الحارسَ يقيسُ حدًّا بين محرّكَين،
+    وهو يقيسُ حدًّا بين المترجّمِ وزمنِ التشغيل. وُصِفَ الواقعُ هنا.
+
     الحدّ نظيفٌ اليوم بالممارسة، فالحارس **وقائيّ لا تصحيحيّ**: يثبّت الوضع
-    السليم ويفشل إن تسلّل رابطٌ عابرٌ للمحرّكَين. شقيقه على مستوى التضمين هو
-    check_interpreter_boundary.py؛ هذا يعمل على مستوى رسم الربط في CMake.
+    السليم ويفشل إن تسلّل رابطٌ من المترجّمِ إلى زمنِ التشغيل. وهو يعمل على
+    مستوى رسم الربط في CMake.
 
 (EN) CMake target-layering guard. Parses every `target_link_libraries(...)` across
      the repo's CMake sources, classifies each known `sad_*` target into a layer,
-     and fails if any edge crosses the interpreter↔compiler engine boundary, or if
-     the shared foundation links upward into an engine. Preventive: holds today.
+     and fails if any edge crosses the compiler<->runtime boundary, or if the
+     shared foundation links upward. Preventive: holds today. This header used to
+     describe an interpreter<->compiler boundary and list four deleted targets;
+     the code below had already been corrected, and the prose had not.
 
     المرجع: docs/architecture/cmake-target-boundaries.md §3-§6.
 """

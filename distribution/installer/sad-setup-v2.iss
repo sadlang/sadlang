@@ -125,7 +125,19 @@ Source: "..\..\build\bin\Release\sad-build.exe"; DestDir: "{app}\bin"; DestName:
 Source: "..\..\build\bin\Release\sad-build.exe"; DestDir: "{app}\bin"; DestName: "sadc.exe"; Flags: ignoreversion; Components: compiler
 
 ; LSP + Formatter
-Source: "..\..\build\bin\Release\sad-lsp.exe"; DestDir: "{app}\bin"; Flags: ignoreversion skipifsourcedoesntexist; Components: lsp
+; (AR) 🔑 `sad-check` مُلزَمٌ في `SAD_REQUIRED_STANDARD` ولم يكنْ يُشحَن —
+;      انظر التعليلَ في sad-setup.iss. وهو تحتَ `hub` المثبَّت.
+; (EN) sad-check is hard-required by SAD_REQUIRED_STANDARD and was not
+;      shipped — see the rationale in sad-setup.iss. It goes under the fixed
+;      hub component.
+Source: "..\..\build\bin\Release\sad-check.exe"; DestDir: "{app}\bin"; Flags: ignoreversion; Components: hub
+; (AR) 🔑 نُزِعَ `skipifsourcedoesntexist` عن `sad-lsp`: هو مُلزَمٌ في
+;      `SAD_REQUIRED_STANDARD`، والعَلَمُ يجعلُ غيابَه صامتًا فتُبنى حزمةٌ
+;      ناقصةٌ بلا كلمة. المُلزَمُ يُنسَخُ أو يُخفِقُ البناء.
+; (EN) skipifsourcedoesntexist removed from sad-lsp: it is hard-required by
+;      SAD_REQUIRED_STANDARD, and the flag made its absence silent, building
+;      an incomplete package without a word. Required means copied or fail.
+Source: "..\..\build\bin\Release\sad-lsp.exe"; DestDir: "{app}\bin"; Flags: ignoreversion; Components: lsp
 Source: "..\..\build\bin\Release\sad-fmt.exe"; DestDir: "{app}\bin"; Flags: ignoreversion skipifsourcedoesntexist; Components: lsp
 
 ; Package Manager
