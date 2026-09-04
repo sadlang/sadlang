@@ -264,8 +264,16 @@ namespace Sad
          * @brief (AR) تخطي التعليقات في الكود (# للسطر الواحد، #* *# للمتعدد، ## و #** **# للتوثيق)
          * @brief (EN) Skip comments in code (# for single line, #* *# for multi-line, ## and #** **# for doc)
          *
-         * @throws (std::runtime_error) — (AR) إذا كان تعليق متعدد الأسطر غير مغلق
-         *                                 (EN) if multi-line comment is not closed
+         * @note (AR) 🔑 وُضِعَ هنا أوّلًا `@return` يصفُ رمزَ خطأِ LEX007 —
+         *            و`skipComment` **لا تُرجِعُ شيئًا** (`void`) ولا تعالجُ تعليقًا:
+         *            جسمُها كلُّه `if (peek() != '#') return;`. فالوسمُ كان على
+         *            دالّةٍ لا تصلحُ له. والتعليقُ غيرُ المغلقِ يُنتِجُ رمزَ خطأِ
+         *            LEX007 في `nextToken`، وهو موضعُ التعليلِ الصحيح.
+         *       (EN) A @return describing the LEX007 error token was first written
+         *            here, but skipComment returns nothing (void) and handles no
+         *            comment — its whole body is `if (peek() != '#') return;`. The
+         *            unterminated block comment yields a LEX007 error token in
+         *            nextToken, which is where the rationale belongs.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -308,8 +316,14 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع INTEGER أو DOUBLE
          *                   (EN) token of type INTEGER or DOUBLE
          *
-         * @throws (std::runtime_error) — (AR) إذا كان الرقم بصيغة خاطئة
-         *                                 (EN) if number has invalid format
+         * @return (AR) 🔑 رمزُ خطأٍ إذا كان الرقم بصيغة خاطئة — **لا يرمي**.
+         *              (كان هنا `@throws (std::runtime_error)`، وهو وسمٌ بائتٌ:
+         *               الرميُ الوحيدُ في هذا الملفِّ في `tokenize`، وكلُّ ماسحٍ
+         *               يُرجِعُ `makeError`. ومثلُه أربعةٌ أُخَرُ صُحّحت معه.)
+         *         (EN) An error token if the number is malformed — it does not throw.
+         *              This carried @throws (std::runtime_error), a stale tag: the
+         *              only throw in this file is in tokenize and every scanner
+         *              returns makeError. Four sibling tags were corrected with it.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -740,8 +754,8 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع LITERAL_STRING
          *                   (EN) token of type LITERAL_STRING
          *
-         * @throws (std::runtime_error) — (AR) إذا كان النص غير مغلق
-         *                                 (EN) if string is not closed
+         * @return (AR) رمزُ خطأٍ إذا كان النص غير مغلق — لا يرمي (انظر `scanNumber`).
+         *         (EN) An error token if the string is not closed — does not throw.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -986,8 +1000,8 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع STRING_RAW
          *                   (EN) token of type STRING_RAW
          *
-         * @throws (std::runtime_error) — (AR) إذا كان النص غير مغلق
-         *                                 (EN) if string is not closed
+         * @return (AR) رمزُ خطأٍ إذا كان النص غير مغلق — لا يرمي (انظر `scanNumber`).
+         *         (EN) An error token if the string is not closed — does not throw.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -1039,8 +1053,9 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع STRING_FSTRING
          *                   (EN) token of type STRING_FSTRING
          *
-         * @throws (std::runtime_error) — (AR) إذا كان النص غير مغلق أو التعبير غير صحيح
-         *                                 (EN) if string is not closed or expression is invalid
+         * @return (AR) رمزُ خطأٍ إذا كان النص غير مغلق أو التعبير غير صحيح — لا يرمي.
+         *         (EN) An error token if the string is unclosed or the expression is
+         *              invalid — it does not throw.
          *
          * مثال الاستخدام / Usage example:
          * @code
@@ -1153,8 +1168,9 @@ namespace Sad
          * @return (Token) — (AR) رمز من نوع DOC_COMMENT
          *                   (EN) token of type DOC_COMMENT
          *
-         * @throws (std::runtime_error) — (AR) إذا كان التعليق التوثيقي متعدد الأسطر غير مغلق
-         *                                 (EN) if multi-line doc comment is not closed
+         * @return (AR) رمزُ خطأٍ إذا كان التعليق التوثيقي متعدد الأسطر غير مغلق — لا يرمي.
+         *         (EN) An error token if the multi-line doc comment is not closed —
+         *              it does not throw.
          *
          * مثال الاستخدام / Usage example:
          * @code

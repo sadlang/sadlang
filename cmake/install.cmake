@@ -7,7 +7,7 @@
 # (AR) يجمع جميع قواعد install() في مكان واحد ويضيف إعداد CPack
 #      المكونات مصممة وفق docs/architecture-tools-hub.md (3 مستويات توزيع):
 #        فردي   : sad-runtime, sad-compiler, sad-fmt, sad-check
-#        إضافي  : sad-tools-extra (lsp, pkg, repl, profiler, analyze)
+#        إضافي  : sad-tools-extra (lsp, pkg, analyze)
 #        حزمة   : sad-developer (runtime+compiler+fmt+check+tools-extra)
 #        كل شيء : sad-everything (الحزمة + ios + android + docs + examples)
 #
@@ -33,8 +33,14 @@ if(TARGET sad)
 endif()
 
 # ══════════════════════════════════════════════════════════════════════
-# (AR) المكوّن runtime: المفسر sad-run + المكتبة القياسية
-# (EN) Component runtime: interpreter sad-run + standard library
+# (AR) المكوّن runtime: المكتبة القياسية
+#      🔑 كان الاسمُ يصفُ «المفسر sad-run + المكتبة القياسية»، والكتلةُ
+#      تحتَه لا تُركّبُ إلّا `stdlib/` ومكتباتِ الميزات. فالمكوّنُ يحملُ اسمَ
+#      محرّكٍ محذوفٍ ولا يشحنُ منه شيئًا.
+# (EN) Component runtime: the standard library. The comment described
+#      "interpreter sad-run + standard library" while the block below installs
+#      only stdlib/ and the feature stdlibs: the component carried the name of
+#      a deleted engine and shipped none of it.
 # ══════════════════════════════════════════════════════════════════════
 
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/stdlib/
@@ -123,8 +129,21 @@ if(TARGET sad-check)
 endif()
 
 # ══════════════════════════════════════════════════════════════════════
-# (AR) المكوّن tools-extra: أدوات إضافية (LSP, pkg, repl, profiler, analyze)
-# (EN) Component tools-extra: extra tools (LSP, pkg, repl, profiler, analyze)
+# (AR) المكوّن tools-extra: أدوات إضافية (LSP، مدير الحزم، Analyzer)
+#      🔑 كان مكتوبًا هنا «repl, profiler» والحلقةُ تحتَه لا تُركّبُ إلّا
+#      ثلاثةَ أهدافٍ ولا هدفَ باسمِ أيٍّ منهما في المستودعِ كلِّه. فالتعليقُ
+#      كان نسخةً من قائمةٍ تحتَه مباشرةً — وتباعدَ عنها.
+#      ⚠️ والنُّسَخُ **ثلاثٌ لا اثنتان**: كُتِبَ هنا أوّلًا «نسخةً ثانية»
+#      فأُصلحت اثنتان وبقيت الثالثةُ في ترويسةِ الملفِّ (السطر ١٠) تعدُّهما
+#      عضوَين في `sad-tools-extra`. عُدَّتِ النُّسَخُ وصُحّحت الثلاث.
+# (EN) Component tools-extra: extra tools (LSP, package manager, analyzer).
+#      The comment used to say "repl, profiler" while the loop below
+#      installs three targets and neither name exists as a target anywhere.
+#      It was a copy of the list directly beneath it, and it drifted. There
+#      were THREE copies, not two — this comment first said "a second copy",
+#      so two were fixed and the third survived in the file header (line 10),
+#      which still counted both as members of sad-tools-extra. Counted and
+#      corrected in all three places.
 # ══════════════════════════════════════════════════════════════════════
 foreach(_tool sad-lsp sad-pkg sad-analyze)
     if(TARGET ${_tool})
@@ -168,12 +187,19 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/docs/book")
     )
 endif()
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/docs/architecture-tools-hub.md")
-    install(FILES "${CMAKE_SOURCE_DIR}/docs/architecture-tools-hub.md"
-        DESTINATION ${CMAKE_INSTALL_DOCDIR}
-        COMPONENT docs
-    )
-endif()
+# (AR) 🔑 حُذفت قاعدةُ تركيبِ `docs/architecture-tools-hub.md`.
+#      وهي وثيقةُ **تصميمٍ داخليّةٌ** (مقترحٌ معتمَدٌ بتاريخِ يناير ٢٠٢٦،
+#      فيه «معايير قبول» و«تقييم مخاطر» و«خطّة تنفيذ») كانت تُشحَنُ داخلَ
+#      حزمةِ المستخدم. ومنذُ حذفِ المفسّرِ صارت تصفُ للمستخدمِ منتجًا
+#      لا وجودَ له: `sad-run.exe` و`sad-repl.exe` ومكوّنَ `sad-runtime`.
+#      والوثيقةُ باقيةٌ في الشجرةِ سجلًّا للقرار — والسجلُّ لا يُشحَن.
+# (EN) The install rule for docs/architecture-tools-hub.md was removed. It
+#      is an INTERNAL design document — an approved January 2026 proposal
+#      with acceptance criteria, a risk table and a rollout plan — and it
+#      was being shipped inside the user package. Since the interpreter was
+#      deleted it describes a product that does not exist: sad-run.exe,
+#      sad-repl.exe, a sad-runtime component. The document stays in the tree
+#      as the record of a decision; a record is not shipped.
 
 # ══════════════════════════════════════════════════════════════════════
 # (AR) المكوّن examples: ملفات .ص نموذجية
@@ -240,7 +266,11 @@ set(CPACK_COMPONENT_CHECK_DISPLAY_NAME "فاحص الملكية / Checker (sad-c
 set(CPACK_COMPONENT_CHECK_DESCRIPTION  "(AR) فاحص ملكية ثابت — يكتشف use-after-move ومشاكل العمر\n(EN) Static ownership checker — detects use-after-move and lifetime issues")
 
 set(CPACK_COMPONENT_TOOLS-EXTRA_DISPLAY_NAME "أدوات إضافية / Extra Tools")
-set(CPACK_COMPONENT_TOOLS-EXTRA_DESCRIPTION  "(AR) LSP، مدير الحزم، REPL، Profiler، Analyzer\n(EN) LSP server, package manager, REPL, profiler, analyzer")
+# (AR) ⚠️ هذا الوصفُ يُعرَضُ في نافذةِ المُثبِّتِ عندَ اختيارِ المكوّنات،
+#      فكان يَعِدُ المستخدمَ بـREPL وProfiler ثمّ لا يُنسَخُ أيٌّ منهما.
+# (EN) This text is shown in the installer component picker, so it promised
+#      the user a REPL and a profiler that are then never copied.
+set(CPACK_COMPONENT_TOOLS-EXTRA_DESCRIPTION  "(AR) خادم LSP، مدير الحزم، أداة التحليل\n(EN) LSP server, package manager, analyzer")
 
 set(CPACK_COMPONENT_MOBILE_DISPLAY_NAME "أدوات الهاتف / Mobile")
 set(CPACK_COMPONENT_MOBILE_DESCRIPTION  "(AR) بناة iOS و Android و APK\n(EN) iOS, Android, and APK builders")

@@ -6,7 +6,8 @@
 (EN) Markdown docs generator from cli_flags.yaml — Sad CLI flags
 ----------------------------------------------------------------------------
 (AR) يقرأ المصدر الوحيد لأعلام سطر الأوامر ويُنتج ملفّ Markdown واحدًا مُلتزَمًا
-     يوثّق كلّ الأعلام مجموعةً حسب المحرّك المستهلِك (المترجم/المفسّر/الذاكرة).
+     يوثّق كلّ الأعلام مجموعةً حسب المحرّك المستهلِك (المترجم/الذاكرة)، ويَسِمُ
+     قسمَ أعلامِ المحرّكِ المحذوفِ دَينًا مُقيَّدًا لا عرضًا لما يعمل.
      يعيد استخدام مُحمِّل ومُحقِّق gen_cli_flags.py (لا ازدواج تحقّق). يُحرَس
      بـ x.py gen --check كي لا تصير الوثيقة بائتة.
 (EN) Reads the single source of truth for CLI flags and emits one committed
@@ -112,7 +113,7 @@ def emit_markdown(data: dict[str, Any]) -> str:
     out.append(">")
     out.append(
         "> لكلّ علمٍ طويل **اسمٌ عربيّ قانونيّ وحيد** — بلا مرادفات ولا توافق خلفيّ. "
-        "استعمال اسمٍ ملغًى يُنتج «خيار غير معروف» وخروجًا ≠ 0 في المترجم والمفسّر."
+        "استعمال اسمٍ ملغًى يُنتج «خيار غير معروف» وخروجًا ≠ 0 في المترجم."
     )
     out.append(">")
     out.append(
@@ -124,8 +125,8 @@ def emit_markdown(data: dict[str, Any]) -> str:
     out.append("## كيف تُقرأ الجداول")
     out.append("")
     out.append("- **النوع:** `منطقيّ` = بلا قيمة؛ `قيميّ` = يقبل القيمة بصيغة **`الاسم=قيمة` حصريًّا** (لا كوسيطٍ منفصل).")
-    out.append("- **المحرّك:** `المترجم` = `sad-build` · `المفسّر` = `sad-run` · `الذاكرة` = ماسح سياسة الذاكرة المسبق (يعمل في المحرّكين).")
-    out.append("- الأعلام ذات المحرّكين لها الاسم نفسه حرفيًّا في الأداتين.")
+    out.append("- **المحرّك:** `المترجم` = `sad-build` · `الذاكرة` = ماسح سياسة الذاكرة المسبق.")
+    out.append("- الوسم `المفسّر` باقٍ في المصدر بلا ثنائيٍّ يقرؤه — انظر القسم 3.")
     out.append("")
 
     out.append("## 1) أعلام المترجم (`sad-build`) الخاصّة")
@@ -133,19 +134,54 @@ def emit_markdown(data: dict[str, Any]) -> str:
     out.append(_table(compiler_only))
     out.append("")
 
-    out.append("## 2) عائلة سياسة الذاكرة (تعمل في المحرّكين معًا)")
+    # (AR) كان العنوانُ «(تعمل في المحرّكين معًا)» — والشقُّ الثاني زال، لكنّ
+    #      الشقَّ الأوّلَ **صحيحٌ ومقيس**: العشرةُ كلُّها يقبلُها `sad-build`
+    #      برمزِ خروجٍ ٠. فحذفُ الجملةِ كلِّها يُسقِطُ حقيقةً قائمة.
+    # (EN) The heading said "works in both engines"; the second half is gone but
+    #      the first is true and measured — all ten are accepted by sad-build
+    #      with exit code 0. Dropping the whole sentence would drop a live fact.
+    out.append("## 2) عائلة سياسة الذاكرة (تعمل في `sad-build`)")
     out.append("")
     out.append(_table(memory))
     out.append("")
 
-    out.append("## 3) أعلام المفسّر (`sad-run`) الخاصّة")
+    # (AR) 🔑 كان العنوانُ «أعلام المفسّر الخاصّة» وتحتَه جدولٌ عاديّ، فتُقرأُ
+    #      هذه الأعلامُ على أنّها متاحة في **المرجعِ المُودَعِ الذي يُقرَأُ من
+    #      الشجرة**. (وكُتِبَ هنا أوّلًا «تُشحَنُ داخلَ الحزم» — ودعوى كاذبة:
+    #      `cmake/install.cmake` لا يشحنُ من `docs/` إلّا `docs/book/` وهي
+    #      غيرُ موجودةٍ أصلًا، ولا ينسخُ أيُّ مسارِ تحزيمٍ `docs/`. والتصحيحُ
+    #      هنا لا في مكانٍ آخرَ: التعليلُ الكاذبُ يُبطِلُ الرقعةَ الصحيحة.)
+    #      يناقضُ حكمَ المصدرِ حرفيًّا: «لا يُقرَأُ وجودُ هذه المدخلاتِ أنّ الأعلامَ
+    #      تعمل». فالمصدرُ قيَّدَ الدَّينَ والوثيقةُ كانت تمحوه.
+    #      والجدولُ باقٍ: الإخفاءُ يُسقِطُ السجلَّ، والوسمُ يُبقيه صادقًا.
+    # (EN) The heading read "interpreter-only flags" over a plain table, so a
+    #      committed reference read straight from the tree presented them as
+    #      available — (this first said "ships inside packages", which is false:
+    #      install.cmake ships nothing from docs/ except docs/book/, which does
+    #      not exist, and no packaging path copies docs/) —
+    #      contradicting the source of truth verbatim: "their presence must NOT
+    #      be read as these work". The table stays: hiding it would drop the
+    #      record; labelling it keeps the record honest.
+    out.append("## 3) أعلام المحرّك المحذوف — دَينٌ مُقيَّد، لا أعلامٌ متاحة")
+    out.append("")
+    out.append(
+        "> ⚠️ **هذه الأعلام بلا مستهلك.** كانت خاصّةً بالمفسّر (`sad-run`)، "
+        "وقد زال، فلم يبقَ ثنائيٌّ يقرؤها. وهي مُعلَنةٌ في المصدر **قصدًا لا سهوًا** — "
+        "حذفُ علمٍ مُعلَنٍ قرارُ سطحِ لغةٍ لا تنظيفُ شجرة، والسؤالُ المفتوح أيُّها يجب "
+        "أن يعرضَه `sad-build`. فلا يُقرَأُ وجودُها هنا أنّها تعمل: تمريرُ أيٍّ منها "
+        "اليومَ يُنتج «خيار غير معروف»."
+    )
     out.append("")
     out.append(_table(interp_only))
     out.append("")
 
-    out.append("## 4) الأعلام المشتركة (المترجم + المفسّر)")
+    out.append("## 4) أعلامٌ كانت مشتركة (المترجم + المحرّك المحذوف)")
     out.append("")
-    out.append("هذه الأعلام لها الاسم القانونيّ نفسه في الأداتين:")
+    out.append(
+        "هذه الأعلام تعمل في `sad-build`. وكان الجزء الثاني من وسمها "
+        "(`interpreter`) يصف محرّكًا زال، فلا يُقرأ منه شيء — يُنقّى في المصدر "
+        "مع حسم القسم 3 لا قبله."
+    )
     out.append("")
     out.append(_table(shared))
     out.append("")
@@ -171,7 +207,7 @@ def emit_markdown(data: dict[str, Any]) -> str:
     out.append("")
     out.append("1. **القيمة بصيغة `=` حصريًّا:** `--جامع=tracing` صحيح؛ أمّا `--جامع tracing` فيُعامَل `--جامع` صيغةً مجرّدة و`tracing` وسيطًا مستقلًّا.")
     out.append("2. **الصيغة المجرّدة لعلمٍ قيميّ لها معنًى:** `--جامع` = الجمع الكامل؛ `--تحسين-الربط` = LTO كامل؛ `--اشرح` = شرح مفصّل.")
-    out.append("3. **فشل عالٍ لا صامت:** أيّ علمٍ طويل مجهول يُنتج «خيار غير معروف» وخروجًا ≠ 0 في المترجم والمفسّر.")
+    out.append("3. **فشل عالٍ لا صامت:** أيّ علمٍ طويل مجهول يُنتج «خيار غير معروف» وخروجًا ≠ 0 في المترجم.")
     out.append("4. **لا مرادفات بنيويًّا:** المخطّط يفرض حقلًا قانونيًّا مفردًا، ويشترط حرفًا عربيًّا واحدًا على الأقلّ (يمنع اسمًا لاتينيًّا خالصًا)، ويمنع أيّ حقل `alias`/`aliases`.")
     out.append("")
     out.append("*مُشتقّ حرفيًّا من المصدر الوحيد. عند تعديل الأعلام، عدّل YAML وأعد التوليد (`x.py gen`).*")

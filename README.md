@@ -78,7 +78,7 @@ brew install sad-lang/tap/sad
 - نحو عربي واضح (`دالة`, `إذا`, `لكل`, `نهاية`)
 - UTF-8 كامل في الكود والتوثيق
 - مكتبة قياسية عربية (core, io, math, string, network, ...)
-- أدوات تطوير: LSP، Formatter، Package Manager، REPL
+- أدوات تطوير: مركز الأدوات (`sad`)، LSP، Formatter، Package Manager
 - اختبارات شاملة (Comprehensive + Regression)
 
 ## مثال سريع
