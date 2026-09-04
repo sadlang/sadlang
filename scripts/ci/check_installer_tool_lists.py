@@ -50,8 +50,7 @@ from pathlib import Path
 # (AR) المكوّنُ في المُثبِّتِ ← المتغيّرُ المقابلُ في الجدول.
 # (EN) Installer component -> the table variable it must equal.
 الاقتران = {
-    "interpreter": "SAD_REQUIRED_INTERPRETER",
-    "compiler": "SAD_REQUIRED_COMPILER",
+    "standard": "SAD_REQUIRED_STANDARD",
     "full": "SAD_REQUIRED_FULL",
 }
 

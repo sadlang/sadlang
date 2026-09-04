@@ -335,9 +335,48 @@ set(LLVM_LINK_COMPONENTS
     WebAssembly XCore native MC CodeGen AsmParser AsmPrinter
 )
 
-# (AR) على لينكس: ربط بمكتبة LLVM المشتركة الواحدة
-# (EN) On Linux with shared LLVM, link to single shared lib
-if(EXISTS "${LLVM_LIBRARY_DIRS}/libLLVM-${LLVM_VERSION_MAJOR}.so")
+# ══════════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **الربطُ الساكنُ خيارٌ صريحٌ لبناءِ الإصدار.**
+#
+#      الفرعُ أدناه يُفضّلُ `libLLVM-18.so` متى وُجدت. وهو صحيحٌ للتطويرِ
+#      المحلّيِّ (ربطٌ أسرعُ وثنائيٌّ أصغر)، وخاطئٌ لما يُشحَنُ إلى الناس:
+#      الثنائيُّ المنشورُ يصيرُ مشترِطًا `libLLVM-18.so` على جهازِ المستخدم.
+#
+#      والفارقُ مقيسٌ لا مُقدَّر: على ويندوز LLVM مربوطةٌ ساكنًا سلفًا —
+#      فُحِصَت مستورَداتُ `sad-build.exe` فلا DLL لـLLVM فيها، والثنائيُّ
+#      ٩٢ م.بايت. فكانت المنصّتانِ تشحنانِ عقدَينِ مختلفَين للمستخدمِ نفسِه.
+#
+#      وبهذا الخيارِ تصيرُ الحزمُ **مكتفيةً بذاتِها على المنصّاتِ كلِّها**،
+#      فلا يحتاجُ المُثبِّتُ أن يُنصِّبَ LLVM ولا أن يتراجعَ حين لا يجدُها.
+#
+#      ⚠️ والافتراضُ `OFF` عمدًا: البناءُ المحلّيُّ يبقى سريعًا كما كان،
+#      ومجرى الإصدارِ وحدَه يمرّرُ `-DSAD_LLVM_STATIC=ON`. ولئلّا يكونَ هذا
+#      وعدًا مُعلَنًا لا يقيسُه أحد، فحصُ التبعيّاتِ في التحزيمِ لا يأذنُ
+#      بـ`libLLVM` البتّة — فلو سقطَ العَلَمُ يومًا احمرَّ التحزيمُ ولم يُشحَنْ
+#      عقدٌ خفيّ.
+# (EN) 🔑 Static linking is an explicit choice for release builds.
+#
+#      The branch below prefers libLLVM-18.so when present. That is right for
+#      local development (faster link, smaller binary) and wrong for what ships:
+#      the published binary would then require libLLVM-18.so on the user's
+#      machine. Measured, not assumed: on Windows LLVM is already linked
+#      statically — sad-build.exe imports no LLVM DLL and weighs 92 MB — so the
+#      two platforms were shipping different contracts to the same user.
+#      With this option the packages are self-contained everywhere, so the
+#      installer neither provisions LLVM nor needs a fallback when it is absent.
+#      ⚠️ Default OFF on purpose: local builds stay fast, and only the
+#      release workflow passes -DSAD_LLVM_STATIC=ON. So that this is not a
+#      declared promise nobody measures, the packaging dependency check allows
+#      no libLLVM at all — if the flag is ever dropped, packaging reddens
+#      instead of shipping a hidden contract.
+# ══════════════════════════════════════════════════════════════════════════════
+option(SAD_LLVM_STATIC
+    "اربط LLVM ساكنًا (حزمٌ مكتفيةٌ بذاتها) / Link LLVM statically (self-contained packages)"
+    OFF)
+
+# (AR) على لينكس: ربط بمكتبة LLVM المشتركة الواحدة — ما لم يُطلَبِ الساكن
+# (EN) On Linux with shared LLVM, link to the single shared lib — unless static
+if(NOT SAD_LLVM_STATIC AND EXISTS "${LLVM_LIBRARY_DIRS}/libLLVM-${LLVM_VERSION_MAJOR}.so")
     set(LLVM_LIBS LLVM-${LLVM_VERSION_MAJOR})
     message(STATUS "   Using shared LLVM library: libLLVM-${LLVM_VERSION_MAJOR}.so")
 else()

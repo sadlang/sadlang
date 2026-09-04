@@ -19,26 +19,28 @@
 
 class Sad < Formula
   desc "لغة ص — لغة برمجة عربية حديثة / Sad Arabic Programming Language"
-  homepage "https://github.com/SalehKadah/s-programming-language"
+  homepage "https://github.com/sadlang/sadlang"
   license "MIT"
   version "1.0.0"
 
   # ── تنزيل حسب المنصة والبنية ──
-  on_macos do
-    on_arm do
-      url "https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-macos-arm64.tar.gz"
-      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
-    end
-    on_intel do
-      url "https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-macos-x64.tar.gz"
-      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
-    end
-  end
-
+  # (AR) 🔑 أُزيلت زجاجاتُ ماك: مجرى الإصدارِ لا يبني لماك (أُزيلت مدخلاتُها من
+  #      المصفوفتَين)، فكانت الصيغةُ تَعِدُ بأرشيفَينِ لا يُنتَجانِ أبدًا.
+  #      وصُحِّحَ اسمُ أرشيفِ لينكس: المجرى يُنتِجُ `sad-v{VER}-{OS}-x86_64`
+  #      لا `sad-{VER}-{OS}-x64` — فكان التنزيلُ يقعُ على 404 ولو وُجدَ الإصدار.
+  #      ⚠️ والبصمةُ صفرٌ عمدًا: لا إصدارَ منشورًا بعدُ من `sadlang/sadlang`،
+  #      وأرشيفُ الوسمِ القادمِ يختلفُ بايتًا (LLVM صارت ساكنة) فالبصمةُ
+  #      القديمةُ باطلةٌ قطعًا. تُولَّدُ مع أوّلِ وسم.
+  # (EN) macOS bottles removed: the release workflow builds no macOS artifact, so
+  #      the formula promised two archives that are never produced. The Linux
+  #      archive name is corrected to what the workflow actually emits.
+  #      ⚠️ The sha256 is deliberately zero: nothing is published yet from
+  #      sadlang/sadlang, and the next tag's archive differs byte-wise anyway
+  #      (LLVM is now statically linked), so the old digest is certainly void.
   on_linux do
     on_intel do
-      url "https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-linux-x64.tar.gz"
-      sha256 "851DCD17D3C5F002CE875BA93850AD3F69CC40D900CC7D783FD090F04A310663"
+      url "https://github.com/sadlang/sadlang/releases/download/v1.0.0/sad-v1.0.0-linux-x86_64.tar.gz"
+      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
   end
 

@@ -10,14 +10,12 @@
 #
 # خيارات متقدمة / Advanced:
 #   ./install.sh                                 # تثبيت تفاعلي (GUI إن توفر)
-#   ./install.sh --components full               # المفسر + المترجم + كل الأدوات
-#   ./install.sh --components compiler           # المترجم فقط (يتطلب LLVM)
-#   ./install.sh --components interpreter        # المفسر فقط
+#   ./install.sh --components standard           # المترجم + المكتبة القياسية + الأدوات الأساسية
+#   ./install.sh --components full               # المترجم + كل الأدوات
 #   ./install.sh --version 1.2.0                 # إصدار محدد
 #   ./install.sh --dir /opt/sad-lang             # مجلد مخصص
 #   ./install.sh --no-path                       # لا يضيف لمتغير PATH
 #   ./install.sh --no-gui                        # إجبار وضع الطرفية النصية
-#   ./install.sh --llvm-path /usr/lib/llvm-18    # مسار LLVM مباشرة
 #   ./install.sh --uninstall                     # إزالة التثبيت
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -26,8 +24,14 @@ set -e
 # ──────────────────────────────────────────────────────────────────────
 # الإعدادات / Configuration
 # ──────────────────────────────────────────────────────────────────────
-REPO_OWNER="SalehKadah"
-REPO_NAME="s-programming-language"
+# (AR) 🔑 المستودعُ العلنيُّ الذي يصدرُ منه الإصدارُ الرسميّ.
+#      وكان يشيرُ إلى مستودعٍ صارَ **خاصًّا**، فكانت كلُّ محاولةِ تثبيتٍ تقعُ
+#      على 404، واسمُ مستودعٍ خاصٍّ مكتوبٌ في سكربتٍ يُشحَنُ للناس.
+# (EN) 🔑 The public repository the official release is issued from. This
+#      pointed at a repository since made PRIVATE, so every install attempt
+#      would 404 — and a private repo name sat in a script shipped to users.
+REPO_OWNER="sadlang"
+REPO_NAME="sadlang"
 GITHUB_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 DEFAULT_INSTALL_DIR="$HOME/.sad-lang"
 VERSION="latest"
@@ -35,8 +39,6 @@ COMPONENTS=""
 NO_PATH=0
 UNINSTALL=0
 FORCE_TUI=0
-LLVM_PATH=""
-LLVM_SKIP=0
 GUI_TOOL=""
 GUI_PROGRESS_PID=""
 
@@ -79,20 +81,37 @@ while [ $# -gt 0 ]; do
         --no-path)      NO_PATH=1;       shift ;;
         --no-gui)       FORCE_TUI=1;     shift ;;
         --uninstall|-u) UNINSTALL=1;     shift ;;
-        --llvm-path)    LLVM_PATH="$2";  shift 2 ;;
         --help|-h)
             printf "Usage: install.sh [OPTIONS]\n"
-            printf "  --components X   interpreter|compiler|full\n"
+            printf "  --components X   standard|full\n"
             printf "  --version VER    تثبيت إصدار محدد\n"
             printf "  --dir DIR        مجلد التثبيت (افتراضي: ~/.sad-lang)\n"
             printf "  --no-path        لا يضيف لـ PATH\n"
             printf "  --no-gui         وضع الطرفية النصية فقط\n"
-            printf "  --llvm-path DIR  مسار مجلد LLVM\n"
             printf "  --uninstall      إزالة التثبيت\n"
             exit 0 ;;
         *) die "خيار غير معروف: $1" ;;
     esac
 done
+
+# (AR) 🔑 المكوّنُ يُحاكَمُ هنا كما يُحاكِمُه التوأم. `install.ps1` يحرسُه
+#      بـ`[ValidateSet("standard","full")]`، وهذا كان يقبلُ أيَّ قيمةٍ صامتًا:
+#      فرعاه الافتراضيّانِ يسقطانِ إلى `PREFIX="sad"` و`REQUIRED_TOOLS="sad"`،
+#      فتُنزَّلُ الحزمةُ القياسيّةُ باسمِ شيءٍ آخرَ ثمّ يُقالُ «تمّ» فوقَ تثبيتٍ
+#      لم يُحاكَمْ إلّا على أداةٍ واحدة. والقيمةُ القديمةُ `compiler` أو
+#      `interpreter` في نصٍّ قديمٍ تسلكُ هذا المسلكَ بعينِه.
+# (EN) 🔑 The component is judged here as its twin judges it. install.ps1
+#      guards it with a ValidateSet; this accepted anything silently — its two
+#      default arms fall back to PREFIX="sad" and REQUIRED_TOOLS="sad", so the
+#      standard package downloads under another name and then reports success
+#      over an install verified against a single tool. A stale `compiler` or
+#      `interpreter` value in an old script takes exactly that path.
+if [ -n "$COMPONENTS" ]; then
+    case "$COMPONENTS" in
+        standard|full) ;;
+        *) die "مكوّن غير معروف: '$COMPONENTS' — المتاح: standard|full" ;;
+    esac
+fi
 
 # ══════════════════════════════════════════════════════════════════════
 # اكتشاف أداة الواجهة الرسومية / Detect GUI Tool
@@ -167,39 +186,33 @@ show_menu() {
         local choice
         choice=$(gui_list "مُثبّت لغة ص — اختر المكونات" \
             "اختر المكونات التي تريد تثبيتها:" \
-            "interpreter" "المفسر (sad) + المكتبة القياسية ← موصى به للمبتدئين" \
-            "compiler"    "المترجم (sadc) — يحوّل .ص إلى ملف تنفيذي (يتطلب LLVM 14+)" \
-            "full"        "الحزمة الكاملة — المفسر + المترجم + LSP + REPL + مدير الحزم" \
-        ) 2>/dev/null || choice="interpreter"
+            "standard" "المترجم (sad) + المكتبة القياسية ← موصى به للمبتدئين" \
+            "full"     "الحزمة الكاملة — المترجم + LSP + REPL + مدير الحزم + المنسّق" \
+        ) 2>/dev/null || choice="standard"
         case "$choice" in
-            compiler) COMPONENTS="compiler" ;;
             full)     COMPONENTS="full"     ;;
-            *)        COMPONENTS="interpreter" ;;
+            *)        COMPONENTS="standard" ;;
         esac
     else
         printf "  %s╔═══════════════════════════════════════════════════════╗%s\n" "$CYAN" "$RESET"
         printf "  %s║  اختر ما تريد تثبيته / Choose what to install:     ║%s\n" "$CYAN" "$RESET"
         printf "  %s╠═══════════════════════════════════════════════════════╣%s\n" "$CYAN" "$RESET"
-        printf "  ║  %s[1]%s المفسر فقط (interpreter)                    ║\n" "$GREEN" "$RESET"
+        printf "  ║  %s[1]%s الحزمة القياسية (standard)                  ║\n" "$GREEN" "$RESET"
         printf "  ║  %s    sad + المكتبة القياسية ← الأفضل للمبتدئين%s     ║\n" "$DIM" "$RESET"
-        printf "  ║  %s[2]%s المترجم فقط (compiler) — يتطلب LLVM 14+     ║\n" "$YELLOW" "$RESET"
-        printf "  ║  %s    sadc يحوّل .ص إلى ملف تنفيذي أصلي%s            ║\n" "$DIM" "$RESET"
-        printf "  ║  %s[3]%s الحزمة الكاملة (full)                        ║\n" "$CYAN" "$RESET"
-        printf "  ║  %s    المفسر + المترجم + LSP + REPL + مدير الحزم%s    ║\n" "$DIM" "$RESET"
+        printf "  ║  %s[2]%s الحزمة الكاملة (full)                        ║\n" "$CYAN" "$RESET"
+        printf "  ║  %s    + LSP + REPL + مدير الحزم + المنسّق%s           ║\n" "$DIM" "$RESET"
         printf "  %s╚═══════════════════════════════════════════════════════╝%s\n\n" "$CYAN" "$RESET"
-        printf "  اختر رقم (1/2/3) [الافتراضي: 1]: "
+        printf "  اختر رقم (1/2) [الافتراضي: 1]: "
         read -r choice
         case "$choice" in
-            2) COMPONENTS="compiler"    ;;
-            3) COMPONENTS="full"        ;;
-            *) COMPONENTS="interpreter" ;;
+            2) COMPONENTS="full"     ;;
+            *) COMPONENTS="standard" ;;
         esac
     fi
 
     case "$COMPONENTS" in
-        interpreter) ok "تم اختيار: المفسر (sad)" ;;
-        compiler)    ok "تم اختيار: المترجم (sadc)" ;;
-        full)        ok "تم اختيار: الحزمة الكاملة" ;;
+        full) ok "تم اختيار: الحزمة الكاملة" ;;
+        *)    ok "تم اختيار: الحزمة القياسية (sad)" ;;
     esac
     printf "\n"
 }
@@ -229,360 +242,41 @@ detect_platform() {
 }
 
 # ══════════════════════════════════════════════════════════════════════
-# فحص وكشف LLVM / LLVM Detection & Validation
+# (AR) 🔑 **نُزعت آلةُ LLVM كاملةً — لأنّ شرطَها زال.**
+#
+#      كانت هنا ثلاثُ مئةٍ ونيّفٌ من الأسطر: كشفُ LLVM، والتحقّقُ من مجلّدِها،
+#      وتثبيتُها آليًّا عبرَ خمسةِ مديري حزم، وقائمتانِ (رسوميّةٌ ونصّيّة)
+#      تسألانِ المستخدمَ ماذا يفعلُ إن لم تُوجَد. وكلُّ ذلك كان لأنّ حزمةَ
+#      المترجمِ على لينكس تربطُ `libLLVM-18.so` مشتركةً.
+#
+#      وقد صارَ الربطُ ساكنًا (`SAD_LLVM_STATIC=ON` في مجرى الإصدار)، فالحزمُ
+#      مكتفيةٌ بذاتِها على المنصّاتِ كلِّها ولا تشترطُ شيئًا على جهازِ
+#      المستخدم. فلو بقيت هذه الآلةُ لسألت عمّا لا يلزم، ولوعدت بشرطٍ لا
+#      وجودَ له — وهو الكذبُ الذي تُنشَأُ الحرّاسُ لمنعِه.
+#
+#      ومعها زالَ مسارُ التراجعِ «إن غابت LLVM فثبّتِ المفسّرَ بدلًا» في ثمانيةِ
+#      مواضع: لا مفسّرَ يُتراجَعُ إليه بعدَ حذفِه، وكلتا الحزمتَينِ تحملانِ
+#      المترجِم.
+#
+#      والدعوى مقيسةٌ في مجرى الإصدار: فحصُ التبعيّاتِ المشتركةِ هناك لا يأذنُ
+#      بـ`libLLVM` البتّة، فلو عادَ الربطُ مشتركًا احمرَّ التحزيمُ قبلَ النشر.
+# (EN) 🔑 The whole LLVM subsystem is removed — its premise is gone.
+#
+#      Three hundred-odd lines lived here: detection, directory validation,
+#      automatic installation across five package managers, and two menus (GUI
+#      and TUI) asking the user what to do when LLVM is missing. All of it
+#      existed because the Linux compiler package linked libLLVM-18.so.
+#      Linking is now static (SAD_LLVM_STATIC=ON in the release workflow), so
+#      the packages are self-contained on every platform and require nothing on
+#      the user's machine. Keeping this machinery would ask about what is not
+#      needed and promise a prerequisite that no longer exists.
+#      With it goes the "no LLVM ⇒ install the interpreter instead" fallback in
+#      eight places: there is no interpreter to fall back to, and both packages
+#      carry the compiler.
+#      The claim is measured in the release workflow: its shared-dependency
+#      check allows no libLLVM at all, so a return to dynamic linking reddens
+#      packaging before anything is published.
 # ══════════════════════════════════════════════════════════════════════
-
-# استخراج الإصدار الرئيسي
-_llvm_major() { printf '%s' "$1" | grep -oE '^[0-9]+' | head -1; }
-
-# التحقق من مجلد LLVM — يعيد 0=نجاح، 1=فشل
-# يطبع النتيجة: "ok|VERSION|BINS_FOUND|HAS_LIBS|PATH"
-# أو "fail|REASON"
-validate_llvm_dir() {
-    local dir="$1"
-    [ -d "$dir" ] || { printf "fail|المجلد غير موجود: %s" "$dir"; return 1; }
-
-    local bindir="$dir/bin"
-    [ -d "$bindir" ] || bindir="$dir"
-
-    local found_bins="" bin_count=0
-    for b in clang llc opt llvm-ar llvm-config llvm-link lld; do
-        if [ -x "$bindir/$b" ]; then
-            found_bins="$found_bins$b "
-            bin_count=$((bin_count + 1))
-        fi
-    done
-
-    [ "$bin_count" -lt 2 ] && {
-        printf "fail|ملفات تنفيذية غير كافية (وُجد %s من 7)" "$bin_count"
-        return 1
-    }
-
-    # استخراج الإصدار
-    local ver="unknown"
-    if [ -x "$bindir/llvm-config" ]; then
-        ver=$("$bindir/llvm-config" --version 2>/dev/null | head -1 || echo "unknown")
-    elif [ -x "$bindir/clang" ]; then
-        local raw
-        raw=$("$bindir/clang" --version 2>/dev/null | head -1 || echo "")
-        ver=$(printf '%s' "$raw" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "unknown")
-    fi
-
-    # تحقق من الإصدار ≥ 14
-    local major
-    major=$(_llvm_major "$ver")
-    if [ -n "$major" ] && [ "$major" -gt 0 ] 2>/dev/null && [ "$major" -lt 14 ] 2>/dev/null; then
-        printf "fail|الإصدار %s قديم جداً — يجب LLVM 14+" "$ver"
-        return 1
-    fi
-
-    local has_libs="لا"
-    if find "$dir/lib" \( -name "libLLVM*.a" -o -name "LLVM*.lib" \) 2>/dev/null | grep -q .; then
-        has_libs="نعم"
-    fi
-
-    printf "ok|%s|%s|%s|%s" "$ver" "$found_bins" "$has_libs" "$dir"
-    return 0
-}
-
-# البحث التلقائي في مسارات شائعة
-find_llvm() {
-    step "البحث التلقائي عن LLVM..."
-
-    # 1) llvm-config في PATH
-    local cfgtool
-    for cfgtool in llvm-config llvm-config-18 llvm-config-17 llvm-config-16 llvm-config-15 llvm-config-14; do
-        if command -v "$cfgtool" >/dev/null 2>&1; then
-            local prefix
-            prefix=$("$cfgtool" --prefix 2>/dev/null || echo "")
-            if [ -n "$prefix" ]; then
-                local res
-                res=$(validate_llvm_dir "$prefix" 2>/dev/null) && {
-                    local ver
-                    ver=$(printf '%s' "$res" | cut -d'|' -f2)
-                    ok "LLVM موجود في PATH ($cfgtool): $prefix  الإصدار: $ver"
-                    LLVM_PATH="$prefix"
-                    return 0
-                }
-            fi
-        fi
-    done
-
-    # 2) مسارات Linux / macOS شائعة
-    local p
-    for p in \
-        /usr/lib/llvm-18 /usr/lib/llvm-17 /usr/lib/llvm-16 \
-        /usr/lib/llvm-15 /usr/lib/llvm-14 /usr/lib/llvm \
-        /usr/local/lib/llvm /usr/local/lib/llvm-18 \
-        /usr/local/opt/llvm@18 /usr/local/opt/llvm \
-        /opt/homebrew/opt/llvm@18 /opt/homebrew/opt/llvm \
-        /opt/llvm-18 /opt/llvm \
-        "$HOME/.local/llvm" "$HOME/llvm"; do
-        if [ -d "$p" ]; then
-            local res ver
-            res=$(validate_llvm_dir "$p" 2>/dev/null) && {
-                ver=$(printf '%s' "$res" | cut -d'|' -f2)
-                ok "LLVM موجود: $p  الإصدار: $ver"
-                LLVM_PATH="$p"
-                return 0
-            }
-        fi
-    done
-
-    warn "لم يُعثر على LLVM تلقائياً"
-    return 1
-}
-
-# ══════════════════════════════════════════════════════════════════════
-# تثبيت LLVM تلقائياً / Auto-Install LLVM
-# ══════════════════════════════════════════════════════════════════════
-install_llvm_auto() {
-    printf "\n"
-    step "تثبيت LLVM تلقائياً عبر مدير الحزم..."
-
-    _ask_confirm() {
-        if [ "$GUI_TOOL" != "none" ]; then
-            gui_yesno "تثبيت LLVM" "$1" && return 0 || return 1
-        else
-            printf "  %s\n  هل تريد المتابعة؟ (y/n) [y]: " "$1"
-            read -r _ans
-            case "$_ans" in n|N) return 1;; esac
-            return 0
-        fi
-    }
-
-    if [ "$PLATFORM" = "linux" ]; then
-
-        if command -v apt-get >/dev/null 2>&1; then
-            _ask_confirm "Ubuntu/Debian — تثبيت LLVM 18 عبر سكريبت apt.llvm.org الرسمي (~200MB)" || { LLVM_SKIP=1; return; }
-            step "تحميل سكريبت تثبيت LLVM الرسمي..."
-            local tmp_sh
-            tmp_sh=$(mktemp /tmp/llvm.XXXXXX.sh)
-            if command -v curl >/dev/null 2>&1; then
-                curl -fsSL "https://apt.llvm.org/llvm.sh" -o "$tmp_sh" || { warn "فشل التحميل"; rm -f "$tmp_sh"; LLVM_SKIP=1; return; }
-            else
-                wget -qO "$tmp_sh" "https://apt.llvm.org/llvm.sh" || { warn "فشل التحميل"; rm -f "$tmp_sh"; LLVM_SKIP=1; return; }
-            fi
-            chmod +x "$tmp_sh"
-            if sudo bash "$tmp_sh" 18 all 2>&1; then
-                ok "تم تثبيت LLVM 18 بنجاح"; rm -f "$tmp_sh"
-                find_llvm && return
-            else
-                warn "فشل سكريبت LLVM — محاولة apt مباشرة..."
-                rm -f "$tmp_sh"
-                sudo apt-get install -y llvm-18 clang-18 lld-18 2>/dev/null && {
-                    LLVM_PATH="/usr/lib/llvm-18"
-                    ok "تم تثبيت LLVM 18 عبر apt"
-                    find_llvm && return
-                }
-            fi
-
-        elif command -v dnf >/dev/null 2>&1; then
-            _ask_confirm "Fedora/RHEL — تثبيت LLVM عبر dnf" || { LLVM_SKIP=1; return; }
-            sudo dnf install -y llvm-devel clang lld 2>&1 && ok "تم تثبيت LLVM" && find_llvm && return
-
-        elif command -v pacman >/dev/null 2>&1; then
-            _ask_confirm "Arch Linux — تثبيت LLVM عبر pacman" || { LLVM_SKIP=1; return; }
-            sudo pacman -S --noconfirm llvm clang lld 2>&1 && ok "تم تثبيت LLVM" && find_llvm && return
-
-        elif command -v zypper >/dev/null 2>&1; then
-            _ask_confirm "openSUSE — تثبيت LLVM عبر zypper" || { LLVM_SKIP=1; return; }
-            sudo zypper install -y llvm-devel clang lld 2>&1 && ok "تم تثبيت LLVM" && find_llvm && return
-
-        else
-            warn "لم يُتعرف على مدير الحزم"
-        fi
-
-    elif [ "$PLATFORM" = "macos" ]; then
-        if command -v brew >/dev/null 2>&1; then
-            _ask_confirm "macOS — تثبيت LLVM 18 عبر Homebrew (~500MB)" || { LLVM_SKIP=1; return; }
-            brew install llvm@18 && ok "تم تثبيت LLVM" && find_llvm && return
-        else
-            warn "Homebrew غير مثبت"
-            info "ثبّت Homebrew أولاً: https://brew.sh"
-        fi
-    fi
-
-    warn "تعذّر التثبيت التلقائي"
-    LLVM_SKIP=1
-}
-
-# حفظ LLVM في متغيرات البيئة
-export_llvm_env() {
-    local llvm_root="$1"
-    local llvm_bin="$llvm_root/bin"
-
-    local rc_file="$HOME/.bashrc"
-    [ -f "$HOME/.zshrc" ] && rc_file="$HOME/.zshrc"
-
-    # حذف أي تعريف قديم
-    if [ -w "$rc_file" ]; then
-        grep -v 'LLVM_DIR\|# sad-llvm' "$rc_file" > "${rc_file}.tmp.sad" 2>/dev/null && mv "${rc_file}.tmp.sad" "$rc_file"
-        {
-            printf '\n# sad-llvm — مسار LLVM للمترجم sadc (مُضاف تلقائياً)\n'
-            printf 'export LLVM_DIR="%s"\n' "$llvm_root"
-            printf 'export PATH="%s:$PATH"\n' "$llvm_bin"
-        } >> "$rc_file"
-        ok "تم حفظ LLVM_DIR در $rc_file"
-    fi
-    export LLVM_DIR="$llvm_root"
-    export PATH="$llvm_bin:$PATH"
-}
-
-# ══════════════════════════════════════════════════════════════════════
-# معالجة LLVM الرئيسية (GUI أو TUI)
-# ══════════════════════════════════════════════════════════════════════
-handle_llvm() {
-    if [ "$COMPONENTS" != "compiler" ] && [ "$COMPONENTS" != "full" ]; then return; fi
-
-    step "التحقق من LLVM لتشغيل المترجم sadc..."
-
-    # مسار قُدّم عبر --llvm-path
-    if [ -n "$LLVM_PATH" ]; then
-        local res
-        res=$(validate_llvm_dir "$LLVM_PATH" 2>/dev/null) && {
-            local ver
-            ver=$(printf '%s' "$res" | cut -d'|' -f2)
-            ok "LLVM محدد يدوياً: $LLVM_PATH (الإصدار: $ver)"
-            export_llvm_env "$LLVM_PATH"
-            return 0
-        }
-        warn "المسار المحدد لا يحتوي LLVM صالحاً — سيتم الكشف التلقائي"
-        LLVM_PATH=""
-    fi
-
-    # كشف تلقائي
-    if find_llvm; then
-        local res ver
-        res=$(validate_llvm_dir "$LLVM_PATH" 2>/dev/null) && {
-            ver=$(printf '%s' "$res" | cut -d'|' -f2)
-            ok "تم التحقق: LLVM $ver في $LLVM_PATH"
-            export_llvm_env "$LLVM_PATH"
-            return 0
-        }
-    fi
-
-    # LLVM غير موجود — عرض خيارات
-    if [ "$GUI_TOOL" != "none" ]; then
-        _llvm_gui
-    else
-        _llvm_tui
-    fi
-}
-
-_llvm_gui() {
-    local choice
-    choice=$(gui_list "LLVM مطلوب للمترجم sadc" \
-        "لم يُعثر على LLVM على جهازك.\nالمترجم sadc يحتاج LLVM 14+ لتحويل .ص إلى ملفات تنفيذية.\nاختر ما تريد فعله:" \
-        "auto"   "تثبيت LLVM تلقائياً عبر مدير الحزم (apt/dnf/pacman/brew)" \
-        "manual" "تحديد مسار مجلد LLVM المثبت يدوياً" \
-        "skip"   "تخطي — تثبيت sad فقط بدون sadc (يمكن إضافة LLVM لاحقاً)" \
-    ) 2>/dev/null || choice="skip"
-
-    case "$choice" in
-        auto)
-            install_llvm_auto
-            if [ "$LLVM_SKIP" = "1" ] || [ -z "$LLVM_PATH" ]; then
-                gui_info "تنبيه — LLVM" "تعذّر تثبيت LLVM.\nسيُثبَّت sad بدون sadc.\nيمكنك إضافة LLVM لاحقاً وإعادة تشغيل المثبت."
-                [ "$COMPONENTS" = "compiler" ] && COMPONENTS="interpreter"
-            else
-                local res ver
-                res=$(validate_llvm_dir "$LLVM_PATH" 2>/dev/null) && {
-                    ver=$(printf '%s' "$res" | cut -d'|' -f2)
-                    gui_info "✓ LLVM جاهز" "تم تثبيت LLVM $ver بنجاح في:\n$LLVM_PATH\n\nساعد المترجم sadc جاهز للاستخدام."
-                    export_llvm_env "$LLVM_PATH"
-                }
-            fi
-            ;;
-        manual)
-            local entered
-            entered=$(gui_folder "حدد مجلد LLVM" "/usr/lib")
-            if [ -n "$entered" ]; then
-                local res
-                res=$(validate_llvm_dir "$entered" 2>/dev/null)
-                case "$(printf '%s' "$res" | cut -d'|' -f1)" in
-                    ok)
-                        local ver bins
-                        ver=$(printf '%s' "$res" | cut -d'|' -f2)
-                        bins=$(printf '%s' "$res" | cut -d'|' -f3)
-                        LLVM_PATH="$entered"
-                        ok "LLVM صالح: $entered (الإصدار: $ver)"
-                        gui_info "✓ LLVM مقبول" "تم التحقق من LLVM بنجاح!\n\nالمسار: $entered\nالإصدار: $ver\nالملفات: $bins"
-                        export_llvm_env "$LLVM_PATH"
-                        ;;
-                    *)
-                        local reason
-                        reason=$(printf '%s' "$res" | cut -d'|' -f2)
-                        gui_info "✗ مسار غير صالح" "لم يُعثر على LLVM صالح في المجلد:\n$entered\n\nالسبب: $reason\n\nسيُثبَّت sad بدون sadc."
-                        [ "$COMPONENTS" = "compiler" ] && COMPONENTS="interpreter"
-                        ;;
-                esac
-            else
-                [ "$COMPONENTS" = "compiler" ] && COMPONENTS="interpreter"
-            fi
-            ;;
-        *)
-            gui_info "LLVM متخطى" "سيُثبَّت sad بدون المترجم sadc.\n\nيمكنك لاحقاً:\n  1. تثبيت LLVM (apt install llvm-18)\n  2. إعادة تشغيل: ./install.sh --components compiler"
-            [ "$COMPONENTS" = "compiler" ] && COMPONENTS="interpreter"
-            ;;
-    esac
-}
-
-_llvm_tui() {
-    printf "\n"
-    printf "  %s╔══════════════════════════════════════════════════════════╗%s\n" "$YELLOW" "$RESET"
-    printf "  %s║  LLVM غير موجود — sadc يتطلب LLVM 14+                ║%s\n" "$YELLOW" "$RESET"
-    printf "  %s╠══════════════════════════════════════════════════════════╣%s\n" "$YELLOW" "$RESET"
-    printf "  ║  %s[1]%s تثبيت LLVM تلقائياً (apt/dnf/pacman/brew)           ║\n" "$GREEN"  "$RESET"
-    printf "  ║  %s[2]%s تحديد مسار LLVM يدوياً                              ║\n" "$CYAN"   "$RESET"
-    printf "  ║  %s[3]%s تخطي — تثبيت sad بدون sadc                          ║\n" "$DIM"    "$RESET"
-    printf "  %s╚══════════════════════════════════════════════════════════╝%s\n\n" "$YELLOW" "$RESET"
-    printf "  اختر (1/2/3) [الافتراضي: 1]: "
-    read -r ch
-    case "$ch" in
-        2)
-            printf "  أدخل مسار مجلد LLVM (مثال: /usr/lib/llvm-18): "
-            read -r entered
-            entered=$(printf '%s' "$entered" | tr -d "\"'")
-            if [ -n "$entered" ]; then
-                local res
-                res=$(validate_llvm_dir "$entered" 2>/dev/null)
-                case "$(printf '%s' "$res" | cut -d'|' -f1)" in
-                    ok)
-                        local ver bins has_libs
-                        ver=$(printf '%s' "$res" | cut -d'|' -f2)
-                        bins=$(printf '%s' "$res" | cut -d'|' -f3)
-                        has_libs=$(printf '%s' "$res" | cut -d'|' -f4)
-                        LLVM_PATH="$entered"
-                        ok "LLVM صالح: $LLVM_PATH"
-                        info "الإصدار: $ver | الملفات: $bins | مكتبات: $has_libs"
-                        export_llvm_env "$LLVM_PATH"
-                        ;;
-                    *)
-                        local reason
-                        reason=$(printf '%s' "$res" | cut -d'|' -f2)
-                        warn "المسار غير صالح: $reason"
-                        warn "سيُثبَّت sad بدون sadc"
-                        [ "$COMPONENTS" = "compiler" ] && COMPONENTS="interpreter"
-                        ;;
-                esac
-            else
-                [ "$COMPONENTS" = "compiler" ] && COMPONENTS="interpreter"
-            fi
-            ;;
-        3)
-            info "تخطي LLVM — سيُثبَّت sad بدون sadc"
-            [ "$COMPONENTS" = "compiler" ] && COMPONENTS="interpreter"
-            ;;
-        *)
-            install_llvm_auto
-            if [ "$LLVM_SKIP" = "1" ] || [ -z "$LLVM_PATH" ]; then
-                warn "فشل التثبيت التلقائي — سيُثبَّت sad بدون sadc"
-                [ "$COMPONENTS" = "compiler" ] && COMPONENTS="interpreter"
-            fi
-            ;;
-    esac
-}
 
 # ──────────────────────────────────────────────────────────────────────
 # التحقق من أدوات التحميل / Check Download Tools
@@ -639,9 +333,8 @@ get_release_info() {
 # ──────────────────────────────────────────────────────────────────────
 install_sad() {
     case "$COMPONENTS" in
-        interpreter) PREFIX="sad"      ;;
-        compiler)    PREFIX="sadc"     ;;
-        full)        PREFIX="sad-full" ;;
+        full) PREFIX="sad-full" ;;
+        *)    PREFIX="sad"      ;;
     esac
 
     ARCHIVE_NAME="${PREFIX}-v${ACTUAL_VERSION}-${PLATFORM}-${ARCH}.tar.gz"
@@ -744,14 +437,13 @@ install_sad() {
         # (AR) 🔑 كان المكوّنُ يُدعى «المفسّر» ويشحن sad وsad-lsp وsad-check —
         #      ولا واحدةَ منها تُشغّلُ برنامجَ ص، وsad-build ليس فيه. فمن اختارَه
         #      حصلَ على تثبيتٍ لا يُشغّلُ شيئًا ويجتازُ الحارسَ أخضرَ. أُضيف
-        #      sad-build فصار المكوّنُ يفي باسمِه الجديد: تشغيلٌ أساسيّ.
+        #      sad-build ثمّ زالَ اسمُ «المفسّر» نفسُه: صارَ المكوّنُ «القياسيّ».
         # (EN) The "interpreter" component shipped nothing that runs a ص program
-        #      and omitted sad-build, so choosing it yielded a non-running install
-        #      that passed the guard green. sad-build added.
-        interpreter) REQUIRED_TOOLS="sad sad-build sad-lsp sad-check" ;;
-        compiler)    REQUIRED_TOOLS="sadc sad-build" ;;
-        full)        REQUIRED_TOOLS="sad sad-lsp sad-check sadc sad-build" ;;
-        *)           REQUIRED_TOOLS="sad" ;;
+        #      and omitted sad-build. sad-build was added, and then the name
+        #      "interpreter" itself went: the component is now "standard".
+        standard) REQUIRED_TOOLS="sad sad-build sad-lsp sad-check" ;;
+        full)     REQUIRED_TOOLS="sad sad-lsp sad-check sadc sad-build" ;;
+        *)        REQUIRED_TOOLS="sad" ;;
     esac
     MISSING_TOOLS=""
     for tool in $REQUIRED_TOOLS; do
@@ -796,7 +488,6 @@ install_sad() {
   "arch":        "$ARCH",
   "installDir":  "$INSTALL_DIR",
   "binDir":      "$BIN_DIR",
-  "llvmPath":    "$LLVM_PATH",
   "installedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "installer":   "install.sh v2.0"
 }
@@ -808,8 +499,8 @@ EOF
         [ -x "$tool" ] || continue
         TNAME=$(basename "$tool")
         case "$TNAME" in
-            sad)            TDESC="المفسر — يشغّل ملفات .ص مباشرة" ;;
-            sadc)           TDESC="المترجم — يحوّل .ص إلى ملف تنفيذي أصلي (LLVM)" ;;
+            sad)            TDESC="مركز الأدوات — sad build/check/fmt" ;;
+            sadc)           TDESC="المترجم — يحوّل .ص إلى ملف تنفيذي أصلي" ;;
             sad-lsp*)       TDESC="خادم LSP — تكامل VS Code / Vim / Neovim" ;;
             sad-pkg)        TDESC="مدير الحزم — تثبيت مكتبات لغة ص" ;;
             sad-fmt)        TDESC="أداة تنسيق الكود" ;;
@@ -899,15 +590,13 @@ printf "  المجلد: %s\n\n" "$INSTALL_DIR"
 show_menu
 detect_platform
 check_deps
-handle_llvm
 get_release_info
 install_sad
 
 # رسالة الانتهاء
 case "$COMPONENTS" in
-    interpreter) COMP_NAME="المفسر (sad)" ;;
-    compiler)    COMP_NAME="المترجم (sadc)" ;;
-    full)        COMP_NAME="الحزمة الكاملة" ;;
+    full) COMP_NAME="الحزمة الكاملة" ;;
+    *)    COMP_NAME="الحزمة القياسية (sad)" ;;
 esac
 
 printf "\n"
@@ -916,19 +605,13 @@ printf "  %s✓ تم تثبيت %s v%s بنجاح!%s\n" "$GREEN" "$COMP_NAME" "$
 printf "  %s═══════════════════════════════════════════════%s\n\n" "$GREEN" "$RESET"
 printf "  للبدء:\n"
 
-if [ "$COMPONENTS" = "interpreter" ] || [ "$COMPONENTS" = "full" ]; then
-    printf "    %ssad --help%s          عرض المساعدة\n"   "$DIM" "$RESET"
-    printf "    %ssad script.ص%s       تشغيل ملف\n"      "$DIM" "$RESET"
-fi
-if [ "$COMPONENTS" = "compiler" ] || [ "$COMPONENTS" = "full" ]; then
+printf "    %ssad --help%s          عرض المساعدة\n"   "$DIM" "$RESET"
+printf "    %ssad build script.ص%s  ترجمة إلى ملف تنفيذي\n" "$DIM" "$RESET"
+if [ "$COMPONENTS" = "full" ]; then
     printf "    %ssadc script.ص%s      ترجمة إلى ملف تنفيذي\n" "$DIM" "$RESET"
 fi
 if [ "$COMPONENTS" = "full" ]; then
     printf "    %ssad-pkg init%s       إنشاء مشروع جديد\n" "$DIM" "$RESET"
-fi
-
-if [ -n "$LLVM_PATH" ]; then
-    printf "\n  %s[LLVM]%s LLVM_DIR=%s\n" "$GREEN" "$RESET" "$LLVM_PATH"
 fi
 
 CURRENT_SHELL=$(basename "${SHELL:-bash}")

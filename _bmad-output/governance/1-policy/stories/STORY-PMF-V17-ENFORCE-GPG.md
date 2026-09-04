@@ -119,7 +119,7 @@ git push origin main  # → ✅
 ## نتائج التحقق الفعلي (2026-05-23)
 
 ```
-$ gh api repos/SalehKadah/s-programming-language/rulesets --jq '.[] | {id, name, enforcement, target}'
+$ gh api repos/sadlang/sadlang/rulesets --jq '.[] | {id, name, enforcement, target}'
 {
   "enforcement": "active",
   "id": 16775713,
