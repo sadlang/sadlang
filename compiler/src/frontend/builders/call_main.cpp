@@ -526,9 +526,54 @@ namespace Sad
                 //      never running. Renaming hides it — only a name that collides with a
                 //      builtin is affected.
                 // ════════════════════════════════════════════════════════════════
-                bool isUserDefinedFunction = (b_.functionTable_.find(funcName) != b_.functionTable_.end()) ||
-                                             (b_.lambdaAliases_.find(funcName) != b_.lambdaAliases_.end()) ||
-                                             (b_.templateFunctions_.find(funcName) != b_.templateFunctions_.end()) ||
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 **سؤالٌ واحد: أيملكُ المستخدمُ هذا الاسم؟**
+                //
+                //      كان هذا سردًا يتّسعُ حالةً بحالة، وكلُّ توسيعٍ منها اكتُشِفَ
+                //      بالمصادفةِ بعدَ أن أجابَ برنامجٌ جوابًا خاطئًا صامتًا:
+                //        ① متغيّرُ الإغلاق — مدمَجٌ يُظلّلُ لامدا المستخدم
+                //        ② البانِي الجبريُّ العاري — «مربع(٢٠)» ⇒ ٤٠٠ ⇒ SIGSEGV
+                //        ③ دالّةُ القالب — «ضم» ⇒ ٢|١ = ٣ والجسمُ لا يُنفَّذ
+                //        ④ الماكرو — العددُ عينُه، بالآليّةِ عينِها
+                //        ⑤ صنفُ القالب — «ضم<رقم>()» يُخفِقُ برسالةٍ **كاذبة**
+                //           («دالة القالب غير موجودة») لأنّ الاسمَ بلغَ مسارَ
+                //           القوالبِ الدوالّيَّ لا الصنفيّ
+                //
+                //      وكلُّها صنفٌ واحد: **اسمٌ كتبَه المستخدمُ في مصدرِ ص يخسرُ
+                //      أمامَ مدمَجٍ يحملُ اسمَه**. والجداولُ تفصيلُ تنفيذٍ لا حكم،
+                //      فيُسأَلُ السؤالُ مرّةً هنا بدلَ أن يُعادَ سردُها.
+                //
+                // ⚠️ وهذا لا يمنعُ السادسةَ: أسماءُ المدمَجاتِ مولَّدةٌ من
+                //      `language-truth/builtins/*.yaml` وتنمو، وجداولُ الأسماءِ تنمو.
+                //      والعلاجُ الجذريُّ أن يُبَثَّ **تشخيصٌ** حين يفوزُ مدمَجٌ باسمٍ
+                //      يظهرُ في أيِّ جدولِ أسماءٍ للمستخدم، فيصيرُ النسيانُ مرئيًّا
+                //      بدلَ أن يُجيبَ `2 | 1`. دَينٌ مُعلَنٌ لم يُسدَّدْ بعد.
+                // (EN) 🔑 One question: does the user own this name?
+                //
+                //      This was a list that grew one case at a time, each case found by
+                //      accident after a program silently answered wrong: closure variable,
+                //      bare ADT constructor («square(20)» ⇒ 400 ⇒ SIGSEGV), template
+                //      function («join» ⇒ 2|1 = 3, body never run), macro (the same number
+                //      by the same mechanism), and template class (which fails with a LYING
+                //      message because the name reaches the template-function path).
+                //      All one class: a name the user wrote in Sad source loses to a builtin
+                //      that happens to share it. The tables are an implementation detail, so
+                //      the question is asked once here instead of re-listing them.
+                //
+                //      This does not prevent a sixth: builtin names are generated from
+                //      language-truth and both sets grow. The root remedy is to EMIT A
+                //      DIAGNOSTIC whenever a builtin wins over a name present in any user
+                //      name table, so the omission becomes visible instead of answering
+                //      `2 | 1`. Declared debt, not yet paid.
+                // ════════════════════════════════════════════════════════════════
+                const bool userOwnsCallName =
+                    (b_.functionTable_.find(funcName) != b_.functionTable_.end()) ||
+                    (b_.lambdaAliases_.find(funcName) != b_.lambdaAliases_.end()) ||
+                    (b_.templateFunctions_.find(funcName) != b_.templateFunctions_.end()) ||
+                    (b_.templateClasses_.find(funcName) != b_.templateClasses_.end()) ||
+                    (b_.macros_.find(funcName) != b_.macros_.end());
+
+                bool isUserDefinedFunction = userOwnsCallName ||
                                              isClosureVariable ||
                                              isADTVariantCtor;
 
