@@ -6,17 +6,22 @@
 
 ## نظرة عامة
 
-لغة ص (Sad) لغة برمجة عربية حديثة بـ C++17، ملفات المصدر `.ص`. تشمل: مفسّرًا شجريًّا،
-مترجمًا (`sadc`) عبر LLVM، آلة بايت كود (VM)، خادم LSP، مدير حزم، ومنسّقًا.
+لغة ص (Sad) لغة برمجة عربية حديثة بـ C++17، ملفات المصدر `.ص`. تشمل: مترجمًا أصليًّا
+(`sad-build`/`sadc`) عبر LLVM، مركزَ أدوات (`sad`)، خادم LSP، مدير حزم، ومنسّقًا.
+
+> ⚠️ **مسارُ المحرّكِ الواحد:** حُذِفَ المفسّرُ الشجريُّ وأداتُه `sad-run`،
+> ومعهما `sad-repl` والآلةُ الافتراضيّة. فلا `--target sad-run` ولا
+> `runner.py --interp`؛ والمرجعُ في الاختبارِ توكيدُ `@expected` المُدوَّنُ في
+> البذرة، لا تطابقُ محرّكَين.
 
 ## المعمارية (المكوّنات الكبرى)
 
 | المكون | المجلد | الدور |
 |--------|--------|------|
 | النواة المشتركة | `shared/` | lexer/parser/AST/أنواع `Value`/الأخطاء — مشترك |
-| المفسّر | `interpreter/` | مفسّر شجري؛ `InterpreterCore` |
+| ~~المفسّر~~ | ~~`interpreter/`~~ | **حُذِف** — مسارُ المحرّكِ الواحد |
 | المترجم | `compiler/` | AST → SIR → LLVM IR → تنفيذيّ |
-| الآلة الافتراضية | `vm/` | بايت كود مرتبط بالمفسّر |
+| ~~الآلة الافتراضية~~ | ~~`vm/`~~ | **حُذِفت** مع المفسّر |
 | المكتبة القياسية | `stdlib/` | `core/`, `io/`, `math/`, `string/`, `network/`, `graphics/` |
 | الأدوات | `tools/` | `lsp/`, `formatter/`, `pkg/`, `repl/`, `compiler/` |
 
@@ -26,7 +31,7 @@
 
 ```powershell
 cmake -S . -B build                                          # تهيئة أولى
-cmake --build build --config Debug --target sad-run          # المفسّر (sad.exe)
+cmake --build build --config Debug --target sad sad-build    # المركز + المترجّم
 cmake --build build --config Debug --target sad-build        # المترجم (sadc)
 .\build\bin\Debug\sad.exe examples\test_simple.ص            # تشغيل
 ctest --test-dir build -R Comprehensive                      # الاختبارات (فعّلها بـ -DBUILD_TESTS=ON)

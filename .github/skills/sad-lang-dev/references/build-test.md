@@ -7,7 +7,7 @@
 cmake -S . -B build
 
 # بناء المفسر فقط (أسرع)
-cmake --build build --config Debug --target sad-run
+cmake --build build --config Debug --target sad sad-build
 
 # بناء المترجم sad-build (Release، أو Debug عند توفّر LLVM Debug)
 cmake --build build --config Release --target sad-build
@@ -45,10 +45,10 @@ python scripts/codegen/gen_keywords.py `
 ## 3. تشغيل ملف `.ص`
 
 > ⚠️ **انتبه لاسم الملف التنفيذي:** `sad.exe` صار **موزِّع أوامر (hub)** بعد إعادة هيكلة
-> الأدوات. المُفسِّر الفعلي هو **`sad-run.exe`** — استدعِه مباشرةً.
+> الأدوات. والمحرّكُ الفعليُّ هو **`sad-build.exe`** — استدعِه مباشرةً، أو عبر `sad build`.
 
 ```powershell
-.\build\bin\Debug\sad-run.exe examples\test_simple.ص       # المفسر (الفعلي)
+.\build\bin\Debug\sad-build.exe examples\test_simple.ص     # المترجّم (الفعلي)
 .\build\bin\Debug\sad-build.exe ملف.ص -o ملف.exe           # المترجم (هدف sad-build؛ Release أيضًا صالح)
 .\build\bin\Debug\sad-build.exe ملف.ص --أظهر-llvm -o ملف.ll # فحص LLVM IR (BF-07)
 ```
@@ -75,7 +75,7 @@ python tests/runner.py --level full --report --html # تقرير شامل
 ```
 
 دليل كامل: `tests/behavior/README.md`. المسارات في `tests/config.yaml`
-(`interpreter: build/bin/Debug/sad-run.exe`, `compiler: build/bin/Debug/sad-build.exe`).
+(`compiler: build/bin/Debug/sad-build.exe` — ومفتاحُ `interpreter` نُزِعَ من `tests/config.yaml`؛ و`runner.py` بلا `--compiler` يُخفِقُ صراحةً ولا يُفعَّلُ وضعٌ بالغياب).
 الاسم البائت `sadc.exe` متقاعد — لا يُنتجه أيّ هدف؛ المترجم الآن هدف `sad-build`.
 
 ### 4.1 صيغة ملف اختبار `.ص` (توجيهات التعليق)
@@ -112,14 +112,14 @@ python scripts/codegen/check_docs_coverage.py
 ## 5. منهجية الاختبار عند إصلاح خطأ (BF-01, BF-08, BF-29)
 
 1. **أعِد إنتاج الخطأ** في أصغر ملف `.ص` ممكن.
-2. **قارن المفسر والمترجم:** إن عمل في `sad-run` وفشل في `sad-build` → المشكلة في SIR builder أو
+2. **قِسْ على التوكيدِ المُدوَّن:** إن خالفَ خرجُ `sad-build` توكيدَ `@expected` → المشكلة في SIR builder أو
    LLVM codegen. ولّد IR بـ `--أظهر-llvm` وافحص: entry block، اتساق الأنواع، ترتيب
    التعليمات، فهارس `getelementptr`.
 3. **أصلِح في الطبقة الصحيحة** (BF-10) — لا ترقيع في مكان الاستعمال.
 4. **اختبار التراجع الشامل** قبل الاعتبار منتهياً:
    - الحزمة الشاملة تمر
    - `sad-build` يبني بلا أخطاء
-   - `sad-run` يعمل بلا تراجع
+   - `sad-build` يعمل بلا تراجع
 
 ## 6. ملاحظات المترجم sad-build
 

@@ -112,7 +112,7 @@ interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Math::C
 
 ### المهمة 7 — ابنِ وشغّل
 ```powershell
-cmake --build build --config Debug --target sad-run
+cmake --build build --config Debug --target sad sad-build
 cmake --build build --config Release --target sad-build
 python tests/runner.py --section رياضيات
 python tests/runner.py --level P1
@@ -159,7 +159,7 @@ python tests/runner.py --level P1
 
 ```
 [ ] 1. أعِد الإنتاج في أصغر ملف .ص (BF-01)
-[ ] 2. أكّد: يعمل في sad-run، يفشل في sadc → المشكلة SIR/LLVM (BF-08)
+[ ] 2. أكّد: خرجُ sad-build يخالف توكيدَ @expected → المشكلة SIR/LLVM (BF-08)
 [ ] 3. ولّد IR: sad-build ملف.ص --أظهر-llvm -o ملف.ll وافحص (entry block، أنواع، getelementptr) (BF-07)
 [ ] 4. حدّد الطبقة: ترتيب حقول → SIRBuilder ؛ تحويل نوع → LLVM codegen (BF-10)
 [ ] 5. أصلِح السبب الجذري لا العَرَض — لا تحويل ضمني لإخفاء (BF-09, BF-04)
