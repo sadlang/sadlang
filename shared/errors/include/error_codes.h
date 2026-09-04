@@ -54,6 +54,9 @@ namespace Sad
             LEX_INVALID_UTF8, ///< LEX006: (AR) ترميز UTF-8 غير صالح
                               ///< (EN) Invalid UTF-8 encoding
 
+            LEX_UNTERMINATED_COMMENT, ///< LEX007: (AR) تعليق كتلة غير مغلق
+                                      ///< (EN) Unterminated block comment
+
             // ====================================================================
             // (AR) أخطاء نحوية / (EN) Syntax Errors
             // Range: SYN001 - SYN099

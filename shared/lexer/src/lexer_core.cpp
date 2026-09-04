@@ -19,6 +19,13 @@
 
 #include <string>
 #include "lexer_core.h"
+// (AR) 🔑 رموزُ كتالوجِ الأخطاء — الرسالةُ تُبنى من مصدرِ الحقيقةِ لا
+//      تُكتَبُ حرفًا هنا. والمُعجَمُ وكتالوجُ الأخطاءِ في هدفٍ واحدٍ
+//      (sad_shared)، فلا حاجزَ طبقيًّا يُعبَر.
+// (EN) Error-catalog codes: the message is built from the SoT rather than
+//      written literally here. The lexer and the catalog live in the same
+//      target (sad_shared), so no layering boundary is crossed.
+#include "error_codes.h"
 #include "string_utils.h"
 #include <cctype>
 #include <stdexcept>
@@ -1613,7 +1620,47 @@ namespace Sad
                             continue; // continue outer while(true) to get next real token
                         }
 
-                        throw std::runtime_error("تعليق متعدد الأسطر غير مغلق - Multi-line comment not closed at " + getCurrentPosition().toString());
+                        // ══════════════════════════════════════════════════════
+                        // (AR) 🔑 **تشخيصٌ لا رمية.** كان هنا `throw std::runtime_error`،
+                        //      ولا يلتقطُه أحدٌ في مسارِ الترجمة: فينتهي البرنامجُ
+                        //      بـ`std::terminate` ⇒ `abort`. والمقيسُ (تشغيل
+                        //      33897648921، لينكس وماك): إشارة **٦** بلا سطرِ
+                        //      تشخيصٍ واحد — لا stdout ولا stderr.
+                        //
+                        //      ⚠️ **وويندوز كانت خضراءَ زورًا**: الانهيارُ نفسُه
+                        //      يُخرِجُ `0xC0000409`، وهو رمزٌ غيرُ صفريّ، فيَعُدُّه
+                        //      عدّاءُ البذورِ السالبةِ «رفضًا صحيحًا». فبذرةُ
+                        //      `001_unterminated_block` كانت تمرُّ على منصّةٍ
+                        //      وتحمرُّ على أخرى **لعطبٍ واحد**، وسببُ الخضرةِ
+                        //      شكلُ رمزِ الخروجِ لا صحّةُ السلوك.
+                        //
+                        //      والصوابُ: رمزُ خطأٍ معجميٌّ يمرُّ في المسارِ الذي
+                        //      تمرُّ فيه بقيّةُ الأخطاء، فيُطبَعُ تشخيصٌ ويُرَدُّ
+                        //      رمزُ خروجٍ واحدٌ على المنصّاتِ كلِّها.
+                        // (EN) A diagnostic, not a throw. This used to be a
+                        //      std::runtime_error that nothing on the compile path
+                        //      catches, so the process ended in std::terminate →
+                        //      abort. Measured (run 33897648921, Linux and macOS):
+                        //      signal 6 with not one diagnostic line — no stdout,
+                        //      no stderr. Windows was falsely GREEN: the same crash
+                        //      exits 0xC0000409, a non-zero code, which the negative
+                        //      seed runner counts as "correctly rejected". One defect
+                        //      passed on one platform and reddened on another, and
+                        //      the greenness came from the shape of the exit code,
+                        //      not from correct behaviour. The fix is a lexical
+                        //      error code travelling the same path every other error
+                        //      takes, so a diagnostic prints and one exit code is
+                        //      returned on every platform.
+                        // ══════════════════════════════════════════════════════
+                        return makeError(
+                            "[" +
+                            ::Sad::Errors::getErrorCodeString(
+                                ::Sad::Errors::ErrorCode::LEX_UNTERMINATED_COMMENT) +
+                            "] " +
+                            ::Sad::Errors::getErrorDescription(
+                                ::Sad::Errors::ErrorCode::LEX_UNTERMINATED_COMMENT,
+                                ::Sad::Errors::Language::ARABIC) +
+                            " @ " + getCurrentPosition().toString());
                     }
 
                     // # (regular single-line comment)

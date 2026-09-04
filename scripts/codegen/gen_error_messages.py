@@ -76,6 +76,49 @@ CATEGORY_PREFIX = {
 }
 
 
+# (AR) 🔑 **قيمةٌ غيرُ مقتبسةٍ فيها « #» تُبتَرُ صامتةً.**
+#
+#      في YAML تبدأُ المِحْرَفةُ `#` تعليقًا متى سبقَتْها مسافةٌ داخلَ قيمةٍ
+#      غيرِ مقتبسة. فرسالةُ خطأٍ تصفُ صيغةً تحوي `#` — وهي حالٌ متكرّرةٌ في
+#      لغةٍ تعليقُها `#` و`#*` — تُقرأُ منقوصةً بلا أيِّ إنذار: لا المُخطَّطُ
+#      يمنعُها ولا المولِّدُ، لأنّ ما وصلَ إليهما نصٌّ صحيحٌ البنيةِ ناقصُ
+#      المعنى.
+#
+#      ⚠️ وقد وقعَ ذلك فعلًا عند إضافةِ `LEX007`: كُتِبت
+#      «تعليق كتلة بدأ بـ #* ولم يُغلق بـ *#» بلا اقتباس، فصارت في الكتالوجِ
+#      «تعليق كتلة بدأ بـ»، وطُبِعت للمستخدمِ كذلك. والحارسُ يُخفِقُ الآن
+#      قبلَ التوليد.
+# (EN) An unquoted value containing " #" is silently truncated: in YAML a hash
+#      preceded by a space starts a comment inside an unquoted scalar. An error
+#      message describing syntax that contains # — common in a language whose
+#      comments are # and #* — is read back incomplete with no warning at all,
+#      because what reaches the schema and the generator is structurally valid
+#      and semantically maimed. This happened when LEX007 was added. The guard
+#      now fails before generation.
+def check_unquoted_hash(path: Path) -> list:
+    """(AR) يُرجِعُ مواضعَ القيَمِ غيرِ المقتبسةِ التي تحوي « #» فتُبتَر."""
+    problems = []
+    text = path.read_text(encoding="utf-8")
+    for lineno, line in enumerate(text.splitlines(), 1):
+        stripped = line.lstrip()
+        if not stripped or stripped.startswith("#") or stripped.startswith("- "):
+            continue
+        if ":" not in stripped:
+            continue
+        value = stripped.split(":", 1)[1].strip()
+        if not value:
+            continue
+        # (AR) المقتبسُ وكتلُ YAML (| و >) في مأمن.
+        if value[0] in "'\"|>&*":
+            continue
+        if " #" in value:
+            problems.append(
+                f"{path.name}:{lineno}: قيمةٌ غيرُ مقتبسةٍ فيها « #» — تُبتَرُ عندَها: "
+                f"{stripped[:90]}"
+            )
+    return problems
+
+
 def load_error_directory(yaml_dir: Path, schema: dict) -> dict:
     """
     (AR) يقرأ كل language-truth/errors/*.yaml، يتحقّق من كلٍّ مقابل schema المتداخل،
@@ -90,6 +133,15 @@ def load_error_directory(yaml_dir: Path, schema: dict) -> dict:
     categories: dict = {}
     version = "5.0"
     seen_categories: list = []
+
+    hash_problems: list = []
+    for f in files:
+        hash_problems.extend(check_unquoted_hash(f))
+    if hash_problems:
+        raise RuntimeError(
+            "قيَمٌ غيرُ مقتبسةٍ تحوي « #» فتُبتَرُ صامتةً (اقتبسها بعلامتَي '…'):\n  "
+            + "\n  ".join(hash_problems)
+        )
 
     for f in files:
         d = load_yaml(f)
