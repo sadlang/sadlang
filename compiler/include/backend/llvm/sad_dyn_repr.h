@@ -132,6 +132,47 @@ namespace Sad
         llvm::Value *unpackDouble(LLVMCodeGen &cg, llvm::Value *dyn);
         /// (AR) استخرِج مؤشّرًا: inttoptr(الحمولة) / (EN) inttoptr(payload)
         llvm::Value *unpackPtr(LLVMCodeGen &cg, llvm::Value *dyn);
+
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 مؤشّرُ الكائنِ من معاملٍ **أيًّا كان تمثيلُه** — بابٌ واحدٌ لعائلةٍ
+        //      كانت تُرقَّعُ موضعًا موضعًا.
+        //
+        //      الكائنُ يصلُ إلى المواضعِ الكائنيّةِ بأربعةِ أشكالٍ مشروعة: مؤشّرًا
+        //      جاهزًا، ومقبضًا i64 (فـ`astTypeToSIRType` تُنزِلُ `صنف`/`بنية` إلى
+        //      i64)، وخانةً alloca/global نوعُها `%SadDyn`، وقيمةً موسومةً
+        //      `%SadDyn` حين يعبرُ معاملًا مُصرَّحًا «أي». وكلُّ موضعٍ كان يكتبُ
+        //      سلّمَ التحويلِ بيدِه، فوقعَ ما يقعُ للنُّسَخ:
+        //
+        //        ⚠️ نسختانِ في `oop_ops.cpp` (قراءةُ الحقلِ وكتابتُه) تعلّمتا
+        //           `%SadDyn` — بالتعليقِ نفسِه حرفًا حرفًا — وبقيَ الباقونَ
+        //           جاهلين. والمقيسُ على النداء:
+        //
+        //             دالة انطق(أي حيوان) اطبع_سطر(حيوان.صوت()) نهاية
+        //             انطق(قط())  ثمّ  انطق(كلب())
+        //               ⇒ `GEP base pointer is not a vector…` من مدقّقِ LLVM،
+        //                 ورسالتُه **إنجليزيّةٌ خامّةٌ** تسبقُ INT011 — مخرَجٌ
+        //                 محظورٌ في هذا المشروع.
+        //
+        //      فلا يُسأَلُ السؤالُ إلّا هنا، ومَن نسيَ لا ينسى وحدَه.
+        // (EN) 🔑 The object pointer of an operand, whatever its representation —
+        //      one door for a family that was being patched site by site.
+        //
+        //      An object legitimately arrives in four shapes: an already-pointer, an
+        //      i64 handle (astTypeToSIRType lowers Class/Struct to i64), an
+        //      alloca/global slot typed %SadDyn, and a tagged %SadDyn value when it
+        //      crosses a parameter declared «أي». Every site wrote the conversion
+        //      ladder by hand, so two copies in oop_ops.cpp (field read and write)
+        //      learned about %SadDyn — with the same comment, word for word — and the
+        //      rest stayed ignorant. Measured on the call path: a method call on an
+        //      «أي» receiver aborted verifyModule with a RAW ENGLISH verifier message
+        //      ahead of INT011 — forbidden output here.
+        //
+        //      ⚠️ It does not answer «is this an object?» — that is the receiver
+        //      guard's question, emitted upstream (OBJECT_NULL_CHECK ⇒ RUN033). This
+        //      door only converts a representation once the kind is settled.
+        // ════════════════════════════════════════════════════════════════════
+        llvm::Value *objectPointerOperand(LLVMCodeGen &cg, llvm::Value *v,
+                                          const std::string &name);
         /// (AR) ISSUE-063: استخرِج i64 بدقّة: عشريّ⇒fptosi(bitcast(الحمولة))؛ غيره⇒الحمولة
         ///      كما هي (دقّة الصحيح 64-بت محفوظة — لا مرور عبر double). بلا فروع (select).
         /// (EN) ISSUE-063: extract an i64 precisely: Float⇒fptosi(bitcast(payload)); else⇒

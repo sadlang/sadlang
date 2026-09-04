@@ -336,13 +336,11 @@ namespace Sad
                 // (EN) Add vtable offset — field 0 in struct is vtable pointer
                 fieldIndex = cg_.getFieldStructIndex(className, fieldIndex);
 
-                // (AR) إذا كان الكائن لا يزال i64 — حوّله إلى ptr
-                // (EN) If object is still i64 — cast to ptr for GEP
-                if (objPtr->getType()->isIntegerTy())
-                {
-                    objPtr = cg_.builder_->CreateIntToPtr(objPtr,
-                                                      llvm::PointerType::getUnqual(*cg_.context_), objName + ".i2p");
-                }
+                // (AR) الكائنُ إلى مؤشّرٍ من بابِ `objectPointerOperand` الواحد —
+                //      كان هنا فرعُ المقبضِ i64 وحدَه، فالموسومُ يعبرُ إلى GEP.
+                // (EN) Object to pointer through the single objectPointerOperand door —
+                //      this was the i64-handle branch alone, so a tagged value reached GEP.
+                objPtr = objectPointerOperand(cg_, objPtr, objName + ".i2p");
 
                 // إنشاء GEP للحقل
                 llvm::Value *gep = cg_.builder_->CreateStructGEP(structType, objPtr, fieldIndex, fieldName + "_gep");

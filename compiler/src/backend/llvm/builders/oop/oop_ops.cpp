@@ -893,11 +893,10 @@ namespace Sad
                     normalizedObjPtr = loaded;
                 }
             }
-            if (normalizedObjPtr->getType()->isIntegerTy())
-            {
-                normalizedObjPtr = cg_.builder_->CreateIntToPtr(normalizedObjPtr,
-                                                            llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".self.i2p");
-            }
+            // (AR) بابٌ واحدٌ لكلِّ تمثيلات الذات (موسومٌ · خانةٌ موسومةٌ · مقبضٌ i64).
+            // (EN) One door for every self representation (tagged, tagged slot, i64 handle).
+            normalizedObjPtr = objectPointerOperand(cg_, normalizedObjPtr,
+                                                    objRegName + ".self.i2p");
 
             // (AR) فحص الخاصية: إذا وُجدت دالة __get_fieldName → استدعاؤها بدلاً من الوصول المباشر
             // (EN) Property check: if __get_fieldName exists → call it instead of direct access
@@ -1079,13 +1078,7 @@ namespace Sad
             //      field holding an object reference (`p.address.city`). Field access
             //      needs a pointer; passing the tagged struct through used to abort the
             //      compiler on «Ptr must have pointer type» instead of diagnosing.
-            if (isSadDyn(actualObj))
-                actualObj = unpackPtr(cg_, actualObj);
-            if (actualObj->getType()->isIntegerTy())
-            {
-                actualObj = cg_.builder_->CreateIntToPtr(actualObj,
-                                                     llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".i2p");
-            }
+            actualObj = objectPointerOperand(cg_, actualObj, objRegName + ".i2p");
 
             // (AR) إزاحة vtable: الحقل 0 في الهيكل محجوز لمؤشر vtable
             // (EN) vtable offset: field 0 in struct is reserved for vtable ptr
@@ -1426,11 +1419,10 @@ namespace Sad
                     normalizedObjPtr = loaded;
                 }
             }
-            if (normalizedObjPtr->getType()->isIntegerTy())
-            {
-                normalizedObjPtr = cg_.builder_->CreateIntToPtr(normalizedObjPtr,
-                                                            llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".self.i2p");
-            }
+            // (AR) بابٌ واحدٌ لكلِّ تمثيلات الذات (موسومٌ · خانةٌ موسومةٌ · مقبضٌ i64).
+            // (EN) One door for every self representation (tagged, tagged slot, i64 handle).
+            normalizedObjPtr = objectPointerOperand(cg_, normalizedObjPtr,
+                                                    objRegName + ".self.i2p");
 
             // (AR) فحص الخاصية: إذا وُجدت دالة __set_fieldName → استدعاؤها بدلاً من التعيين المباشر
             // (EN) Property check: if __set_fieldName exists → call it instead of direct store
@@ -1651,13 +1643,7 @@ namespace Sad
             //      field holding an object reference (`p.address.city`). Field access
             //      needs a pointer; passing the tagged struct through used to abort the
             //      compiler on «Ptr must have pointer type» instead of diagnosing.
-            if (isSadDyn(actualObj))
-                actualObj = unpackPtr(cg_, actualObj);
-            if (actualObj->getType()->isIntegerTy())
-            {
-                actualObj = cg_.builder_->CreateIntToPtr(actualObj,
-                                                     llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".i2p");
-            }
+            actualObj = objectPointerOperand(cg_, actualObj, objRegName + ".i2p");
 
             // (AR) إزاحة vtable: الحقل 0 في الهيكل محجوز لمؤشر vtable
             // (EN) vtable offset: field 0 in struct is reserved for vtable ptr

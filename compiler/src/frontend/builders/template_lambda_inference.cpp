@@ -442,21 +442,55 @@ namespace Sad
                                                         slot == SadTypeKind::Unknown ||
                                                         slot == SadTypeKind::Void);
 
-                        // ⚠️ (AR) استثناءٌ واحدٌ مُعلَّلٌ وله شرطُ خروج: تعميمُ الصنفِ
-                        //      إلى `أي` يبلغُ الإرسالَ الديناميَّ على كائن، وهو اليومَ
-                        //      **يُجهِضُ `verifyModule` برسالةٍ إنجليزيّةٍ خامّةٍ بلا رمزِ
-                        //      كتالوج** حين يختلفُ الصنفانِ (بندٌ مفتوح). ورسالةُ مدقّقِ
-                        //      LLVM مخرَجٌ محظورٌ في هذا المشروع، فهي أسوأُ تشخيصًا من
-                        //      الجوابِ الخاطئِ الذي تحلُّ محلَّه.
-                        //      يُرفَعُ هذا الاستثناءُ **حالَ سدِّ ذلك البند**، ولا يبقى
-                        //      بلا أجل.
-                        // ⚠️ (EN) One reasoned exception with an exit condition: widening a
-                        //      class to `أي` reaches dynamic dispatch on an object, which today
-                        //      ABORTS verifyModule with a raw English message and no catalog
-                        //      code when two classes disagree (open item). An LLVM verifier
-                        //      message is forbidden output here, and is a worse diagnostic than
-                        //      the wrong answer it would replace. This exception is lifted the
-                        //      moment that item is sealed; it does not stand open-ended.
+                        // ⚠️ (AR) استثناءٌ ثانٍ **بشرطِ خروجٍ جديدٍ مقيس**. وشرطُه
+                        //      الأوّلُ سُدَّ فعلًا: كان تعميمُ الصنفِ يبلغُ الإرسالَ
+                        //      الديناميَّ فيُجهِضُ `verifyModule` برسالةِ مدقّقِ LLVM
+                        //      إنجليزيّةً خامّة، وقد وُحِّدَ فَكُّ المُستقبِلِ في
+                        //      `objectPointerOperand` فزالَ الإجهاض.
+                        //
+                        //      🔑 غير أنّ رفعَه اليومَ يُنتِجُ **رفضًا كاذبًا**، وذلك
+                        //      قياسٌ لا ظنّ: وسمُ الكائنِ لا ينجو من التعليب — يُنزِلُ
+                        //      `astTypeToSIRType` الصنفَ إلى مقبضِ i64 فيُعلَّبُ `Int`،
+                        //      فخانةٌ عُمِّمَت إلى `أي` يصلُها كائنٌ يرفعُ حارسُ
+                        //      المُستقبِلِ عليها RUN033 «نوع المعامل INTEGER» وهو
+                        //      كائنٌ سليم. والرفضُ الكاذبُ أسوأُ ممّا يحلُّ محلَّه.
+                        //
+                        //      ⚠️ ولا يُسَدُّ ذلك برفعِ الوسمِ من `objectClassMap`:
+                        //      جُرِّبَ فقِيسَ أنّ خريطةً مفتاحُها اسمٌ بلا عزلِ كتلٍ
+                        //      تجعلُ العددَ ٥ يُوزَّعُ كائنَ صنفٍ (`مواء` · rc=0)
+                        //      والكتابةَ عبرَه `store` على `inttoptr(7)` (rc=139) —
+                        //      ISSUE-195، وحارسُه بذرتا `gr.oop.method/edge/058`
+                        //      و`gr.oop.field/edge/054`.
+                        //
+                        //      🔑 وهذا الاستثناءُ **لا أثرَ له اليومَ**: بُنيَ المترجِمُ
+                        //      بالحظرِ وبلا الحظرِ فتطابقَ المخرَجان، لأنّ
+                        //      `inferExprType` تُصنِّفُ نداءَ البانِي والمتغيّرَ
+                        //      المُصرَّحَ بصنفِه **صحيحًا** فلا يبلغُ `slot` قيمةَ
+                        //      `Class` أبدًا (ISSUE-193). فهو **مِرصادٌ لا حارسٌ عامل**:
+                        //      يُبقيه أنّ سدَّ ISSUE-193 وحدَه — بلا ISSUE-195 — يُحوِّلُ
+                        //      شرطَه من ميّتٍ إلى حيّ. ⚠️ وأنّه يمنعُ ساعتَئذٍ رفضًا كاذبًا
+                        //      **توقّعٌ لا قياس**، ولا سبيلَ إلى قياسِه قبلَ سدِّ ١٩٣؛
+                        //      فليُقَسْ عندَها ولا يُؤخَذْ من هنا مأخذَ المقيس.
+                        //      **شرطُ رفعِه**: سدُّ ISSUE-195 (برهانُ الكائنِ محمولٌ على
+                        //      المُعامِلِ لا مبحوثٌ عنه باسمِه).
+                        // ⚠️ (EN) A second exception with a NEW, measured exit condition. Its
+                        //      first condition is genuinely sealed — the verifyModule abort is
+                        //      gone now that the receiver is unwrapped through
+                        //      objectPointerOperand. But lifting it today produces a FALSE
+                        //      REJECTION: the object tag does not survive boxing (Class lowers
+                        //      to an i64 handle and is packed as Int), so a slot widened to
+                        //      «أي» that receives an object raises RUN033 «operand type
+                        //      INTEGER» on a valid object — worse than what it replaces.
+                        //      And that is NOT fixed by lifting the tag from objectClassMap:
+                        //      measured, a name-keyed map with no block isolation dispatches
+                        //      the integer 5 as a class object (rc=0) and stores through
+                        //      inttoptr(7) (rc=139) — ISSUE-195, guarded by two seeds.
+                        //      This exception has no effect today (the compiler was built with
+                        //      and without it and both outputs matched, because inferExprType
+                        //      never yields Class — ISSUE-193). It is kept as a TRIPWIRE, not a
+                        //      working guard: sealing ISSUE-193 alone, without ISSUE-195, would
+                        //      make its condition live and it would then prevent the false
+                        //      rejection. Lift it only once ISSUE-195 is sealed.
                         const bool classWideningBlocked = (slot == SadTypeKind::Class ||
                                                            slot == SadTypeKind::Struct);
 

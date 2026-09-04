@@ -810,6 +810,28 @@ namespace Sad
             return cg.builder_->CreateIntToPtr(dynPayloadI64(cg, dyn), ptrTy, "dyn.ptr");
         }
 
+        // (AR) التوثيقُ الكاملُ في الرأس. الترتيبُ هنا **ملزِمٌ**: الخانةُ تُحمَّلُ
+        //      أوّلًا، وإلّا رأى `isSadDyn` مؤشّرَ الخانةِ فحكمَ «ليست موسومة»
+        //      ومرّرَ **عنوانَ الخانةِ** مؤشّرَ كائنٍ — فيُقرأُ وسمُ %SadDyn حقلَ
+        //      vtable. ثمّ يُفَكُّ الوسمُ، ثمّ يُرفَعُ المقبضُ i64 مؤشّرًا.
+        // (EN) Full rationale in the header. The order is binding: load the slot
+        //      first, or isSadDyn sees the slot pointer, concludes "not tagged", and
+        //      the slot ADDRESS is used as the object pointer — the %SadDyn kind byte
+        //      is then read as the vtable field.
+        llvm::Value *objectPointerOperand(LLVMCodeGen &cg, llvm::Value *v,
+                                          const std::string &name)
+        {
+            if (!v || !cg.builder_ || !cg.context_)
+                return v;
+            v = loadDynSlot(cg, v);
+            if (isSadDyn(v))
+                v = unpackPtr(cg, v);
+            if (v->getType()->isIntegerTy())
+                v = cg.builder_->CreateIntToPtr(
+                    v, llvm::PointerType::getUnqual(*cg.context_), name);
+            return v;
+        }
+
         llvm::Value *unpackI64(LLVMCodeGen &cg, llvm::Value *dyn)
         {
             auto &b = *cg.builder_;

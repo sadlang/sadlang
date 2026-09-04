@@ -395,6 +395,26 @@ namespace Sad
                                 continue;
                             }
                             // مؤشّر كائن ص (ذاكرة البنية بلا ترويسة).
+                            // ⚠️ (AR) وهذا الموضعُ **مُستثنًى عمدًا** من بابِ
+                            //      `objectPointerOperand` الواحد، وحدَه من مواضعِ العائلة.
+                            //      إخوتُه الستّةُ خلفَ `OBJECT_NULL_CHECK ⇒ RUN033` فلا
+                            //      يبلغُها غيرُ كائن؛ وهذا لا حارسَ فوقَه: RUN033 يُبعَثُ
+                            //      على `.طريقة()` و`.=` لكائنِ ص لا على وسيطِ ربطٍ خارجيّ.
+                            //      ولو فُكَّ الموسومُ هنا بلا سؤالٍ لقُرِئت **١٦ بايتًا من
+                            //      عنوانٍ مُلفَّقٍ وسُلِّمت لشيفرةٍ أجنبيّة** — بلا رمزِ
+                            //      كتالوجٍ ولا انهيارٍ مضمون (مقيسٌ في التجميعة: `movups
+                            //      (%rdx), %xmm0` وبايتُ الوسمِ يُخزَّنُ ولا يُختبَر).
+                            //      فيبقى على حالِه حتّى تُكتَبَ بذرتُه: تمريرُ «أي» يحملُ
+                            //      عددًا إلى معاملِ بنيةِ `@تمثيل_سي` يجبُ أن يُشخَّصَ برمز.
+                            // ⚠️ (EN) This site is DELIBERATELY excluded from the single
+                            //      objectPointerOperand door — alone among the family. Its six
+                            //      siblings sit behind OBJECT_NULL_CHECK ⇒ RUN033, so nothing
+                            //      but an object reaches them; this one has no guard above it
+                            //      (RUN033 is raised on Sad method/field ports, not on an FFI
+                            //      argument). Unwrapping the tag here without asking would read
+                            //      16 bytes from a forged address and hand them to foreign code
+                            //      — no catalog code, no guaranteed crash (measured in the
+                            //      emitted assembly). It stays as-is until its seed exists.
                             llvm::Value *objPtr = args[i];
                             if (objPtr->getType()->isIntegerTy())
                                 objPtr = b.CreateIntToPtr(objPtr, ptrTy, "crepr.arg.p");
