@@ -8,7 +8,7 @@ version: 2
 guard: scripts/codegen/check_builtin_engine_coverage.py
 harness: scripts/codegen/calibrate_builtin_coverage.py
 guard_sha256: b87ba6bdad58cb17d03cd90a6db429bcd469474c8be03d03221d568086c4f6b4
-harness_sha256: fdda4dc63b4340f8e825d178ae3b718d0748ddd972c07b18c530c92704364bf4
+harness_sha256: 9c3f8ba642aa0fde9a27168dcf4b00289700c630b7fca4a35a0004fe41aa2f0a
 calibrated_at: 2026-09-05
 probes_total: 10
 probes_passed: 10
@@ -19,7 +19,7 @@ probes:
     expect_exit: 1
     expect_text: "وعدٌ كاذب (stable بلا إرسال): 1"
     role: "يجبُ أن يحمرّ"
-  - name: "② دَينُ التأجيلِ ينمو ٥٩٩ ← ٦٠٠"
+  - name: "② دَينُ التأجيلِ ينمو بندًا واحدًا فوقَ السقف"
     target: language-truth/builtins/core.yaml
     expect_exit: 1
     expect_text: "600 > 599"

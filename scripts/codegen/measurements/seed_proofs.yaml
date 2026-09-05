@@ -1,0 +1,33 @@
+# ═══════════════════════════════════════════════════════════════
+# قياسُ عيارِ البراهين — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ ليس بصمةً: نتيجتُه تعتمدُ على ثنائيِّ المترجّمِ القائم، فيُعادُ
+#    قياسُه عندَ الحاجةِ ولا يُحرَسُ بانجرافِ بصمة.
+# ═══════════════════════════════════════════════════════════════
+version: 1
+measured_at: 2026-09-05
+compiler: build/bin/Release/sad-build.exe
+compiler_sha256: d07d0fc47e95b4ada90a20d1f15b9299e1e55e25dd0bcf97a4f7fc4c6d4d2652
+source_head: e54f6aac589ead45bb2fd680b5af7c858c2b4408
+source_dirty: yes
+pool: 3830
+sample_requested: 200
+sample_measured: 197
+sample_sha256: ddd032f9e6648d6f6631eb1aafc468bc8afa39eed60035b94ce3c3d38a1ece90
+excluded_not_green: 3
+  - tests/behavior/grammar_gaps/بنيات_متقدمة/007_generic.ص
+  - tests/behavior/grammar_gaps/تصريحات/0014_nameless_decl_swallows_next_line.ص
+  - tests/behavior/grammar_gaps/طرق_النصوص/003_str_trim.ص
+reproduce: python scripts/codegen/calibrate_seed_proofs.py --record --date=2026-09-05 --sample=200
+mutators:
+  - name: "عقدٌ مُفسَد"
+    kind: proof
+    calibrated: 197
+    stayed_green: 0
+  - name: "إخراجٌ محذوف"
+    kind: near_proof
+    calibrated: 197
+    stayed_green: 9
+  - name: "طفرةُ عددٍ"
+    kind: upper_bound
+    calibrated: 165
+    stayed_green: 44

@@ -39,9 +39,24 @@ SAD_SUFFIX = u".ص"
 # (EN) An archived tree that never runs — its exclusion is part of the definition.
 EXCLUDED_DIRS = ("_archive",)
 
+_NL = chr(10)
+
 SKIP_MARK = re.compile(u"^#\\s*@skip_compiler", re.M)
-EXPECTED_MARK = re.compile(u"^#\\s*@expected", re.M)
-NEGATIVE_MARK = re.compile(u"^#\\s*@(expect_error|expect_reject|expect_reject_any)", re.M)
+# (AR) 🔑 **القارئانِ يُورَّثانِ من الحارسِ ولا يُنسَخان.** كانا منسوخَين فأنتجا
+#      عدّادًا واحدًا بثلاثةِ أرقامٍ متناقضة (١٦٤ · ١٦٥ · ١٦٩). ثمّ صُحِّحا نسخًا
+#      فبقيَ الانحرافُ ممكنًا — وبُرهنَ بالحقن: بذرةٌ ببادئةِ BOM وعقدُها في
+#      السطرِ الأوّلِ ⇒ الحارسُ ١٦٥ أخضرُ والمقياسُ ١٦٦ أحمر. والشرطُ حيٌّ:
+#      ٨٦ بذرةً ببادئةٍ في الشجرة.
+#      («الرقعةُ تسدُّ في ملفٍّ وتتركُ الأخوات» — وهذه أختٌ تُرِكت مرّتَين.)
+#      🔑 **والقراءةُ والنافذةُ أيضًا، لا النمطَ وحدَه.** توريثُ النمطِ وحدَه
+#      تركَ فارقَين حيَّين: هذا الأمرُ كان يقرأُ `utf-8` (فبادئةُ BOM تُسقِطُ
+#      وسمَ السطرِ الأوّل — ٨٦ بذرةً ببادئةٍ في الشجرة)، ويقرأُ الملفَّ كلَّه
+#      بينما الحارسُ يقفُ عندَ نافذةِ العدّاء. ثلاثةُ أوجهٍ لقارئٍ واحد،
+#      وتوريثُ وجهٍ منها يُبقي الانحرافَ ويُخفيه.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from check_seed_contract import _EXPECTED as EXPECTED_MARK  # noqa: E402
+from check_seed_contract import _NEGATIVE as NEGATIVE_MARK  # noqa: E402
+from check_seed_contract import _runner_window  # noqa: E402
 
 
 def iter_seeds():
@@ -62,11 +77,13 @@ def group_of(path):
 def classify():
     """(AR) يردُّ (متخطّاة، بلا عقد) خريطتَي مجلّد←عدد، مع الإجماليّ."""
     skipped, no_contract, total = {}, {}, 0
+    window = _runner_window()
     for path in iter_seeds():
         try:
-            text = io.open(path, encoding="utf-8").read()
+            text = io.open(path, encoding="utf-8-sig").read()
         except (IOError, UnicodeDecodeError):
             continue
+        text = _NL.join(text.split(_NL)[:window])
         total += 1
         group = group_of(path)
         is_skipped = bool(SKIP_MARK.search(text))

@@ -2,22 +2,16 @@
 # -*- coding: utf-8 -*-
 """
 ============================================================================
-(AR) مِحقنةُ عيارِ حارسِ المرساة — **يُحقَنُ العطبُ ويُثبَتُ الاحمرار**.
+(AR) مِحقنةُ عيارِ حارسِ عقدِ البذرة — يُحقَنُ العطبُ ويُثبَتُ الاحمرار.
 
-     حارسٌ لم يُثبَتْ احمرارُه ليس حارسًا. وأغلبُ الأعطابِ المُدوَّنةِ في سجلِّ
-     دروسِ هذا المستودعِ صورةٌ واحدةٌ مكرّرة: **أخضرُ لأنّه لا يستطيعُ أن يحمرّ**.
+     حارسٌ لم يُثبَتْ احمرارُه ليس حارسًا. ومجسّاتٌ عدّتُها `len(PROBES)`
+     وأرضيّتُها `MIN_PROBES` — ولا تُنثَرُ ههنا عددًا يبلى. وأربعةٌ منها **يجبُ
+     أن تبقى خضراءَ** فهي اختباراتُ انحدارٍ لا أعطاب.
 
-     مجسّاتٌ عدّتُها `len(PROBES)` وأرضيّتُها `MIN_PROBES` — ولا تُنثَرُ ههنا
-     عددًا يبلى. وأربعةٌ منها **يجبُ أن تبقى خضراءَ** فهي اختباراتُ انحدار:
-     ما لا يُقاسُ ينمو، وما يُقاسُ خطأً يُوقِفُ الدمجَ بلا سبب.
+     🔑 والبايتاتُ تُستعادُ ويُتحقَّقُ منها بـsha256، وتُرفَضُ الأرضيّةُ الملوّثةُ
+        بأثرِ تشغيلةٍ لم تُنهَ — وأثرُها **يُشتقُّ من المجسِّ نفسِه**.
 
-     🔑 **والبايتاتُ تُستعادُ ويُتحقَّقُ منها بـsha256** بعدَ كلِّ حقنة. وترفضُ
-        المِحقنةُ القياسَ على **أرضيّةٍ ملوّثةٍ** بأثرِ تشغيلةٍ لم تُنهَ — وأثرُها
-        **يُشتقُّ من المجسِّ نفسِه** لا يُكتَبُ نسخةً ثانيةً تبلى بأوّلِ تعديل.
-
-(EN) Injection harness for the anchor-integrity guard: inject a defect, prove
-     the guard reddens, restore the bytes exactly (sha256-verified). Four
-     probes must stay GREEN — they are regression tests, not defects.
+(EN) Injection harness for the seed-contract guard.
 ============================================================================
 """
 from __future__ import annotations
@@ -32,29 +26,24 @@ from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-GUARD = ROOT / "scripts" / "codegen" / "check_anchor_integrity.py"
+GUARD = ROOT / "scripts" / "codegen" / "check_seed_contract.py"
 HARNESS = Path(__file__).resolve()
 RECORD_DIR = ROOT / "scripts" / "codegen" / "calibration"
-RECORD = RECORD_DIR / "check_anchor_integrity.yaml"
+RECORD = RECORD_DIR / "check_seed_contract.yaml"
 
-# (AR) ثابتانِ بدلَ محرَفَي هروب: تُنقَلُ الشفرةُ عبرَ صدفاتٍ تبتلعُ الخطَّ المائلَ
-#      فتنكسرُ بصمتًا.
+# (AR) ثابتانِ بدلَ محرَفَي هروب: تُنقَلُ الشفرةُ عبرَ صدفاتٍ تبتلعُ الخطَّ المائل.
 CRLF = (chr(13) + chr(10)).encode("ascii")
 LF_ = chr(10).encode("ascii")
 
 
 # ═══ البصمةُ تُقاسُ على التمثيلِ الذي يملكُه git ═══════════════════════════
-# (AR) 🔑 **مرجعُ القياسِ يلائمُ مرجعَ البصمة.** `.gitattributes` يُعلِنُ
-#      `*.py text eol=lf`، فما يُخرِجُه `git checkout` بـLF مهما كانت نهاياتُ
-#      الأسطرِ على قرصِ الكاتب. وبصمةٌ على البايتاتِ الخامِّ تُسجَّلُ على تمثيلٍ
-#      **لا يملكُه المستودع**، فتُحمِّرُ كلَّ استنساخٍ نظيفٍ بحمرةٍ لا علاقةَ لها
-#      بالمحتوى. (بُرهِنَ في مراجعةٍ خصميّةٍ على حارسٍ سابق.)
+# (AR) `.gitattributes` يُعلِنُ `*.py text eol=lf`، فبصمةٌ على البايتاتِ الخامِّ
+#      تُحمِّرُ كلَّ استنساخٍ نظيفٍ بحمرةٍ لا علاقةَ لها بالمحتوى.
 def _sha_bytes(blob: bytes) -> str:
     return hashlib.sha256((blob or b"").replace(CRLF, LF_)).hexdigest()
 
 
 def _sha_norm(path) -> str:
-    """(AR) بصمةٌ على النصِّ بعدَ تطبيعِ نهاياتِ الأسطرِ إلى ما يُودِعُه git."""
     return _sha_bytes(path.read_bytes())
 
 
@@ -77,9 +66,7 @@ def _run_guard() -> tuple[int, str]:
 
 
 def _run_eol_invariance() -> tuple[int, str]:
-    """(AR) يُنفَّذُ والحارسُ مكتوبٌ بصورةِ LF — ويمرُّ بـ`_sha_norm` **كاتبةِ
-    السجلِّ بعينِها** لا بطبقةٍ تحتَها. فحارسٌ يشهدُ لطبقةٍ أسفلَ التي تُكتَبُ
-    منها الحقيقةُ يخضرُّ وإن تجاوزتْها العليا. والاستعادةُ مضمونةٌ في `_probe`."""
+    """(AR) يمرُّ بـ`_sha_norm` **كاتبةِ السجلِّ بعينِها** لا بطبقةٍ تحتَها."""
     blob = GUARD.read_bytes()
     as_lf = _sha_norm(GUARD)
     GUARD.write_bytes(blob.replace(LF_, CRLF))
@@ -87,37 +74,21 @@ def _run_eol_invariance() -> tuple[int, str]:
     GUARD.write_bytes(blob)
     if as_lf == as_crlf:
         return 0, "بصمةٌ ثابتةٌ عبرَ نهاياتِ الأسطر: %s" % as_lf[:16]
-    return 1, ("انجرافٌ بنهايةِ السطر: LF=%s ≠ CRLF=%s"
-               % (as_lf[:16], as_crlf[:16]))
+    return 1, "انجرافٌ بنهايةِ السطر: LF=%s ≠ CRLF=%s" % (as_lf[:16], as_crlf[:16])
 
 
 # ═══ الأثرُ يُشتقُّ من المجسِّ ولا يُكتَبُ مرّتَين ══════════════════════════
-# (AR) ما يُوسَمُ أثرًا هو ما **لا يُحمِّرُ الحارسَ**: حقنُ بذرةٍ أو مصدرِ حقيقةٍ
-#      يفضحُ نفسَه، أمّا ملفٌّ يُنشَأُ في `_archive` (وهو متروكٌ بالتصميم) فأثرُه
-#      صامتٌ تمامًا. ولذا `residue=True` يُطلَبُ صراحةً ولا يُفترَض.
+# (AR) 🔑 **الصمتُ يُصرَّحُ به ولا يُورَثُ بالإغفال.** كان `_bom_expected` بلا
+#      `residue` **سهوًا**، ومسارُ هدفِه يظهرُ في الاشتقاقِ لأنّ مجسًّا آخرَ
+#      يُسجِّلُ المسارَ نفسَه بسِمةٍ أخرى — فبدا متتبَّعًا وليس كذلك. وقُيسَ:
+#      قتلٌ في منتصفِه يتركُ بذرةً **مُودَعةً** مُفسَدةً، والحارسُ أخضرُ والعدّاءُ
+#      أخضرُ وفحصُ الأثرِ أخضر. فصارَ لكلِّ مجسٍّ تصريحٌ واجب، والاشتقاقُ
+#      **لكلِّ مجسٍّ لا لكلِّ مسار**.
 MIN_RESIDUE_MARK = 16
 _CREATED = object()      # ملفٌّ يُنشَأ — الدليلُ وجودُه
-# (AR) 🔑 **الصمتُ يُصرَّحُ به ولا يُورَثُ بالإغفال.** كان مجسٌّ بلا `residue`
-#      **سهوًا** يبدو متتبَّعًا لأنّ مجسًّا آخرَ يُسجِّلُ المسارَ نفسَه بسِمةٍ
-#      أخرى — والاشتقاقُ كان يطوي على المسار. فصارَ لكلِّ مجسٍّ تصريحٌ واجبٌ،
-#      والاشتقاقُ **صفًّا لكلِّ مجسٍّ لا لكلِّ مسار**.
 _SELF_RED = object()     # الطفرةُ تُحمِّرُ الحارسَ بنفسِها — البوّابةُ تلتقطُها
 _NO_TRACE = object()     # لا أثرَ دلاليًّا — ويلزمُ تعليلٌ عندَ الإسناد
-
-
-def _self_red(fn):
-    """(AR) طفرةٌ تُحمِّرُ الحارسَ بنفسِها: بقاؤها يُوقِفُ البوّابةَ فورًا."""
-    fn.residue = _SELF_RED
-    return fn
-
-
-def _no_trace(reason: str):
-    """(AR) صمتٌ **مُعلَّلٌ**: لا أثرَ دلاليًّا. والتعليلُ يُلزِمُ الكاتبَ ببرهانِه."""
-    def wrap(fn):
-        fn.residue = _NO_TRACE
-        fn.no_trace_reason = reason
-        return fn
-    return wrap
+_DECLARED = (_CREATED, _SELF_RED, _NO_TRACE)
 
 
 def _sub(old: bytes, new: bytes, count: int = 1, residue: bool = False):
@@ -147,179 +118,169 @@ def _create(body: bytes):
     return apply
 
 
+def _self_red(fn):
+    """(AR) طفرةٌ تُحمِّرُ الحارسَ بنفسِها: بقاؤها يُوقِفُ البوّابةَ فورًا."""
+    fn.residue = _SELF_RED
+    return fn
+
+
+def _no_trace(reason: str):
+    """(AR) صمتٌ **مُعلَّلٌ**: لا أثرَ دلاليًّا. والتعليلُ يُلزِمُ الكاتبَ ببرهانِه."""
+    def wrap(fn):
+        fn.residue = _NO_TRACE
+        fn.no_trace_reason = reason
+        return fn
+    return wrap
+
+
 SEED = "tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص"
-GRAMMAR = "language-truth/grammar/10_statements.yaml"
-ARCHIVED = "tests/_archive/zz_anchor_probe.ص"
-IF_ANCHOR = "# @rule: gr.stmt.if".encode("utf-8")
-
-# (AR) 🔑 وبذرةُ المجسِّ ② **ليست أيَّ بذرة**: يلزمُها قاعدةٌ مرساتُها واحدةٌ
-#      فقط، وإلّا لم يُيتِّمْها نزعُ مرساةٍ منها. (وقعتُ فيه أوّلَ مرّة: نُزِعت
-#      مرساةُ `gr.stmt.if` فبقيت القاعدةُ مشهودةً ببذورٍ أخرى، ولم يعضَّ المجسّ
-#      — **خللٌ في المجسِّ لا في الحارس**.) و`gr.adv.ffi_linkage` مقيسٌ في
-#      ٢٠٢٦-٠٩-٠٥ أنّه الوحيدُ بمرساةٍ يتيمةِ العدد.
-#      ولو زالت المرساةُ عن مكانِها لأَلقى `_sub` وانتهت المِحقنةُ بالرمز ٢
-#      «لم تُقَسْ» — لا بمرورٍ صامت.
-SOLE = ("tests/behavior/rules_matrix/_interactions/_generated/"
-        "adv.ffi_extern_block__adv.ffi_linkage/001_ffi_block_linkage.ص")
-SOLE_ANCHOR = "# @rule: gr.adv.ffi_extern_block, gr.adv.ffi_linkage".encode("utf-8")
-STDLIB = "language-truth/stdlib/functions.yaml"
-SIR = "language-truth/backend/sir_opcodes.yaml"
-_BOM = b"\xef\xbb\xbf"
+NEW_SEED = "tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص"
+# (AR) 🔑 **داخلَ نطاقِ المسحِ لا خارجَه.** كان `tests/_archive/…` — و`SEEDS`
+#      هو `tests/behavior`، فالهدفُ لم يكنْ ليُمسَحَ أصلًا: المجسُّ يمرُّ ولو
+#      حُذِفَ `SKIP_PARTS` كلُّه (قِيسَ: أخضرُ في الحالَين). ولا مجلَّدَ
+#      `_archive` تحتَ `behavior` اليوم، فالبندُ كان ميّتًا وشاهدُه أعمى.
+ARCHIVED = "tests/behavior/_archive/zz_contract_probe.ص"
+EXPECTED_LINE = "# @expected".encode("utf-8")
 
 
 @_self_red
-def _bom_invented(blob: bytes) -> bytes:
-    """(AR) بادئةُ BOM + مرساةٌ مخترَعةٌ **في السطرِ الأوّل** — وهي الحالةُ التي
-    كانت تُبتلَعُ صامتة. وتُنزَعُ بادئةٌ سابقةٌ إن وُجِدت لئلّا تتكرّر."""
-    body = blob[len(_BOM):] if blob.startswith(_BOM) else blob
-    return _BOM + "# @rule: gr.stmt.zz_bom_invented\n".encode("utf-8") + body
-
-
-@_self_red
-def _dup_opcode(blob: bytes) -> bytes:
-    """(AR) أوپكودٌ جديدٌ باسمٍ **موجودٍ** — يذوبُ في عنوانِ غيرِه."""
+def _bump_floor(blob: bytes) -> bytes:
+    """(AR) يرفعُ أرضيّةَ المتعاقَدِ بواحدٍ — يُحاكي انكماشَ المجموعةِ بلا مساسٍ
+    بالبذور. ويُقرأُ الرقمُ القائمُ ولا يُثبَّتُ، فلا تنكسرُ المرساةُ برفعٍ مشروع."""
     text = blob.decode("utf-8")
-    marker = "\n  - name: "
-    at = text.index(marker)
-    name = text[at + len(marker):].split("\n", 1)[0].strip()
-    add = f"\n  - name: {name}\n    description_ar: بندٌ مُعلَنٌ باسمٍ موجود"
-    return (text[:at] + add + text[at:]).encode("utf-8")
+    anchor = "FLOOR_CONTRACTED = "
+    at = text.index(anchor) + len(anchor)
+    end = at
+    while end < len(text) and text[end].isdigit():
+        end += 1
+    return (text[:at] + str(int(text[at:end]) + 1) + text[end:]).encode("utf-8")
+
+
+_BOM_MARK = b"\xef\xbb\xbf" + "# @expected 1\n".encode("utf-8")
+
+
+def _bom_expected(blob: bytes) -> bytes:
+    """(AR) بادئةُ BOM قبلَ عقدٍ في السطرِ الأوّل — كانت تُبتلَعُ صامتة.
+
+    وأثرُه **بايتاتُ البادئةِ نفسُها**: العدّاءُ لا يرى السطرَ (لا يبدأُ بـ`#`
+    بعدَ `strip`) والحارسُ يراهُ عقدًا قائمًا سلفًا فلا يتغيّرُ عدّاد — فلا
+    شاهدَ عليه غيرُ هذه السِّمة. وقِيسَ: **صفرُ** بذرةٍ في الشجرةِ تبدأُ بها.
+    """
+    body = blob[3:] if blob.startswith(b"\xef\xbb\xbf") else blob
+    return _BOM_MARK + body
+
+
+_bom_expected.residue = _BOM_MARK
+
 
 @_no_trace("تطبيعُ نهاياتِ الأسطرِ لا يُغيِّرُ بصمةً مطبَّعةً ولا دلالةَ بايتٍ"
            " واحدٍ — وهو نصُّ اللامتغيِّرِ الذي يُثبِتُه هذا المجسُّ نفسُه.")
-def _to_lf(blob: bytes) -> bytes:
-    """(AR) صورةُ الملفِّ كما يُخرِجُها `git checkout` تحتَ `eol=lf`."""
+def _eol_to_lf(blob: bytes) -> bytes:
     return (blob or b"").replace(CRLF, LF_)
 
 
 # (AR) (اسمٌ، ملفٌّ، عطبٌ، رمزٌ منتظَر، نصٌّ منتظَر[، عدّاءٌ])
 PROBES = (
-    ("① مرساةٌ يتيمة — وسمٌ يُسمّي قاعدةً مخترَعة",
-     SEED, _sub(IF_ANCHOR, "# @rule: gr.stmt.zz_invented".encode("utf-8")),
-     1, "مرساةٌ يتيمة: 1"),
+    ("① بذرةٌ جديدةٌ بلا عقدٍ ترفعُ الدَّين",
+     NEW_SEED, _create("اطبع_سطر(\"لا عقدَ لي\")\n".encode("utf-8")),
+     1, "① تُشغَّلُ بلا عقد"),
 
-    ("② دَينُ الشهادةِ ينمو — تُنزَعُ آخرُ مرساةٍ لقاعدة",
-     SOLE, _sub(SOLE_ANCHOR, "# @rule: gr.adv.ffi_extern_block".encode("utf-8")),
-     1, "بلا شهادة:    3"),
+    ("② بذرةٌ تفقدُ عقدَها",
+     SEED, _sub(EXPECTED_LINE, "# (AR) نُزِعَ العقد".encode("utf-8")),
+     1, "① تُشغَّلُ بلا عقد"),
 
-    # (AR) الصيغةُ المعمَّمةُ ليست نصًّا في وثيقةٍ — تُقاسُ. ولولا هذا لكان
-    #      `@مُعلَن:` وسمًا ميّتًا يُكتَبُ ولا يقرؤه أحد.
-    ("③ `@مُعلَن:` يُقرأُ فعلًا — مدمجٌ مخترَع",
-     SEED, _append("\n# @مُعلَن: bi.ZzNever.NEVER\n".encode("utf-8")),
-     1, "bi.ZzNever.NEVER"),
+    ("③ عقدانِ متناقضان — @expected مع سالب",
+     SEED, _append("\n# @expect_error SEM001\n".encode("utf-8")),
+     1, "③ عقدانِ متناقضان"),
 
-    # (AR) وهذا ما لم يكن يُقاسُ قطُّ: الرمزُ كان علامةَ «بذرةٌ سالبة» فقط،
-    #      فبذرةٌ تكتبُ `SEM999` تمرُّ صامتةً ولا يقابلُها الكتالوج.
-    ("④ `@expect_error` يُقابَلُ بالكتالوج — SEM999",
-     SEED, _append("\n# @expect_error: SEM999\n".encode("utf-8")),
-     1, "err.SEM999"),
+    # (AR) الهجاءُ الثاني: `compile_` بينَ `expect_` و`error` فلا لاحقةٌ تبلغُه.
+    #      ولولا قراءتِه لعُدَّت بذورُه «بلا عقد» — وهو ما وقعَ في المقياسِ القائم.
+    ("④ الهجاءُ الثاني يُقرأُ عقدًا سالبًا",
+     NEW_SEED, _create("# @expect_compile_error SEM042\nس = ١\n".encode("utf-8")),
+     0, "③ عقدانِ متناقضان                      0"),
 
-    # (AR) العنوانُ العاري ليس عنوانًا: ٢٦ معرِّفَ مدمجٍ يتكرّرُ عبرَ النطاقات.
-    ("⑤ العنوانُ مؤهَّلٌ — معرِّفٌ عارٍ يُرَدُّ",
-     SEED, _append("\n# @مُعلَن: bi.ADD\n".encode("utf-8")),
-     1, "bi.ADD"),
+    ("⑤ تخطٍّ جديدٌ يرفعُ سقفَ المتخطّاة",
+     NEW_SEED, _create("# @skip_compiler\n# @expected 1\nاطبع_سطر(\"1\")\n"
+                       .encode("utf-8")),
+     1, "② متخطّاة"),
 
-    ("⑥ مُعلَنٌ جديدٌ بلا شهادةٍ يرفعُ الدَّين",
-     GRAMMAR, _append("  - id: gr.stmt.zz_probe\n    lhs: {nonterminal: ZzProbe}\n"
-                      "    ebnf: \"ZzProbe = 'zz' ;\"\n".encode("utf-8")),
-     1, "gr.stmt.zz_probe"),
+    # (AR) وسمٌ سالبٌ بلا رمزٍ عقدٌ ضعيفٌ يمرُّ على أيِّ فشلٍ ولو كان انهيارَ الأداة.
+    ("⑥ وسمٌ سالبٌ بلا رمزٍ يرفعُ الدَّينَ الضعيف",
+     NEW_SEED, _create("# @expect_error\nس = ".encode("utf-8")),
+     1, "④ وسمٌ سالبٌ بلا رمزِ خطأ"),
 
     # ═══ اختباراتُ انحدارٍ — يجبُ أن تبقى خضراء ═══
-    # (AR) `_archive` متروكٌ بالتصميم: شجرةٌ محفوظةٌ بلهجةٍ ماتت لا تُشغَّل.
-    #      وهذا المجسُّ يُثبِتُ أنّ تركَها **مقصودٌ ومقيسٌ** لا سهوٌ في الكنس.
-    ("⑦ الأرشيفُ متروكٌ — مرساةٌ يتيمةٌ فيه لا تُحمِّر",
-     ARCHIVED, _create("# @rule: gr.zz.archived_never\nاطبع_سطر(\"x\")\n"
-                       .encode("utf-8")),
-     0, "مرساةٌ يتيمة (ترسو على غيرِ مُعلَن): 0"),
+    # (AR) 🔑 **ولا عددَ سقفٍ في النصِّ المنتظَر.** كان `"(السقف 165 — نازل)"`،
+    #      وتعليقٌ فوقَه يزعمُ النجاةَ من هذا بعينِه. و١٦٥ سقفٌ **نازلٌ بالتعريف**
+    #      فأوّلُ سدادِ دَينٍ مشروعٍ يُسقِطُ مجسَّينِ سليمَينِ ⇒ لا يُعادُ سجلُّ
+    #      العيار ⇒ الحارسُ الفوقيُّ أحمرُ ⇒ **البوّابةُ تُقفَلُ على العملِ الذي
+    #      وُجِدَ الحارسُ ليُنجِزَه**. والمِرساةُ الآنَ سطرُ اللامتغيِّرِ وحدَه.
+    ("⑦ بادئةُ BOM لا تبتلعُ العقد",
+     SEED, _bom_expected, 0, "① تُشغَّلُ بلا عقد"),
 
-    # (AR) وسمٌ في **جسمِ** الملفِّ لا في أوّلِ سطرٍ ليس مرساة. ولولا هذا لكان
-    #      ذكرُ اسمِ قاعدةٍ في وصفٍ نثريٍّ يُقرأُ شهادةً.
-    ("⑧ نصٌّ في الجسمِ ليس مرساةً — لا شهادةَ بالذِّكر",
-     SEED, _append("اطبع_سطر(\"@rule: gr.zz.in_body\")\n".encode("utf-8")),
-     0, "مرساةٌ يتيمة (ترسو على غيرِ مُعلَن): 0"),
+    ("⑧ الأرشيفُ متروكٌ — بذرةٌ بلا عقدٍ فيه لا تُحمِّر",
+     ARCHIVED, _create("اطبع_سطر(\"أرشيفٌ بلا عقد\")\n".encode("utf-8")),
+     0, "✓ لم ينمُ دَينُ العقد"),
 
-    # (AR) بادئةُ BOM تسبقُ `#` فلا يطابقُها `^#`. وفي الشجرةِ ٨٦ بذرةً
-    #      ببادئةٍ، أربعٌ منها مرساتُها في السطرِ الأوّل. ولولا هذا المجسِّ لعادَ
-    #      العطبُ بأوّلِ رقعةٍ تُعيدُ `utf-8` مكانَ `utf-8-sig`.
-    ("⑪ بادئةُ BOM لا تبتلعُ المرساة",
-     SEED, _bom_invented, 1, "مرساةٌ يتيمة: 1"),
+    # (AR) 🔑 `parse_metadata` يقفُ عندَ ثلاثينَ سطرًا، والحارسُ كان يقرأُ الملفَّ
+    #      كلَّه — فوسمٌ بعدَها **عقدٌ عندَ الحارسِ وعدمٌ عندَ مَن يُنفِّذُه**،
+    #      والبذرةُ تُتخطّى صامتةً وقد عُدَّت متعاقَدة. قِيسَ اليومَ: صفرُ بذرةٍ
+    #      كذلك — فالأرقامُ صحيحةٌ والثغرةُ كانت مفتوحةً للقادم.
+    ("⑬ وسمٌ خارجَ نافذةِ العدّاءِ ليس عقدًا",
+     NEW_SEED, _create(("# حشوٌ\n" * 32 + "# @expected 1\n"
+                        + "اطبع_سطر(\"1\")\n").encode("utf-8")),
+     1, "① تُشغَّلُ بلا عقد"),
 
-    # (AR) الصيغةُ الخاليةُ من النقطتَين هي **الأغلبيّةُ المُودَعة** (١٣١ مقابل
-    #      ١٠١). وكان الحارسُ يقرأُ أقلَّ من نصفِ ما يزعمُ حراستَه.
-    ("⑫ `@expect_error` بلا نقطتَين يُقابَلُ بالكتالوج",
-     SEED, _append("\n# @expect_error SEM999\n".encode("utf-8")),
-     1, "err.SEM999"),
+    # (AR) وسمٌ في **جسمِ** الملفِّ ليس عقدًا — ولولا `^#` لكان ذكرُ الوسمِ في
+    #      سلسلةٍ يُقرأُ عقدًا فيُخفَّضُ الدَّينُ بغشٍّ نصّيّ.
+    ("⑨ نصٌّ في الجسمِ ليس عقدًا",
+     NEW_SEED, _create("اطبع_سطر(\"@expected 1\")\n".encode("utf-8")),
+     1, "① تُشغَّلُ بلا عقد"),
 
-    # (AR) انكماشُ المُعلَنِ ليس تقدُّمًا: عائلةٌ تسقطُ صامتةً و`0 ≤ السقف`.
-    ("⑬ عائلةٌ تنكمشُ — أرضيّةُ المُعلَن",
-     STDLIB, _sub(b"functions:", b"functions_ZZ_RENAMED:"),
-     1, "انكمشَ المُعلَن"),
+    # (AR) 🔑 اللامتغيِّرُ ⑤ (أرضيّةُ المتعاقَد) كان **يُحاكَمُ عليه ولم يُثبَتْ
+    #      احمرارُه قطُّ** — وهو نصُّ عقدِ هذه المِحقنةِ نفسِها. ورفعُ الأرضيّةِ
+    #      بواحدٍ يُحاكي انكماشَ المجموعةِ المتعاقَدةِ بلا مساسٍ بالبذور.
+    ("⑫ انكماشُ المتعاقَدِ يُحمِّر",
+     "scripts/codegen/check_seed_contract.py",
+     # (AR) والمرساةُ **اسمُ الثابتِ لا قيمتُه**: الأرضيّةُ مصمَّمةٌ للصعود،
+     #      فقيمةٌ مثبَّتةٌ تنكسرُ بأوّلِ رفعٍ مشروع. و`residue=False`: سطرُ
+     #      الأرضيّةِ ليس سِمةً مميّزةً، ووسمُه أثرًا يُنتِجُ حمرةً كاذبةً عندَ
+     #      أوّلِ رفعٍ إلى القيمةِ التي يحقنُها المجسُّ نفسُه.
+     _bump_floor,
+     1, "انكمشَ المتعاقَد"),
 
-    # (AR) بندٌ مُعلَنٌ باسمٍ موجودٍ يذوبُ في عنوانِ غيرِه فلا يُعَدُّ ولا يُطالَب.
-    ("⑭ معرِّفٌ مكرَّرٌ يبتلعُ بندًا — سقفُ التصادم",
-     SIR, _dup_opcode, 1, "نما الذوبان"),
-
-    # (AR) الهجاءُ الثاني: `compile_` **بين** `expect_` و`error`، فلا لاحقةٌ
-    #      تبلغُه. ٧٥ موضعًا في الشجرة، وحارسانِ شقيقانِ يعدّانِه ندًّا.
-    ("⑮ `@expect_compile_error` هجاءٌ ثانٍ يُقابَلُ بالكتالوج",
-     SEED, _append("\n# @expect_compile_error: SEM999\n".encode("utf-8")),
-     1, "err.SEM999"),
-
-    # (AR) قائمةٌ برموزٍ — تناظرًا مع `@rule:`. ولولا انتزاعِ الرمزِ من صدرِ كلِّ
-    #      جزءٍ لبقيَ الرمزُ الثاني غيرَ مقروءٍ صامتًا.
-    ("⑯ قائمةُ رموزٍ — الثاني يُقرأُ كالأوّل",
-     SEED, _append("\n# @expect_error: SEM001, SEM999\n".encode("utf-8")),
-     1, "err.SEM999"),
-
-    # (AR) طبقةُ القيدِ مستثناةٌ من الإعلان، فحذفُ أوپكودٍ من `sir` له توأمٌ فيها
-    #      **ينكمشُ فعلًا** وتعضُّ الأرضيّة. وقبلَ الاستثناءِ كان التوأمُ يملأُ
-    #      العنوانَ الشاغرَ فيمرُّ الحذفُ صامتًا.
-    ("⑰ حذفُ أوپكودٍ له توأمٌ في طبقةِ القيدِ يعضّ",
-     SIR, _sub(b"  - name: BUILTIN_CLI\n", b""),
-     1, "انكمشَ المُعلَن"),
-
-    ("⑨ مسبارٌ أعمى — رمزُ عطبِ آلةٍ 2",
-     "scripts/codegen/check_anchor_integrity.py",
+    ("⑩ مسبارٌ أعمى — رمزُ عطبِ آلةٍ 2",
+     "scripts/codegen/check_seed_contract.py",
      _sub(b'SKIP_PARTS = ("_archive",)',
-          b'SKIP_PARTS = ("_archive", "behavior", "unit")', residue=True),
+          b'SKIP_PARTS = ("_archive", "behavior")', residue=True),
      2, "عيارُ الأداة:"),
 
-    ("⑩ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)",
-     "scripts/codegen/check_anchor_integrity.py",
-     _to_lf, 0, "بصمةٌ ثابتة", _run_eol_invariance),
+    ("⑪ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)",
+     "scripts/codegen/check_seed_contract.py",
+     _eol_to_lf, 0, "بصمةٌ ثابتة", _run_eol_invariance),
 )
 
-# (AR) أرضيّةُ العمق. تُقرأُ في الحارسِ الفوقيِّ أيضًا (`CEILING_MIN_PROBES`)،
-#      وههنا تمنعُ **المِحقنةَ نفسَها** من إعلانِ نجاحٍ بلا قياس: بـ`PROBES = ()`
-#      تُرجِعُ صفرًا وتكتبُ `0/0`. وأداةُ قياسٍ تُعلِنُ نجاحًا بلا أن تقيسَ هي
-#      عينُ ما تُنشَأُ لمنعِه.
-MIN_PROBES = 17
+# (AR) أرضيّةُ العمق. تُقرأُ في الحارسِ الفوقيِّ أيضًا (`CEILING_MIN_PROBES`).
+MIN_PROBES = 13
 
 
 def _derive_residue() -> tuple:
-    """(AR) (اسمٌ، مسارٌ، تصريحُ أثرٍ) — صفٌّ **لكلِّ مجسٍّ لا لكلِّ مسار**.
-
-    والطيُّ على المسارِ كان يجعلُ مجسًّا بلا تصريحٍ يركبُ تسجيلَ أخيه في الملفِّ
-    نفسِه فيبدو متتبَّعًا وليس كذلك.
-    """
+    """(AR) صفٌّ **لكلِّ مجسٍّ** لا لكلِّ مسار: مجسّانِ يشتركانِ في ملفٍّ واحدٍ
+    بأثرَينِ مختلفَين، فالطيُّ على المسارِ يجعلُ أحدَهما يركبُ تسجيلَ الآخر."""
     out = []
     for entry in PROBES:
         name, path, mutate = entry[0], entry[1], entry[2]
         mark = getattr(mutate, "residue", None)
         if mark is None:
             raise AssertionError(
-                "مجسٌّ بلا تصريحِ أثر: %s — يلزمُه سِمةٌ أو"
-                " _CREATED/_SELF_RED/_NO_TRACE" % name)
+                "مجسٌّ بلا تصريحِ أثر: %s — يلزمُه سِمةٌ أو %s"
+                % (name, "_CREATED/_SELF_RED/_NO_TRACE"))
         out.append((name, path, mark))
     return tuple(out)
 
 
 def _residue() -> list[str]:
-    """(AR) أثرُ تشغيلةٍ سابقةٍ لم تُنهَ. وجودُه ⇒ لا قياسَ، رمزُ ٢.
-
-    و`finally` يحمي من الاستثناءِ ومن Ctrl-C، **ولا يحمي من SIGKILL**.
-    وأداةٌ تقيسُ فوقَ أثرِ نفسِها تُثبِتُ ما لا تعرف.
-    """
+    """(AR) أثرُ تشغيلةٍ سابقةٍ لم تُنهَ. وجودُه ⇒ لا قياسَ، رمزُ ٢."""
     found: list[str] = _inflight()
     for name, rel, mark in _derive_residue():
         path = ROOT / rel
@@ -327,8 +288,9 @@ def _residue() -> list[str]:
             if path.exists():
                 found.append(f"{rel} — ملفُّ مجسٍّ باقٍ ({name})")
         elif mark in (_SELF_RED, _NO_TRACE):
-            # (AR) `_SELF_RED` تلتقطُه البوّابةُ نفسُها، و`_NO_TRACE` مُعلَّلٌ
-            #      عندَ إسنادِه. فليس ههنا ما يُمسَح.
+            # (AR) `_SELF_RED` تلتقطُه البوّابةُ نفسُها (والمِحقنةُ تُعيدُ
+            #      تشغيلَ الحارسِ بعدَ الاستعادةِ وتُوجِبُ رمزَ صفر)، و`_NO_TRACE`
+            #      مُعلَّلٌ عندَ إسنادِه. فليس ههنا ما يُمسَح.
             continue
         elif path.is_file() and mark in path.read_bytes():
             found.append(f"{rel} — أثرُ حقنٍ باقٍ ({name}):"
@@ -430,6 +392,9 @@ def _probe(path: str, mutate, want_code: int, want_text: str,
     existed = target.exists()
     original = target.read_bytes() if existed else None
     before = hashlib.sha256(original).hexdigest() if existed else None
+    # (AR) والمجلَّدُ المُنشَأُ أثرٌ كالملفّ: هدفُ مجسِّ الأرشيفِ في مجلَّدٍ لا
+    #      وجودَ له في الشجرة، فتركُه فارغًا يتركُ بصمةً لا يشتقُّها أحد.
+    made_dir = not target.parent.is_dir()
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         _journal_open(path, before)
@@ -440,6 +405,11 @@ def _probe(path: str, mutate, want_code: int, want_text: str,
             target.write_bytes(original)          # type: ignore[arg-type]
         else:
             target.unlink(missing_ok=True)
+            if made_dir and target.parent.is_dir():
+                try:
+                    target.parent.rmdir()          # يخفقُ إن لم يكنْ فارغًا
+                except OSError:
+                    pass
     if existed:
         if hashlib.sha256(target.read_bytes()).hexdigest() != before:
             raise AssertionError("لم تُستعَدِ البايتاتُ في " + path)
@@ -461,11 +431,11 @@ def _write_record(passed: int, stamp: str) -> None:
         "# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.",
         "# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ ولم يُعَدِ العيارُ حمِرَ",
         "#    check_calibration_fresh.py. وإعادتُه:",
-        "#    python scripts/codegen/calibrate_anchor_integrity.py --record --date=YYYY-MM-DD",
+        "#    python scripts/codegen/calibrate_seed_contract.py --record --date=YYYY-MM-DD",
         "# ═══════════════════════════════════════════════════════════════════",
         "version: 2",
-        "guard: scripts/codegen/check_anchor_integrity.py",
-        "harness: scripts/codegen/calibrate_anchor_integrity.py",
+        "guard: scripts/codegen/check_seed_contract.py",
+        "harness: scripts/codegen/calibrate_seed_contract.py",
         "guard_sha256: %s" % _sha_norm(GUARD),
         "harness_sha256: %s" % _sha_norm(HARNESS),
         "calibrated_at: %s" % stamp,
@@ -494,25 +464,21 @@ def main() -> int:
         if arg.startswith("--date="):
             stamp = arg.split("=", 1)[1]
     if record and stamp and not _is_date(stamp):
-        print("✗ --date شكلُه YYYY-MM-DD — و%r ليس تاريخًا. سجلٌّ يحملُ نصًّا"
-              " مكانَ تاريخٍ لا يُقالُ عنه متى عُويِر." % stamp)
+        print("✗ --date شكلُه YYYY-MM-DD — و%r ليس تاريخًا." % stamp)
         return 2
     if record and not stamp:
-        print("✗ --record يلزمُه --date=YYYY-MM-DD (لا يُقرأُ وقتُ النظامِ"
-              " لئلّا يتغيّرَ السجلُّ بلا عمل)")
+        print("✗ --record يلزمُه --date=YYYY-MM-DD (لا يُقرأُ وقتُ النظام)")
         return 2
 
-    print("عيارُ حارسِ «المُعلَنُ يعرفُ مَن يشهدُ له» بالحقن:")
+    print("عيارُ حارسِ «البذرةُ تُحاكَمُ على عقد» بالحقن:")
     print("%-50s %-9s %s" % ("المجسّ", "النتيجة", "التفصيل"))
     print("-" * 88)
 
     dirty = _residue()
     if dirty:
-        print("✗ عطبُ آلة: أرضيّةٌ ملوّثةٌ بأثرِ تشغيلةٍ سابقةٍ لم تُنهَ —"
-              " لا يُقاسُ فوقَه:")
+        print("✗ عطبُ آلة: أرضيّةٌ ملوّثةٌ بأثرِ تشغيلةٍ سابقةٍ لم تُنهَ:")
         for item in dirty:
             print("    · %s" % item)
-        print("  نظِّفْ ثمّ أعِدْ: git checkout -- <الملفّ> · احذفِ الملفَّ الباقي.")
         return 2
 
     # (AR) 🔑 **حدٌّ فيه فجوةٌ يُوقِفُ العيارَ ولا يُخفِقُه.** مجسّاتُ «يجبُ أن
@@ -557,8 +523,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    # (AR) 🔑 انهيارٌ ليس حكمًا: مرساةُ حقنٍ اختفَتْ، أو ملفُّ مجسٍّ غيرُ مقروء
-    #      ⇒ **لم تُقَسْ**، فرمزُها ٢ لا ١.
     try:
         raise SystemExit(main())
     except SystemExit:

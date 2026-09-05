@@ -1,0 +1,81 @@
+# ═══════════════════════════════════════════════════════════════════
+# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ ولم يُعَدِ العيارُ حمِرَ
+#    check_calibration_fresh.py. وإعادتُه:
+#    python scripts/codegen/calibrate_seed_contract.py --record --date=YYYY-MM-DD
+# ═══════════════════════════════════════════════════════════════════
+version: 2
+guard: scripts/codegen/check_seed_contract.py
+harness: scripts/codegen/calibrate_seed_contract.py
+guard_sha256: 62643483a1dee3cd4a7bdb890b6bfeebb28e9b11252e9e006fe30d87462f0e73
+harness_sha256: bbec6dcb676fd06bae7108e3d8db01a537a0a9982888a0d9289eb451bde56ded
+calibrated_at: 2026-09-05
+probes_total: 13
+probes_passed: 13
+result: 13/13
+probes:
+  - name: "① بذرةٌ جديدةٌ بلا عقدٍ ترفعُ الدَّين"
+    target: tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص
+    expect_exit: 1
+    expect_text: "① تُشغَّلُ بلا عقد"
+    role: "يجبُ أن يحمرّ"
+  - name: "② بذرةٌ تفقدُ عقدَها"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "① تُشغَّلُ بلا عقد"
+    role: "يجبُ أن يحمرّ"
+  - name: "③ عقدانِ متناقضان — @expected مع سالب"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "③ عقدانِ متناقضان"
+    role: "يجبُ أن يحمرّ"
+  - name: "④ الهجاءُ الثاني يُقرأُ عقدًا سالبًا"
+    target: tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص
+    expect_exit: 0
+    expect_text: "③ عقدانِ متناقضان                      0"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑤ تخطٍّ جديدٌ يرفعُ سقفَ المتخطّاة"
+    target: tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص
+    expect_exit: 1
+    expect_text: "② متخطّاة"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑥ وسمٌ سالبٌ بلا رمزٍ يرفعُ الدَّينَ الضعيف"
+    target: tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص
+    expect_exit: 1
+    expect_text: "④ وسمٌ سالبٌ بلا رمزِ خطأ"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑦ بادئةُ BOM لا تبتلعُ العقد"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 0
+    expect_text: "① تُشغَّلُ بلا عقد"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑧ الأرشيفُ متروكٌ — بذرةٌ بلا عقدٍ فيه لا تُحمِّر"
+    target: tests/behavior/_archive/zz_contract_probe.ص
+    expect_exit: 0
+    expect_text: "✓ لم ينمُ دَينُ العقد"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑬ وسمٌ خارجَ نافذةِ العدّاءِ ليس عقدًا"
+    target: tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص
+    expect_exit: 1
+    expect_text: "① تُشغَّلُ بلا عقد"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑨ نصٌّ في الجسمِ ليس عقدًا"
+    target: tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص
+    expect_exit: 1
+    expect_text: "① تُشغَّلُ بلا عقد"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑫ انكماشُ المتعاقَدِ يُحمِّر"
+    target: scripts/codegen/check_seed_contract.py
+    expect_exit: 1
+    expect_text: "انكمشَ المتعاقَد"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑩ مسبارٌ أعمى — رمزُ عطبِ آلةٍ 2"
+    target: scripts/codegen/check_seed_contract.py
+    expect_exit: 2
+    expect_text: "عيارُ الأداة:"
+    role: "عطبُ آلة"
+  - name: "⑪ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+    target: scripts/codegen/check_seed_contract.py
+    expect_exit: 0
+    expect_text: "بصمةٌ ثابتة"
+    role: "انحدار — يجبُ أن يبقى أخضر"

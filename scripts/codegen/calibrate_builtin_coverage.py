@@ -41,7 +41,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date
@@ -130,11 +132,6 @@ def _run_eol_invariance() -> tuple[int, str]:
                % (as_lf[:16], as_crlf[:16]))
 
 
-def _to_lf(blob: bytes) -> bytes:
-    """(AR) صورةُ الملفِّ كما يُخرِجُها `git checkout` تحتَ `eol=lf`."""
-    return (blob or b"").replace(CRLF, LF_)
-
-
 # ═══ الأثرُ يُشتقُّ من المجسِّ ولا يُكتَبُ مرّتَين ═══════════════════════════
 # (AR) 🔑 كان سجلُّ الأثرِ نسخةً ثانيةً باليدٍ لِما في `PROBES`: تُعادُ كتابةُ
 #      المسارِ ونصِّ الحقنِ حرفيًّا. وبُرهنَ عماه: غُيِّرت كلمةٌ واحدةٌ في مجسِّ ⑥
@@ -145,7 +142,28 @@ def _to_lf(blob: bytes) -> bytes:
 #      أمّا سطرُ تعليقٍ أو ملفٌّ في `tests/` فأثرُهما صامت. ولذا `residue=True`
 #      يُطلَبُ صراحةً في `_sub` ولا يُفترَض — و`  intent: مؤجَّل` مثلًا نصٌّ
 #      مشروعٌ في ٥٩٩ موضعًا، فوسمُه أثرًا **رفضٌ كاذبٌ** لا حراسة.
-_CREATED = object()
+_CREATED = object()      # ملفٌّ يُنشَأ — الدليلُ وجودُه
+# (AR) 🔑 **الصمتُ يُصرَّحُ به ولا يُورَثُ بالإغفال.** كان مجسٌّ بلا `residue`
+#      **سهوًا** يبدو متتبَّعًا لأنّ مجسًّا آخرَ يُسجِّلُ المسارَ نفسَه بسِمةٍ
+#      أخرى — والاشتقاقُ كان يطوي على المسار. فصارَ لكلِّ مجسٍّ تصريحٌ واجبٌ،
+#      والاشتقاقُ **صفًّا لكلِّ مجسٍّ لا لكلِّ مسار**.
+_SELF_RED = object()     # الطفرةُ تُحمِّرُ الحارسَ بنفسِها — البوّابةُ تلتقطُها
+_NO_TRACE = object()     # لا أثرَ دلاليًّا — ويلزمُ تعليلٌ عندَ الإسناد
+
+
+def _self_red(fn):
+    """(AR) طفرةٌ تُحمِّرُ الحارسَ بنفسِها: بقاؤها يُوقِفُ البوّابةَ فورًا."""
+    fn.residue = _SELF_RED
+    return fn
+
+
+def _no_trace(reason: str):
+    """(AR) صمتٌ **مُعلَّلٌ**: لا أثرَ دلاليًّا. والتعليلُ يُلزِمُ الكاتبَ ببرهانِه."""
+    def wrap(fn):
+        fn.residue = _NO_TRACE
+        fn.no_trace_reason = reason
+        return fn
+    return wrap
 
 
 def _sub(old: bytes, new: bytes, count: int = 1, residue: bool = False):
@@ -153,7 +171,7 @@ def _sub(old: bytes, new: bytes, count: int = 1, residue: bool = False):
         if blob is None or blob.count(old) < 1:
             raise AssertionError("المرساةُ غيرُ موجودة: %r" % old[:48])
         return blob.replace(old, new, count)
-    apply.residue = new if residue else None
+    apply.residue = new if residue else _SELF_RED
     return apply
 
 
@@ -195,15 +213,20 @@ LAUNDER = "compiler/tests/zz_calibration_launder_probe.h"
 #      في `.gitignore`: أداةٌ تقيسُ فوقَ أثرِ نفسِها تُثبِتُ ما لا تعرف.
 #      (والدرسُ مُدوَّن: «أداةُ قياسٍ لا تُنهى تُفسِدُ القياسَ التالي».)
 def _derive_residue() -> tuple:
-    """(AR) (مسارٌ، بصمةُ أثرٍ) لكلِّ مجسٍّ يتركُ أثرًا صامتًا. `None` = ملفٌّ يُنشَأ."""
+    """(AR) (اسمٌ، مسارٌ، تصريحُ أثرٍ) — صفٌّ **لكلِّ مجسٍّ لا لكلِّ مسار**.
+
+    والطيُّ على المسارِ كان يجعلُ مجسًّا بلا تصريحٍ يركبُ تسجيلَ أخيه في الملفِّ
+    نفسِه فيبدو متتبَّعًا وليس كذلك.
+    """
     out = []
     for entry in PROBES:
-        path, mutate = entry[1], entry[2]
+        name, path, mutate = entry[0], entry[1], entry[2]
         mark = getattr(mutate, "residue", None)
-        if mark is _CREATED:
-            out.append((path, None))
-        elif mark:
-            out.append((path, mark))
+        if mark is None:
+            raise AssertionError(
+                "مجسٌّ بلا تصريحِ أثر: %s — يلزمُه سِمةٌ أو"
+                " _CREATED/_SELF_RED/_NO_TRACE" % name)
+        out.append((name, path, mark))
     return tuple(out)
 
 
@@ -214,15 +237,60 @@ def _residue() -> list[str]:
     انقطاعِ طاقة. وأداةٌ تقيسُ فوقَ أثرِ نفسِها تُثبِتُ ما لا تعرف.
     (والدرسُ مُدوَّن: «أداةُ قياسٍ لا تُنهى تُفسِدُ القياسَ التالي».)
     """
-    found: list[str] = []
-    for rel, mark in _derive_residue():
+    found: list[str] = _inflight()
+    for name, rel, mark in _derive_residue():
         path = ROOT / rel
-        if mark is None:
+        if mark is _CREATED:
             if path.exists():
-                found.append(f"{rel} — ملفُّ مجسٍّ باقٍ")
+                found.append(f"{rel} — ملفُّ مجسٍّ باقٍ ({name})")
+        elif mark in (_SELF_RED, _NO_TRACE):
+            # (AR) `_SELF_RED` تلتقطُه البوّابةُ نفسُها، و`_NO_TRACE` مُعلَّلٌ
+            #      عندَ إسنادِه. فليس ههنا ما يُمسَح.
+            continue
         elif path.is_file() and mark in path.read_bytes():
-            found.append(f"{rel} — أثرُ حقنٍ باقٍ: {mark.decode('utf-8')[:40]}")
+            found.append(f"{rel} — أثرُ حقنٍ باقٍ ({name}):"
+                         f" {mark.decode('utf-8', 'replace')[:40]!r}")
     return found
+
+
+@_no_trace("تطبيعُ نهاياتِ الأسطرِ لا يُغيِّرُ بصمةً مطبَّعةً ولا دلالةَ بايتٍ"
+           " واحدٍ — وهو نصُّ اللامتغيِّرِ الذي يُثبِتُه هذا المجسُّ نفسُه.")
+def _to_lf(blob: bytes) -> bytes:
+    """(AR) صورةُ الملفِّ كما يُخرِجُها `git checkout` تحتَ `eol=lf`."""
+    return (blob or b"").replace(CRLF, LF_)
+
+
+# ═══ المرجعُ يُقاسُ ولا يُنسَخ ═══════════════════════════════════════════════
+# (AR) 🔑 كان النصُّ المنتظَرُ يحملُ **٥٩٩ مثبَّتًا** في ثلاثةِ مجسّات — وهو
+#      `CEILING_DEFERRED` المُعلَنُ **نازلًا لا يُرفَع**. فأوّلُ سدادِ دَينٍ
+#      مشروعٍ يُسقِطُ ثلاثةَ مجسّاتٍ سليمة ⇒ لا يُعادُ سجلُّ العيار ⇒ الحارسُ
+#      الفوقيُّ أحمر ⇒ **البوّابةُ تُقفَلُ على العملِ الذي وُجِدَ الحارسُ
+#      ليُنجِزَه**. وهو عينُ ما وُجِدَ في مِحقنةِ العقد، والتُقِطَ ههنا بأداةِ
+#      برهانٍ لا بقراءة. والعددُ الآنَ **يُقاسُ من الحارسِ نفسِه قبلَ أوّلِ
+#      حقن**، فلا نسخةَ ثانيةً تبلى.
+_DEFERRED = re.compile("دَينُ تأجيل [(]intent: [^)]*[)]: ([0-9]+)")
+_BASELINE: dict[str, int] = {}
+
+
+def _measure_baseline() -> None:
+    """(AR) يقيسُ الدَّينَ القائمَ من مخرَجِ الحارسِ **قبلَ** أوّلِ حقن."""
+    code, out = _run_guard()
+    match = _DEFERRED.search(out)
+    if code != 0 or not match:
+        raise AssertionError(
+            "تعذَّرَ قياسُ المرجعِ قبلَ الحقن (رمز=%d) — لا عيارَ على مرجعٍ مجهول"
+            % code)
+    _BASELINE["deferred"] = int(match.group(1))
+
+
+def _deferred_is(delta: int = 0):
+    """(AR) نصٌّ منتظَرٌ **مؤجَّلُ التقويم**: يُبنى من المقيسِ لا من ثابت."""
+    return lambda: "دَينُ تأجيل (intent: مؤجَّل): %d" % (_BASELINE["deferred"] + delta)
+
+
+def _deferred_over_ceiling():
+    """(AR) رسالةُ التجاوز: المقيسُ+١ فوقَ السقفِ — طرفاها مقيسانِ لا منقولان."""
+    return lambda: "%d > %d" % (_BASELINE["deferred"] + 1, _BASELINE["deferred"])
 
 
 # (AR) (اسمٌ، ملفٌّ، عطبٌ، رمزٌ منتظَر، نصٌّ منتظَر)
@@ -231,9 +299,11 @@ PROBES = (
      SADNET, _sub("  intent: مؤجَّل".encode("utf-8"), b"  status: stable"),
      1, "وعدٌ كاذب (stable بلا إرسال): 1"),
 
-    ("② دَينُ التأجيلِ ينمو ٥٩٩ ← ٦٠٠",
+    # (AR) ولا عددَ في الاسمِ أيضًا: الاسمُ يُنسَخُ حرفيًّا إلى سجلِّ العيار،
+    #      فعددٌ فيه نسخةٌ ثانيةٌ تبلى بأوّلِ نزلةٍ مشروعةٍ للسقف.
+    ("② دَينُ التأجيلِ ينمو بندًا واحدًا فوقَ السقف",
      CORE, _sub(b"  status: stable", "  intent: مؤجَّل".encode("utf-8")),
-     1, "600 > 599"),
+     1, _deferred_over_ceiling()),
 
     ("③ حقلٌ محذوف — هروبٌ من ① و②",
      SADNET, _sub("  intent: مؤجَّل\n".encode("utf-8"), b""),
@@ -263,13 +333,13 @@ PROBES = (
 
     ("⑥ غشُّ التعليقِ — يجبُ ألّا يُخفِّضَ العدد",
      CORE_CPP, _append(b"\n// NODE_NEW NODE_ID SHA256 DRAW_CIRCLE SCREEN_WIDTH\n"),
-     0, "دَينُ تأجيل (intent: مؤجَّل): 599"),
+     0, _deferred_is()),
 
     ("⑦ الغسلُ بمجلَّدِ اختبار — يجبُ ألّا يُخفِّضَ العدد",
      LAUNDER, _create("// غسلٌ مقصود\nnamespace Zz = Sad::Builtins::Names::SadNet;\n"
                       "static auto _a = Zz::NODE_NEW; static auto _b = Zz::NODE_ID;\n"
                       .encode("utf-8")),
-     0, "دَينُ تأجيل (intent: مؤجَّل): 599"),
+     0, _deferred_is()),
 
     # (AR) 🔑 **مجسُّ انحدارٍ: البصمةُ لا تتغيّرُ بنهاياتِ الأسطر.** يُكتَبُ
     #      الحارسُ بصورتِه التي يُخرِجُها `git checkout` (LF) ويُنتظَرُ **أخضرُ**
@@ -291,6 +361,94 @@ PROBES = (
 )
 
 
+# ═══ الحدُّ المشدودُ شرطُ عيارٍ ══════════════════════════════════════════════
+# (AR) 🔑 **المجسُّ الذي «يجبُ أن يحمرّ» يحقنُ بندًا واحدًا** فيتجاوزُ السقفَ
+#      بواحد — وهذا يعملُ فقط ما دامَ العدَّادُ **على** سقفِه بالضبط. وأوّلُ
+#      سدادِ دَينٍ مشروعٍ يفتحُ فجوةً (١٦٤ تحتَ سقفِ ١٦٥) فتسقطُ خمسةُ مجسّاتٍ
+#      سليمةٍ دفعةً واحدة ⇒ لا يُودَعُ سجلُّ العيارِ ⇒ الحارسُ الفوقيُّ أحمرُ
+#      عندَ أوّلِ لمسةٍ ⇒ **البوّابةُ مقفلةٌ على العملِ الذي وُجِدَ الحارسُ
+#      ليُنجِزَه**. ونزعُ العددِ من نصِّ المجسِّ عالجَ العَرَضَ لا السبب.
+#      فالفجوةُ تُرفَضُ ههنا صراحةً **بمخرجٍ مسمًّى**: أنزِلِ السقفَ إلى المقيسِ
+#      (أو ارفعِ الأرضيّة) ثمّ أعِدِ العيار — وهو السلوكُ الذي يفرضُه تصميمُ
+#      «سقفٌ نازلٌ لا يُرفَع» أصلًا. ولا كلفةَ اليوم: الحدودُ الخمسةُ والعشرونَ
+#      في الحرّاسِ الثلاثةِ **مشدودةٌ كلُّها** (مقيس).
+_BOUND = re.compile(r"(\d+)\s*\((?:السقف|الأرضيّة|المسموح)\s*(\d+)")
+
+
+def _slack_bounds() -> list[str]:
+    """(AR) حدودٌ فيها فجوةٌ بينَ المقيسِ والمُعلَن — تمنعُ العيارَ ولا تُخفِقُه."""
+    code, out = _run_guard()
+    if code != 0:
+        return ["الحارسُ ليس أخضرَ قبلَ العيار (رمز=%d)" % code]
+    pairs = _BOUND.findall(out)
+    if not pairs:
+        return ["لم يُقرأْ حدٌّ واحدٌ من مخرَجِ الحارس — قارئُ الحدودِ أعمى"]
+    return ["مقيسٌ %s ≠ مُعلَنٌ %s" % (m, b) for m, b in pairs if m != b]
+
+
+# ═══ سجلُّ الطيرانِ — شبكةٌ تعمُّ المجسّاتِ كلَّها ══════════════════════════
+# (AR) 🔑 **`_SELF_RED` كان دعوى تُكذَبُ في حالةٍ خضراءَ واقعيّة.** معناه «الطفرةُ
+#      تُحمِّرُ الحارسَ فالبوّابةُ تلتقطُها»، ولذا كان `_residue()` يتخطّاها. لكنّ
+#      حمرتَها مشروطةٌ بأن يكونَ العدَّادُ على سقفِه: على أرضيّةٍ فيها فجوةٌ
+#      **لا تُحمِّرُ**، فقتلٌ قاسٍ في منتصفِ المجسِّ يتركُ الطفرةَ مُودَعةً
+#      والحارسَ أخضرَ وكاشفَ الأثرِ يقولُ «نظيفة» (بُرهنَ بالحقن).
+#      والسِّمةُ لا تصلحُ بديلًا لكلِّ مجسّ: نصُّ الاستبدالِ قد يكونُ لفظًا
+#      مشروعًا يتكرّرُ مئاتِ المرّاتِ في الشجرة.
+#      فالسجلُّ **يُسمّي البذرةَ وبصمتَها قبلَ الطفرةِ ويُمحى بعدَ استعادةٍ
+#      مُتحقَّقٍ منها** — شبكةٌ واحدةٌ لا تعتمدُ على تمييزِ لفظٍ ولا على حمرةٍ
+#      مشروطة. وهي النمطُ نفسُه المُودَعُ في `calibrate_seed_proofs.py`.
+
+
+def _git_dir() -> Path:
+    """(AR) في شجرةٍ فرعيّةٍ يكونُ `.git` **ملفًّا**، فيُسأَلُ git ولا يُخمَّن."""
+    try:
+        proc = subprocess.run(["git", "rev-parse", "--absolute-git-dir"],
+                              cwd=str(ROOT), capture_output=True, text=True,
+                              encoding="utf-8", timeout=30)
+        out = (proc.stdout or "").strip() if proc.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        out = ""
+    return Path(out) if out else ROOT / ".git"
+
+
+JOURNAL = _git_dir() / ("_calibration_inflight_%s.json" % HARNESS.stem)
+
+
+def _journal_open(rel: str, before: str | None) -> None:
+    JOURNAL.parent.mkdir(parents=True, exist_ok=True)
+    JOURNAL.write_text(json.dumps({"probe": rel, "sha256": before},
+                                  ensure_ascii=False), encoding="utf-8")
+
+
+def _journal_close() -> None:
+    try:
+        JOURNAL.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _inflight() -> list[str]:
+    """(AR) أثرُ تشغيلةٍ قُتِلَت في منتصفِ مجسّ — تُسمّى البذرةُ بعينِها."""
+    if not JOURNAL.is_file():
+        return []
+    try:
+        rec = json.loads(JOURNAL.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return [f"{JOURNAL.name} — سجلُّ طيرانٍ لا يُقرأ"]
+    rel, before = rec.get("probe"), rec.get("sha256")
+    target = ROOT / str(rel)
+    if before is None:
+        # (AR) ملفٌّ كان يُنشَأ — بقاؤه أثر، وغيابُه استعادةٌ تمّت.
+        if target.exists():
+            return [f"{rel} — ملفُّ مجسٍّ باقٍ (سجلُّ طيران)"]
+    elif not target.is_file():
+        return [f"{rel} — الملفُّ مفقودٌ وسجلُّ الطيرانِ يذكرُه"]
+    elif hashlib.sha256(target.read_bytes()).hexdigest() != before:
+        return [f"{rel} — بقيَ **مُطفَّرًا**: بصمتُه تُخالِفُ سجلَّ الطيران"]
+    _journal_close()          # استُعيدَ فعلًا وبقيَ السجلُّ وحدَه
+    return []
+
+
 def _probe(path: str, mutate, want_code: int, want_text: str,
            runner=None) -> tuple[bool, str]:
     target = ROOT / path
@@ -299,6 +457,7 @@ def _probe(path: str, mutate, want_code: int, want_text: str,
     before = hashlib.sha256(original).hexdigest() if existed else None
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
+        _journal_open(path, before)
         target.write_bytes(mutate(original))
         code, out = (runner or _run_guard)()
     finally:
@@ -311,6 +470,10 @@ def _probe(path: str, mutate, want_code: int, want_text: str,
             raise AssertionError("لم تُستعَدِ البايتاتُ في " + path)
     elif target.exists():
         raise AssertionError("لم يُحذَفِ الملفُّ المؤقّت: " + path)
+    # (AR) ولا يُمحى السجلُّ إلّا بعدَ استعادةٍ مُتحقَّقٍ منها بالبصمةِ أو بالغياب.
+    _journal_close()
+    # (AR) نصٌّ مؤجَّلُ التقويمِ يُبنى من المرجعِ المقيسِ — لا ثابتَ منسوخ.
+    want_text = want_text() if callable(want_text) else want_text
     ok = (code == want_code) and (want_text in out)
     detail = "رمز=%d (منتظَر %d)" % (code, want_code)
     if want_text not in out:
@@ -345,7 +508,9 @@ def _write_record(passed: int, stamp: str) -> None:
         lines.append('  - name: "%s"' % name)
         lines.append("    target: %s" % path)
         lines.append("    expect_exit: %d" % code)
-        lines.append('    expect_text: "%s"' % text)
+        # (AR) ويُقوَّمُ المؤجَّلُ قبلَ الإيداعِ: سجلٌّ يحملُ `<function …>`
+        #      نصٌّ لا يُقابِلُه شيء.
+        lines.append('    expect_text: "%s"' % (text() if callable(text) else text))
         lines.append('    role: "%s"' % role)
     RECORD.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
@@ -385,10 +550,26 @@ def main() -> int:
         print("  نظِّفْ ثمّ أعِدْ: git checkout -- <الملفّ> · احذفِ الملفَّ الباقي.")
         return 2
 
+    # (AR) 🔑 **حدٌّ فيه فجوةٌ يُوقِفُ العيارَ ولا يُخفِقُه.** مجسّاتُ «يجبُ أن
+    #      تحمرّ» تحقنُ بندًا واحدًا، فحمرتُها مشروطةٌ بأن يكونَ العدَّادُ على
+    #      حدِّه. والمخرجُ مُسمًّى: أنزِلِ السقفَ إلى المقيسِ (أو ارفعِ الأرضيّة)
+    #      ثمّ أعِدِ العيار — وهو ما يفرضُه تصميمُ «نازلٌ لا يُرفَع» أصلًا.
+    slack = _slack_bounds()
+    if slack:
+        print("✗ عطبُ آلة: حدٌّ فيه فجوةٌ — المجسّاتُ لا تعضُّ على هامش:")
+        for item in slack:
+            print("    · %s" % item)
+        print("    ⤷ العلاج: أنزِلِ السقفَ إلى المقيسِ (أو ارفعِ الأرضيّة)"
+              " في الحارس، ثمّ أعِدِ العيار.")
+        return 2
+
     if len(PROBES) < MIN_PROBES:
         print("✗ عطبُ آلة: %d مجسًّا < %d — مِحقنةٌ قُلِّصت، فلا تُعلِنُ نجاحًا."
               % (len(PROBES), MIN_PROBES))
         return 2
+
+    # (AR) المرجعُ يُقاسُ **قبلَ** أوّلِ طفرةٍ — بعدَها يكونُ قياسًا فوقَ أثرٍ.
+    _measure_baseline()
 
     passed = 0
     for entry in PROBES:

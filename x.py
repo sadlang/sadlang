@@ -824,6 +824,22 @@ SOT_CHECK_GUARDS = (
         "script": "check_anchor_integrity.py",
         "args": (),
     },
+    {
+        # (AR) البذرةُ تُحاكَمُ على عقدٍ، والعقدُ يُسمّي ما يُنتظَر. وبذرةٌ تُشغَّلُ
+        #      ولا يُقابَلُ مخرَجُها بشيءٍ **تمرُّ دائمًا** — سطرٌ في عدَّادٍ لا برهان.
+        #      أربعةُ لامتغيِّرات: بلا عقدٍ (نازل) · متخطّاةٌ (نازل) · عقدانِ
+        #      متناقضانِ (**صفر**) · وسمٌ سالبٌ بلا رمزِ خطأ (نازل).
+        #      🔑 والهجاءُ الكاملُ للوسمِ السالبِ يُقرأُ ولا يُفترَض: ثلاثةُ هجاءاتٍ
+        #      في الشجرةِ و`compile_` يقعُ **بينَ** `expect_` و`error` فلا لاحقةٌ
+        #      تبلغُه — وكان `measure_seed_contract_gap.py` يعمى عنه فيعُدُّ
+        #      بذورًا لها عقدٌ سالبٌ صحيحٌ ضمنَ «بلا عقد». والعددُ في جدولِ
+        #      `CLAUDE.md` وحدَه، يُقاسُ بأمرِه ولا يُنسَخُ ههنا.
+        # (EN) A seed that runs but is judged on nothing always passes. Four
+        #      invariants; contradictory contracts are zero-tolerance.
+        "name": "seed_contract",
+        "script": "check_seed_contract.py",
+        "args": (),
+    },
 )
 
 
