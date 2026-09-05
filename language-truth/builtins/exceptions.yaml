@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: create exception
   description_en: create exception
   params: []
@@ -24,7 +24,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: exception message
   description_en: exception message
   params: []
@@ -37,7 +37,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: stack trace
   description_en: stack trace
   params: []
@@ -50,7 +50,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: stack depth
   description_en: stack depth
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: type error
   description_en: type error
   params: []
@@ -76,7 +76,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: security check
   description_en: security check
   params: []
@@ -89,7 +89,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: security permissions list
   description_en: security permissions list
   params: []
@@ -102,7 +102,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: security mode
   description_en: security mode
   params: []
@@ -115,7 +115,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: assertion error
   description_en: assertion error
   params: []
@@ -128,7 +128,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: last error
   description_en: last error
   params: []

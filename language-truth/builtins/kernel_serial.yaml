@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_مسح
   description_en: kernel serial function
   params: []
@@ -24,7 +24,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_عدد_المنافذ
   description_en: kernel serial function
   params: []
@@ -37,7 +37,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_تهيئة
   description_en: kernel serial function
   params: []
@@ -50,7 +50,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_اغلاق
   description_en: kernel serial function
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_مفتوح
   description_en: kernel serial function
   params: []
@@ -76,7 +76,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_تقرير
   description_en: kernel serial function
   params: []
@@ -89,7 +89,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_ارسال_بايت
   description_en: kernel serial function
   params: []
@@ -102,7 +102,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_ارسال_نص
   description_en: kernel serial function
   params: []
@@ -115,7 +115,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_ارسال_ست_عشري
   description_en: kernel serial function
   params: []
@@ -128,7 +128,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_جاهز_ارسال
   description_en: kernel serial function
   params: []
@@ -141,7 +141,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_استقبال_بايت
   description_en: kernel serial function
   params: []
@@ -154,7 +154,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_استقبال_نص
   description_en: kernel serial function
   params: []
@@ -167,7 +167,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_متاح
   description_en: kernel serial function
   params: []
@@ -180,7 +180,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_جاهز_استقبال
   description_en: kernel serial function
   params: []
@@ -193,7 +193,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_تعيين_بود
   description_en: kernel serial function
   params: []
@@ -206,7 +206,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_معدل_البود
   description_en: kernel serial function
   params: []
@@ -219,7 +219,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_بتات_بيانات
   description_en: kernel serial function
   params: []
@@ -232,7 +232,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_بتات_توقف
   description_en: kernel serial function
   params: []
@@ -245,7 +245,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_تكافؤ
   description_en: kernel serial function
   params: []
@@ -258,7 +258,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_تحكم_تدفق
   description_en: kernel serial function
   params: []
@@ -271,7 +271,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_حالة_الخط
   description_en: kernel serial function
   params: []
@@ -284,7 +284,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_حالة_المودم
   description_en: kernel serial function
   params: []
@@ -297,7 +297,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_عداد_ارسال
   description_en: kernel serial function
   params: []
@@ -310,7 +310,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_عداد_استقبال
   description_en: kernel serial function
   params: []
@@ -323,7 +323,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_اختبار_حلقي
   description_en: kernel serial function
   params: []
@@ -336,7 +336,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_مسح_المخزن
   description_en: kernel serial function
   params: []
@@ -349,7 +349,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_اعادة_تعيين
   description_en: kernel serial function
   params: []
@@ -362,7 +362,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_منفذ_موجود
   description_en: kernel serial function
   params: []
@@ -375,7 +375,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_عنوان_منفذ
   description_en: kernel serial function
   params: []
@@ -388,7 +388,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسلسلي_حالة_منفذ
   description_en: kernel serial function
   params: []

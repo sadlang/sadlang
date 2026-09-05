@@ -43,7 +43,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: await
   description_en: await
   params: []
@@ -56,7 +56,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: yield
   description_en: yield
   params: []
@@ -85,7 +85,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: create future alt
   description_en: create future alt
   params: []
@@ -114,7 +114,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: resolve future
   description_en: resolve future
   params: []
@@ -143,7 +143,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: create channel
   description_en: create channel
   params: []
@@ -172,7 +172,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: send
   description_en: send
   params: []
@@ -201,7 +201,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: receive
   description_en: receive
   params: []
@@ -230,7 +230,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: create mutex
   description_en: create mutex
   params: []
@@ -291,7 +291,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: thread
   description_en: thread
   params: []
@@ -320,7 +320,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: create atomic
   description_en: create atomic
   params: []
@@ -397,7 +397,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: wait any
   description_en: wait any
   params: []
@@ -410,7 +410,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: select channel
   description_en: select channel
   params: []
@@ -423,7 +423,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: is instance
   description_en: is instance
   params: []
@@ -436,7 +436,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: instance of
   description_en: instance of
   params: []
@@ -449,7 +449,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: object type
   description_en: object type
   params: []
@@ -462,7 +462,7 @@ functions:
   module: ASYNC
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: object fields
   description_en: object fields
   params: []

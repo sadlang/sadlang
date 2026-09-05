@@ -683,13 +683,23 @@ SOT_CHECK_GUARDS = (
         "args": (),
     },
     {
-        # (AR) تباعدُ تغطيةِ المحرّكَين مقيسٌ بسقفٍ مُودَع: مدمَجٌ معلَنٌ في مصدرِ
-        #      الحقيقةِ بلا ذراعِ إرسالٍ في المترجّم يعملُ مُفسَّرًا ويُخفقُ مُصرَّفًا.
-        #      والسقفُ يمنعُ نموَّ التباعدِ لا وجودَه — إذ العددُ (٥٥٧) دَينٌ موروثٌ
-        #      يُقاسُ وينكمش، وكلُّ إعلانٍ جديدٍ بلا ذراعٍ يُحمِّرُ الشوط.
-        # (EN) Two-engine coverage divergence measured against a committed ceiling:
-        #      declared-but-unlowered builtins run interpreted and fail compiled.
-        #      The ceiling blocks growth, not existence — a shrinking inherited debt.
+        # (AR) الوعدُ المُعلَنُ يُقاسُ ولا يُدَّعى. مدمَجٌ يحملُ `status: stable`
+        #      دعوى أنّه يعمل، فيجبُ أن يوجدَ له تنفيذٌ في الشجرة — **صفرٌ لا سقف**.
+        #      ومَن أُجِّلَ يحملُ `intent: مؤجَّل`، وله سقفٌ نازلٌ. وبندٌ بلا حقلٍ،
+        #      أو بالحقلَين، **أو بقيمةٍ خارجَ التعدادِ المُغلَق** يُحمِّر — وإلّا
+        #      صارَ كلُّ ذلك بابَ هروبٍ من الاثنَين.
+        #      🔑 والعددُ لا يُنثَرُ ههنا: نسختانِ باليدِ لحقيقةٍ واحدةٍ تتباعدان.
+        #      السقفُ في `CEILING_DEFERRED`، وعمقُ العيارِ في `MIN_PROBES`.
+        #      🔑 وحلَّ هذا محلَّ `CEILING_COMPILER_MISSING = 564`: كان يسألُ «هل
+        #      يُرسِلُه المترجّم؟» بمسبارٍ يمسحُ التعليقاتِ ويطابقُ أيَّ لفظٍ كبير،
+        #      فيُخفَّضُ العددُ بسطرِ تعليقٍ واحد (قِيس: ٥٦٤ ← ٥٥٩). والأداةُ اليومَ
+        #      تُعايِرُ نفسَها في كلِّ تشغيل، وتُنهي بالرمز 2 إن عمِيت — ومجسُّها
+        #      **سالبٌ** أيضًا: بندٌ مؤجَّلٌ يجبُ ألّا يراهُ المسبار، وإلّا لاجتازَ
+        #      العيارَ حارسٌ مُفرَغٌ يزعمُ أنّ كلَّ مُعلَنٍ مُرسَل.
+        # (EN) A declared builtin either claims to work (`status: stable` — must
+        #      have an implementation, zero tolerance) or declares debt
+        #      (`intent: مؤجَّل` — descending ceiling). Replaces a ceiling whose
+        #      probe scanned comments and could be lowered by one comment line.
         "name": "builtin_engine_coverage",
         "script": "check_builtin_engine_coverage.py",
         "args": (),
@@ -780,6 +790,20 @@ SOT_CHECK_GUARDS = (
         #      no deletion of its text from the enum.
         "name": "retired_error_codes",
         "script": "check_retired_error_codes.py",
+        "args": (),
+    },
+    {
+        # (AR) الحارسُ الفوقيّ: «عيارٌ قديمٌ لحارسٍ جديدٍ ليس عيارًا». سجلُّ العيارِ
+        #      يحملُ بصمةَ حارسِه وقتَ الحقن؛ فإن تغيّرَ الحارسُ ولم يُعَدِ العيارُ
+        #      حمِرَ هذا. ومعه سقفٌ **نازلٌ** للحرّاسِ بلا سجلّ (٢٦ من ٢٧) — ولم
+        #      يُجعَلْ صفرًا لأنّ الصفرَ اليومَ كذبٌ يُسكَّنُ ولا يُصلَح.
+        #      🔑 والعلّةُ التي يمنعُها مُدوَّنةٌ مرارًا في سجلِّ دروسِ هذا المستودع:
+        #      حارسٌ اخضرَّ لأنّه لا يستطيعُ أن يحمرّ.
+        # (EN) Meta-guard: a stale calibration is not a calibration. Fails on
+        #      fingerprint drift, on a record pointing at a missing guard, and when
+        #      the count of uncalibrated guards grows past its descending ceiling.
+        "name": "calibration_fresh",
+        "script": "check_calibration_fresh.py",
         "args": (),
     },
 )
@@ -1304,6 +1328,15 @@ def _gen_check() -> None:
         env["PYTHONIOENCODING"] = "utf-8"
         _log("» " + " ".join(cmd))
         result = subprocess.run(cmd, cwd=ROOT, env=env)
+        # (AR) 🔑 الرمزُ 2 عطبُ **آلةٍ** لا عطبُ **محتوى**: الحارسُ لم ينظرْ أصلًا
+        #      (مسبارٌ أعمى، أو عيارُ أداةٍ سقط). وخلطُه بالرمز 1 يجعلُ أداةً
+        #      عمياءَ تُقرأُ «وجدَت عطبًا» وهي لم تقِسْ شيئًا — وكلاهما يُفشِلُ
+        #      البوّابةَ، لكنّ التشخيصَ يوجّهُ إلى الموضعِ الصحيح.
+        # (EN) Exit 2 is a TOOL fault (blind probe / failed self-calibration), not a
+        #      content fault. Both fail the gate; conflating them misdirects the fix.
+        if result.returncode == 2:
+            _fail(f"عطبُ آلةٍ في حارس الاتّساق — لم يقِسْ شيئًا / guard tool fault"
+                  f" (did not measure): {guard['name']}")
         if result.returncode != 0:
             _fail(f"فشل حارس الاتّساق / consistency guard failed: {guard['name']}")
 

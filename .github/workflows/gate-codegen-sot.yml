@@ -1,5 +1,5 @@
 # ======================================================================
-# (AR) ملف: .github/workflows/codegen-check.yml
+# (AR) ملف: .github/workflows/gate-codegen-sot.yml
 # (AR) الوصف: حارس انجراف المصدر المولَّد — المرحلة 1 من sadlang-rfcs#10.
 #             language-truth/*.yaml هو مصدر الحقيقة الوحيد؛ الملفّات المولَّدة
 #             تبقى متعقَّبة لكنّها مشتقّات خالصة. تفشل البوّابة إن لم تَعُد أيّ
@@ -38,6 +38,22 @@ on:
       #      سير العمل أصلًا، فيُدمَج الخرق وسير العمل أخضر.
       - "shared/parser/**"
       - "features/graphics/core/include/sad_ui/**"
+      # (AR) ومناطقُ حارسِ «الوعدُ المُعلَنُ يُقاسُ ولا يُدَّعى» السبع — يقرؤها
+      #      كلَّها ليجدَ مرجعَ الإرسالِ المؤهَّل. وبلا إدراجِها كان محروسًا
+      #      شكليًّا لا فعليًّا: PR يحذفُ ذراعَ إرسالٍ من
+      #      `compiler/src/frontend/builders/` **لا يستثيرُ سيرَ العملِ أصلًا**،
+      #      فيُدمَجُ الوعدُ الكاذبُ أخضر. قِيسَ بحقنٍ في مراجعةٍ خصميّة:
+      #      نزعُ ذراعِ WebSocket يُحمِّرُ الحارسَ محلّيًّا ولا يشغّلُه CI.
+      # (EN) The coverage guard reads all seven areas; without them a PR that
+      #      deletes a dispatch arm never triggers this workflow at all.
+      - "compiler/src/**"
+      - "compiler/include/**"
+      - "shared/**"
+      - "runtime/**"
+      - "stdlib/**"
+      - "tools/**"
+      - "features/**"
+      - "platform/**"
       - "docs/parser_rule/_generated/**"
       - "tests/behavior/rules_matrix/**"
       # (AR) وشقُّ كاشفةِ الثغراتِ محروسٌ كذلك (conformance_report_fresh)، فلولا
@@ -64,7 +80,17 @@ on:
       # (EN) .gitignore is listed on purpose: a pattern in it silently swallowed 11
       #      live fixtures while the conformance reports vouched for them.
       - ".gitignore"
-      - ".github/workflows/codegen-check.yml"
+      # (AR) 🔑 **الشوطُ يحرسُ نفسَه.** كان المُدرَجُ ههنا `codegen-check.yml` —
+      #      اسمًا لملفٍّ **لا وجودَ له** (أُعيدت تسميتُه إلى `gate-codegen-sot.yml`
+      #      ولم يُتبَعِ الاسمُ). فكان PR يمسُّ المرشِّحَ وحدَه — بحذفِ مساراتٍ
+      #      منه — **لا يستثيرُ الشوطَ أصلًا**، فيُدمَجُ أخضرَ ويعودُ الحارسُ
+      #      شكليًّا. مرشِّحٌ لا يشملُ نفسَه رقعةٌ تُردُّ صامتة.
+      # (EN) The workflow must list ITSELF: it named a renamed-away file, so a PR
+      #      gutting this very filter would not trigger the gate at all.
+      - ".github/workflows/gate-codegen-sot.yml"
+      # (AR) `scripts/ci/**` يعُدُّه الحارسُ الفوقيُّ في «حرّاسِ الشجرة»، فحارسٌ
+      #      جديدٌ يهبطُ هناك يكسرُ السقفَ محلّيًّا وCI لا يشتغلُ ليقولَه.
+      - "scripts/ci/**"
   pull_request:
     branches: [ main, master, dev, sadlang ]
     paths:
@@ -81,6 +107,22 @@ on:
       #      سير العمل أصلًا، فيُدمَج الخرق وسير العمل أخضر.
       - "shared/parser/**"
       - "features/graphics/core/include/sad_ui/**"
+      # (AR) ومناطقُ حارسِ «الوعدُ المُعلَنُ يُقاسُ ولا يُدَّعى» السبع — يقرؤها
+      #      كلَّها ليجدَ مرجعَ الإرسالِ المؤهَّل. وبلا إدراجِها كان محروسًا
+      #      شكليًّا لا فعليًّا: PR يحذفُ ذراعَ إرسالٍ من
+      #      `compiler/src/frontend/builders/` **لا يستثيرُ سيرَ العملِ أصلًا**،
+      #      فيُدمَجُ الوعدُ الكاذبُ أخضر. قِيسَ بحقنٍ في مراجعةٍ خصميّة:
+      #      نزعُ ذراعِ WebSocket يُحمِّرُ الحارسَ محلّيًّا ولا يشغّلُه CI.
+      # (EN) The coverage guard reads all seven areas; without them a PR that
+      #      deletes a dispatch arm never triggers this workflow at all.
+      - "compiler/src/**"
+      - "compiler/include/**"
+      - "shared/**"
+      - "runtime/**"
+      - "stdlib/**"
+      - "tools/**"
+      - "features/**"
+      - "platform/**"
       - "docs/parser_rule/_generated/**"
       - "tests/behavior/rules_matrix/**"
       # (AR) وشقُّ كاشفةِ الثغراتِ محروسٌ كذلك (conformance_report_fresh)، فلولا
@@ -107,7 +149,17 @@ on:
       # (EN) .gitignore is listed on purpose: a pattern in it silently swallowed 11
       #      live fixtures while the conformance reports vouched for them.
       - ".gitignore"
-      - ".github/workflows/codegen-check.yml"
+      # (AR) 🔑 **الشوطُ يحرسُ نفسَه.** كان المُدرَجُ ههنا `codegen-check.yml` —
+      #      اسمًا لملفٍّ **لا وجودَ له** (أُعيدت تسميتُه إلى `gate-codegen-sot.yml`
+      #      ولم يُتبَعِ الاسمُ). فكان PR يمسُّ المرشِّحَ وحدَه — بحذفِ مساراتٍ
+      #      منه — **لا يستثيرُ الشوطَ أصلًا**، فيُدمَجُ أخضرَ ويعودُ الحارسُ
+      #      شكليًّا. مرشِّحٌ لا يشملُ نفسَه رقعةٌ تُردُّ صامتة.
+      # (EN) The workflow must list ITSELF: it named a renamed-away file, so a PR
+      #      gutting this very filter would not trigger the gate at all.
+      - ".github/workflows/gate-codegen-sot.yml"
+      # (AR) `scripts/ci/**` يعُدُّه الحارسُ الفوقيُّ في «حرّاسِ الشجرة»، فحارسٌ
+      #      جديدٌ يهبطُ هناك يكسرُ السقفَ محلّيًّا وCI لا يشتغلُ ليقولَه.
+      - "scripts/ci/**"
 
 # (AR) منع التشغيل المتزامن لنفس الفرع
 concurrency:

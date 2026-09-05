@@ -98,7 +98,7 @@ functions:
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: 'Branch hint: expect true'
   description_en: 'Branch hint: expect true'
   params:
@@ -112,7 +112,7 @@ functions:
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: 'Branch hint: expect false'
   description_en: 'Branch hint: expect false'
   params:
@@ -126,7 +126,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قراءة مدخل (اسم VM)
   description_en: Input (VM name)
   params:

@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شغل_صوت
   description_en: شغل_صوت
   params: []
@@ -24,7 +24,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أوقف_صوت
   description_en: أوقف_صوت
   params: []
@@ -37,7 +37,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أوقف_كل_الأصوات
   description_en: أوقف_كل_الأصوات
   params: []
@@ -50,7 +50,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مستوى_الصوت
   description_en: مستوى_الصوت
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: احصل_مستوى_الصوت
   description_en: احصل_مستوى_الصوت
   params: []
@@ -76,7 +76,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شفر_نص
   description_en: شفر_نص
   params: []
@@ -89,7 +89,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: فك_تشفير
   description_en: فك_تشفير
   params: []
@@ -102,7 +102,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: هاش
   description_en: هاش
   params: []
@@ -115,7 +115,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: افتح_قاعدة
   description_en: افتح_قاعدة
   params: []
@@ -128,7 +128,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: نفذ_استعلام
   description_en: نفذ_استعلام
   params: []
@@ -141,7 +141,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أغلق_قاعدة
   description_en: أغلق_قاعدة
   params: []
@@ -154,7 +154,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: طلب_شبكة
   description_en: طلب_شبكة
   params: []
@@ -167,7 +167,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: هل_متصل
   description_en: هل_متصل
   params: []
@@ -180,7 +180,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حلل_جيسون
   description_en: حلل_جيسون
   params: []
@@ -193,7 +193,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: صدر_جيسون
   description_en: صدر_جيسون
   params: []
@@ -206,7 +206,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عند_الإسقاط
   description_en: عند_الإسقاط
   params: []
@@ -219,7 +219,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: لقطة_شاشة
   description_en: لقطة_شاشة
   params: []
@@ -232,7 +232,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: اقرأ_ملف
   description_en: اقرأ_ملف
   params: []
@@ -245,7 +245,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: اكتب_ملف
   description_en: اكتب_ملف
   params: []
@@ -258,7 +258,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: هل_ملف_موجود
   description_en: هل_ملف_موجود
   params: []
@@ -271,7 +271,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: اختر_ملف
   description_en: اختر_ملف
   params: []
@@ -284,7 +284,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حفظ_ملف
   description_en: حفظ_ملف
   params: []
@@ -297,7 +297,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حوار_تنبيه
   description_en: حوار_تنبيه
   params: []
@@ -310,7 +310,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حوار_تأكيد
   description_en: حوار_تأكيد
   params: []
@@ -323,7 +323,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أظهر_رسالة
   description_en: أظهر_رسالة
   params: []
@@ -336,7 +336,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أظهر_إشعار
   description_en: أظهر_إشعار
   params: []
@@ -349,7 +349,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: بعد_مدة
   description_en: بعد_مدة
   params: []
@@ -362,7 +362,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: كل_مدة
   description_en: كل_مدة
   params: []
@@ -375,7 +375,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أوقف_مؤقت
   description_en: أوقف_مؤقت
   params: []
@@ -388,7 +388,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: انسخ
   description_en: انسخ
   params: []
@@ -401,7 +401,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: الصق
   description_en: الصق
   params: []
@@ -414,7 +414,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: هل_يوجد_نص_منسوخ
   description_en: هل_يوجد_نص_منسوخ
   params: []
@@ -427,7 +427,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: خزن
   description_en: خزن
   params: []
@@ -440,7 +440,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: استرجع
   description_en: استرجع
   params: []
@@ -453,7 +453,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: احذف_مخزن
   description_en: احذف_مخزن
   params: []
@@ -466,7 +466,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: امسح_المخزن
   description_en: امسح_المخزن
   params: []
@@ -479,7 +479,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حرك
   description_en: حرك
   params: []
@@ -492,7 +492,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حركة_لون
   description_en: حركة_لون
   params: []
@@ -505,7 +505,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أوقف_حركة
   description_en: أوقف_حركة
   params: []
@@ -518,7 +518,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أوقف_حركات_عقدة
   description_en: أوقف_حركات_عقدة
   params: []
@@ -531,7 +531,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إلغاء_كل_الحركات
   description_en: إلغاء_كل_الحركات
   params: []
@@ -544,7 +544,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حالة_حركة
   description_en: حالة_حركة
   params: []
@@ -557,7 +557,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قيمة_حركة
   description_en: قيمة_حركة
   params: []
@@ -570,7 +570,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حركات_نشطة
   description_en: حركات_نشطة
   params: []
@@ -583,7 +583,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: احصل_موقع
   description_en: احصل_موقع
   params: []
@@ -596,7 +596,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: افتح_كاميرا
   description_en: افتح_كاميرا
   params: []
@@ -609,7 +609,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: التقط_صورة
   description_en: التقط_صورة
   params: []
@@ -622,7 +622,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قراءة_مستشعر
   description_en: قراءة_مستشعر
   params: []
@@ -635,7 +635,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: المستشعرات_المتاحة
   description_en: المستشعرات_المتاحة
   params: []
@@ -648,7 +648,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شارك_نص
   description_en: شارك_نص
   params: []
@@ -661,7 +661,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شارك_ملف
   description_en: شارك_ملف
   params: []
@@ -674,7 +674,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: اطلب_اذن
   description_en: اطلب_اذن
   params: []
@@ -687,7 +687,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تحقق_اذن
   description_en: تحقق_اذن
   params: []
@@ -700,7 +700,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عين_سمة
   description_en: عين_سمة
   params: []
@@ -713,7 +713,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: احصل_سمة
   description_en: احصل_سمة
   params: []
@@ -726,7 +726,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: سمة_النظام
   description_en: سمة_النظام
   params: []
@@ -739,7 +739,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ترجم
   description_en: ترجم
   params: []
@@ -752,7 +752,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عين_لغة
   description_en: عين_لغة
   params: []
@@ -765,7 +765,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: اللغة_الحالية
   description_en: اللغة_الحالية
   params: []
@@ -778,7 +778,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أضف_ترجمة
   description_en: أضف_ترجمة
   params: []
@@ -791,7 +791,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: اقرأ_شاشة
   description_en: اقرأ_شاشة
   params: []
@@ -804,7 +804,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حجم_خط_النظام
   description_en: حجم_خط_النظام
   params: []
@@ -817,7 +817,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عرض_الشاشة
   description_en: عرض_الشاشة
   params: []
@@ -830,7 +830,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ارتفاع_الشاشة
   description_en: ارتفاع_الشاشة
   params: []
@@ -843,7 +843,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: كثافة_الشاشة
   description_en: كثافة_الشاشة
   params: []
@@ -856,7 +856,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: نوع_الجهاز
   description_en: نوع_الجهاز
   params: []
@@ -869,7 +869,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: اطبع_صفحة
   description_en: اطبع_صفحة
   params: []
@@ -882,7 +882,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مصادقة_حيوية
   description_en: مصادقة_حيوية
   params: []
@@ -895,7 +895,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: دعم_حيوي
   description_en: دعم_حيوي
   params: []
@@ -908,7 +908,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عند_سحب
   description_en: عند_سحب
   params: []
@@ -921,7 +921,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عند_قرص
   description_en: عند_قرص
   params: []
@@ -934,7 +934,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عند_تدوير
   description_en: عند_تدوير
   params: []
@@ -947,7 +947,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أنشئ_خريطة
   description_en: أنشئ_خريطة
   params: []
@@ -960,7 +960,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أضف_علامة
   description_en: أضف_علامة
   params: []
@@ -973,7 +973,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أنشئ_لوحة
   description_en: أنشئ_لوحة
   params: []
@@ -1000,7 +1000,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ارسم_دائرة
   description_en: ارسم_دائرة
   params: []
@@ -1027,7 +1027,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: امسح_لوحة
   description_en: امسح_لوحة
   params: []
@@ -1040,7 +1040,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_كاملة
   description_en: شاشة_كاملة
   params: []
@@ -1053,7 +1053,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: هل_شاشة_كاملة
   description_en: هل_شاشة_كاملة
   params: []
@@ -1066,7 +1066,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أبعاد_النافذة
   description_en: أبعاد_النافذة
   params: []
@@ -1079,7 +1079,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: موقع_الفأرة
   description_en: موقع_الفأرة
   params: []
@@ -1092,7 +1092,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مقياس_العرض
   description_en: مقياس_العرض
   params: []
@@ -1105,7 +1105,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: اسم_النظام
   description_en: اسم_النظام
   params: []
@@ -1118,7 +1118,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عدد_المعالجات
   description_en: عدد_المعالجات
   params: []
@@ -1131,7 +1131,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حجم_الذاكرة
   description_en: حجم_الذاكرة
   params: []
@@ -1144,7 +1144,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: لغة_النظام
   description_en: لغة_النظام
   params: []
@@ -1157,7 +1157,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: المؤشر
   description_en: المؤشر
   params: []
@@ -1170,7 +1170,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: أظهر_المؤشر
   description_en: أظهر_المؤشر
   params: []
@@ -1183,7 +1183,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: فتح_رابط
   description_en: فتح_رابط
   params: []
@@ -1196,7 +1196,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: الطابع_الزمني
   description_en: الطابع_الزمني
   params: []
@@ -1209,7 +1209,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: التاريخ_والوقت
   description_en: التاريخ_والوقت
   params: []
@@ -1222,7 +1222,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: اهتزاز
   description_en: اهتزاز
   params: []
@@ -1235,7 +1235,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: سجل
   description_en: سجل
   params: []
@@ -1248,7 +1248,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مستوى_البطارية
   description_en: مستوى_البطارية
   params: []
@@ -1261,7 +1261,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: هل_يشحن
   description_en: هل_يشحن
   params: []

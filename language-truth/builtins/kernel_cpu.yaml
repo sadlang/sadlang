@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: معالج_معلومات
   description_en: kernel cpu function
   params: []
@@ -24,7 +24,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: معالج_توقف
   description_en: kernel cpu function
   params: []
@@ -37,7 +37,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: معالج_عداد
   description_en: kernel cpu function
   params: []
@@ -50,7 +50,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: معالج_اقرأ_msr
   description_en: kernel cpu function
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: معالج_اكتب_msr
   description_en: kernel cpu function
   params: []
@@ -250,7 +250,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: بت_اختبار
   description_en: kernel cpu function
   params: []
@@ -263,7 +263,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: بت_عيّن
   description_en: kernel cpu function
   params: []
@@ -276,7 +276,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: بت_امسح
   description_en: kernel cpu function
   params: []
@@ -289,7 +289,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_معلومات
   description_en: kernel cpu function
   params: []
@@ -302,7 +302,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مقاطعات_معلومات
   description_en: kernel cpu function
   params: []
@@ -315,7 +315,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مقاطعات_تهيئة
   description_en: kernel cpu function
   params: []
@@ -328,7 +328,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ترحيل_معلومات
   description_en: kernel cpu function
   params: []
@@ -341,7 +341,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ترحيل_خريطة
   description_en: kernel cpu function
   params: []
@@ -354,7 +354,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ترحيل_إلغاء
   description_en: kernel cpu function
   params: []
@@ -367,7 +367,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_معلومات
   description_en: kernel cpu function
   params: []
@@ -380,7 +380,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_نقطة
   description_en: kernel cpu function
   params: []
@@ -393,7 +393,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_خط
   description_en: kernel cpu function
   params: []
@@ -406,7 +406,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_مستطيل
   description_en: kernel cpu function
   params: []
@@ -419,7 +419,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_مستطيل_ممتلئ
   description_en: kernel cpu function
   params: []
@@ -432,7 +432,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_دائرة
   description_en: kernel cpu function
   params: []
@@ -445,7 +445,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_نص
   description_en: kernel cpu function
   params: []
@@ -458,7 +458,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_مسح
   description_en: kernel cpu function
   params: []
@@ -471,7 +471,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تبديل
   description_en: kernel cpu function
   params: []
@@ -484,7 +484,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تدرج
   description_en: kernel cpu function
   params: []
@@ -497,7 +497,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تزامن_معلومات
   description_en: kernel cpu function
   params: []
@@ -510,7 +510,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تزامن_توقف
   description_en: kernel cpu function
   params: []
@@ -523,7 +523,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تزامن_حاجز
   description_en: kernel cpu function
   params: []
@@ -536,7 +536,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مجدول_معلومات
   description_en: kernel cpu function
   params: []
@@ -549,7 +549,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مجدول_عملية_جديدة
   description_en: kernel cpu function
   params: []
@@ -562,7 +562,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مجدول_تنازل
   description_en: kernel cpu function
   params: []
@@ -575,7 +575,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إقلاع_معلومات
   description_en: kernel cpu function
   params: []
@@ -588,7 +588,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ملفات_معلومات
   description_en: kernel cpu function
   params: []
@@ -601,7 +601,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ملفات_حمّل
   description_en: kernel cpu function
   params: []
@@ -614,7 +614,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ملفات_افصل
   description_en: kernel cpu function
   params: []
@@ -627,7 +627,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ملفات_موجود
   description_en: kernel cpu function
   params: []
@@ -640,7 +640,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ملفات_أنشئ_مجلد
   description_en: kernel cpu function
   params: []
@@ -653,7 +653,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: منخفض_تقرير
   description_en: kernel cpu function
   params: []

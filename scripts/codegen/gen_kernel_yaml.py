@@ -2,6 +2,32 @@
 يُولِّد ملفات YAML لدوال النواة من الأسماء المستخرجة، بـ cpp_id تسلسلي ثابت.
 كل subsystem له namespace خاص (KernelCpu, KernelAudio, ...).
 """
+# ═══════════════════════════════════════════════════════════════════════════
+# (AR) ⚠️ **مولِّدٌ بائتٌ رابعٌ يمحو حقلَ `intent`.** لا يُشغّلُه `x.py` ولا CI ولا
+#      CMake. يبثُّ `"status": "stable"` ثابتًا حرفيًّا على كلِّ بندٍ يكتبُه، ويكتبُ
+#      **سبعةَ** ملفّاتٍ مباشرةً في `language-truth/builtins/`:
+#      `kernel_{cpu,audio,gpu,memory,network,serial,storage}.yaml`.
+#      فتشغيلةٌ واحدةٌ تمحو **٢٠٢** وسمَ `intent: مؤجَّل` من الـ٥٩٩ (مقيسًا في
+#      ٢٠٢٦-٠٩-٠٥: cpu 37 · audio 30 · gpu 25 · memory 20 · network 30 ·
+#      serial 30 · storage 30) وتُعيدُ ٢٠٢ وعدًا كاذبًا.
+#      🔑 وهو الأخُ الرابعُ الذي فاتَ الختمَ الأوّل: خُتِمت ثلاثةٌ وتُرِكَ رابعٌ من
+#      الفصيلةِ نفسِها. والدرسُ مُدوَّن: «الرقعةُ تسدُّ في ملفٍّ وتتركُ الأخوات».
+# (EN) Fourth dormant generator: stamps a literal `"status": "stable"` on every
+#      entry across seven kernel_*.yaml files, wiping 202 of the 599 deferral
+#      markings in a single run. Not wired to x.py/CI/CMake.
+# ═══════════════════════════════════════════════════════════════════════════
+import sys as _sys
+
+if "--overwrite-intent" not in _sys.argv:
+    _sys.stdout.reconfigure(encoding="utf-8")
+    print("✗ مولِّدٌ بائتٌ: "
+          "يمحو ٢٠٢ وسمَ `intent: مؤجَّل` "
+          "من سبعةِ ملفّاتِ نواة.")
+    print("  وإن قُصِدَ ذلك فـ"
+          "`--overwrite-intent`، ثمّ يُعادُ "
+          "الوسمُ من المسبار.")
+    raise SystemExit(2)
+
 import json, yaml, pathlib, sys, tempfile, os
 sys.stdout.reconfigure(encoding='utf-8')
 

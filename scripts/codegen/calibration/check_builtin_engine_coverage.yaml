@@ -1,0 +1,66 @@
+# ═══════════════════════════════════════════════════════════════════
+# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ ولم يُعَدِ العيارُ حمِرَ
+#    check_calibration_fresh.py. وإعادتُه:
+#    python scripts/codegen/calibrate_builtin_coverage.py --record --date=YYYY-MM-DD
+# ═══════════════════════════════════════════════════════════════════
+version: 2
+guard: scripts/codegen/check_builtin_engine_coverage.py
+harness: scripts/codegen/calibrate_builtin_coverage.py
+guard_sha256: b87ba6bdad58cb17d03cd90a6db429bcd469474c8be03d03221d568086c4f6b4
+harness_sha256: fdda4dc63b4340f8e825d178ae3b718d0748ddd972c07b18c530c92704364bf4
+calibrated_at: 2026-09-05
+probes_total: 10
+probes_passed: 10
+result: 10/10
+probes:
+  - name: "① وعدٌ كاذب — مؤجَّلٌ يُوسَمُ stable"
+    target: language-truth/builtins/sadnet.yaml
+    expect_exit: 1
+    expect_text: "وعدٌ كاذب (stable بلا إرسال): 1"
+    role: "يجبُ أن يحمرّ"
+  - name: "② دَينُ التأجيلِ ينمو ٥٩٩ ← ٦٠٠"
+    target: language-truth/builtins/core.yaml
+    expect_exit: 1
+    expect_text: "600 > 599"
+    role: "يجبُ أن يحمرّ"
+  - name: "③ حقلٌ محذوف — هروبٌ من ① و②"
+    target: language-truth/builtins/sadnet.yaml
+    expect_exit: 1
+    expect_text: "خارجَ التعداد): 1"
+    role: "يجبُ أن يحمرّ"
+  - name: "④ انحدارُ قدرة — تُنزَعُ ذراعُ إرسالٍ حقيقيّة"
+    target: compiler/src/frontend/builders/builtins_network.cpp
+    expect_exit: 1
+    expect_text: "وعدٌ كاذب (stable بلا إرسال): 1"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑤ الحقلانِ معًا — status وintent"
+    target: language-truth/builtins/sadnet.yaml
+    expect_exit: 1
+    expect_text: "خارجَ التعداد): 1"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑨ قيمةٌ خارجَ التعداد — status: experimental"
+    target: language-truth/builtins/sadnet.yaml
+    expect_exit: 1
+    expect_text: "خارجَ التعداد): 1"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑥ غشُّ التعليقِ — يجبُ ألّا يُخفِّضَ العدد"
+    target: compiler/src/frontend/builders/builtins_core.cpp
+    expect_exit: 0
+    expect_text: "دَينُ تأجيل (intent: مؤجَّل): 599"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑦ الغسلُ بمجلَّدِ اختبار — يجبُ ألّا يُخفِّضَ العدد"
+    target: compiler/tests/zz_calibration_launder_probe.h
+    expect_exit: 0
+    expect_text: "دَينُ تأجيل (intent: مؤجَّل): 599"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑩ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+    target: scripts/codegen/check_builtin_engine_coverage.py
+    expect_exit: 0
+    expect_text: "بصمةٌ ثابتة"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑧ مسبارٌ أعمى — رمزُ عطبِ آلةٍ 2"
+    target: scripts/codegen/check_builtin_engine_coverage.py
+    expect_exit: 2
+    expect_text: "عيارُ الأداة:"
+    role: "عطبُ آلة"

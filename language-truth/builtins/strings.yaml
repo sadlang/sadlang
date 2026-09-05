@@ -243,7 +243,7 @@ functions:
   module: STRINGS
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إزالة من مصفوفة
   description_en: Remove
   params: []
@@ -256,7 +256,7 @@ functions:
   module: STRINGS
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تحويل لرقم
   description_en: Parse number
   params: []
@@ -269,7 +269,7 @@ functions:
   module: STRINGS
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تحويل لمصفوفة
   description_en: To array
   params: []

@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عقدة_جديدة
   description_en: عقدة_جديدة
   params: []
@@ -24,7 +24,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: معرف_العقدة
   description_en: معرف_العقدة
   params: []
@@ -37,7 +37,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تشفير_sha256
   description_en: تشفير_sha256
   params: []
@@ -50,7 +50,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: بايتات_عشوائية
   description_en: بايتات_عشوائية
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تخزين_ملف
   description_en: تخزين_ملف
   params: []
@@ -76,7 +76,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: استرجاع_ملف
   description_en: استرجاع_ملف
   params: []
@@ -89,7 +89,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: رسالة_مشفرة
   description_en: رسالة_مشفرة
   params: []
@@ -102,7 +102,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إثبات_عمل
   description_en: إثبات_عمل
   params: []
@@ -115,7 +115,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: سمعة_قرين
   description_en: سمعة_قرين
   params: []
@@ -128,7 +128,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حظر_قرين
   description_en: حظر_قرين
   params: []
@@ -141,7 +141,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قرين_موثوق
   description_en: قرين_موثوق
   params: []
@@ -154,7 +154,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: هوية_جديدة
   description_en: هوية_جديدة
   params: []
@@ -167,7 +167,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: بث_جديد
   description_en: بث_جديد
   params: []
@@ -180,7 +180,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: بث_إيقاف
   description_en: بث_إيقاف
   params: []
@@ -193,7 +193,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تدمير_عقدة
   description_en: تدمير_عقدة
   params: []
@@ -227,7 +227,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 1.0.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تخزين قيمة في الجدول الموزع مقابل مفتاح
   description_en: Store a value in the DHT under a key
   params: []
@@ -240,7 +240,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 1.0.0
-  status: stable
+  intent: مؤجَّل
   description_ar: البحث عن قيمة في الجدول الموزع بمفتاحها
   description_en: Look up a value in the DHT by key
   params: []
@@ -262,7 +262,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 1.0.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تسجيل اسم لامركزي مقابل عنوان
   description_en: Register a decentralized name against an address
   params: []
@@ -275,7 +275,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 1.0.0
-  status: stable
+  intent: مؤجَّل
   description_ar: حل اسم لامركزي إلى عنوان
   description_en: Resolve a decentralized name to an address
   params: []
@@ -288,7 +288,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 1.0.0
-  status: stable
+  intent: مؤجَّل
   description_ar: نشر محتوى في الشبكة اللامركزية وإرجاع معرفه
   description_en: Publish content to the decentralized CDN and return its id
   params: []
@@ -301,7 +301,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 1.0.0
-  status: stable
+  intent: مؤجَّل
   description_ar: طلب محتوى من الشبكة اللامركزية بمعرفه
   description_en: Request content from the decentralized CDN by id
   params: []
@@ -314,7 +314,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 1.0.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إصدار مكتبة الشبكة اللامركزية
   description_en: Decentralized network library version
   params: []

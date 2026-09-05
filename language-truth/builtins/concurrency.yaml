@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إنشاء قناة للتواصل بين الخيوط الخفيفة
   description_en: Create a channel for goroutine communication
   params:
@@ -25,7 +25,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: انتظار انتهاء جميع الخيوط الخفيفة
   description_en: Wait for all active goroutines to finish
   params: []
@@ -38,7 +38,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إرجاع عدد المهام النشطة حالياً
   description_en: Return the current number of active tasks
   params: []
@@ -51,7 +51,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إنشاء مجموعة انتظار WaitGroup
   description_en: Create a WaitGroup for thread coordination
   params: []
@@ -64,7 +64,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إنشاء قفل Mutex للتزامن المتبادل
   description_en: Create a Mutex for mutual exclusion
   params: []
@@ -77,7 +77,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إنشاء مستقبل Future لاسترداد نتيجة غير متزامنة
   description_en: Create a Future for retrieving an async result
   params: []

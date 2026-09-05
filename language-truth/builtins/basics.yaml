@@ -27,7 +27,7 @@ functions:
   module: BASICS
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: إنهاء البرنامج
   description_en: Exit
   params: []
@@ -298,7 +298,7 @@ functions:
   module: BASICS
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قراءة أسطر الملف
   description_en: Read lines
   params: []
