@@ -8,7 +8,7 @@ version: 2
 guard: scripts/codegen/check_seed_contract.py
 harness: scripts/codegen/calibrate_seed_contract.py
 guard_sha256: 62643483a1dee3cd4a7bdb890b6bfeebb28e9b11252e9e006fe30d87462f0e73
-harness_sha256: bbec6dcb676fd06bae7108e3d8db01a537a0a9982888a0d9289eb451bde56ded
+harness_sha256: f314cc78e9b0a2e1ca2bf29e7d256513d7714465db0b92484e9a14701bbeef6d
 calibrated_at: 2026-09-05
 probes_total: 13
 probes_passed: 13
@@ -45,9 +45,9 @@ probes:
     expect_text: "④ وسمٌ سالبٌ بلا رمزِ خطأ"
     role: "يجبُ أن يحمرّ"
   - name: "⑦ بادئةُ BOM لا تبتلعُ العقد"
-    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    target: tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص
     expect_exit: 0
-    expect_text: "① تُشغَّلُ بلا عقد"
+    expect_text: "✓ لم ينمُ دَينُ العقد"
     role: "انحدار — يجبُ أن يبقى أخضر"
   - name: "⑧ الأرشيفُ متروكٌ — بذرةٌ بلا عقدٍ فيه لا تُحمِّر"
     target: tests/behavior/_archive/zz_contract_probe.ص

@@ -8,7 +8,7 @@ version: 2
 guard: scripts/codegen/check_builtin_engine_coverage.py
 harness: scripts/codegen/calibrate_builtin_coverage.py
 guard_sha256: b87ba6bdad58cb17d03cd90a6db429bcd469474c8be03d03221d568086c4f6b4
-harness_sha256: 9c3f8ba642aa0fde9a27168dcf4b00289700c630b7fca4a35a0004fe41aa2f0a
+harness_sha256: 57ec0cc7cc5934b587137d84164dda1088073ef197f36525a2613f946740b359
 calibrated_at: 2026-09-05
 probes_total: 10
 probes_passed: 10

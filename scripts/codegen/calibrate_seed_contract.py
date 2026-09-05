@@ -118,6 +118,21 @@ def _create(body: bytes):
     return apply
 
 
+_CONTRACTED = re.compile("بذورٌ ذاتُ عقدٍ\\s+([0-9]+)")
+_BASELINE: dict[str, int] = {}
+
+
+def _measure_baseline() -> None:
+    """(AR) المتعاقَدُ المقيسُ **قبلَ أوّلِ حقن** — يُطفَّرُ منه لا من المُعلَن."""
+    code, out = _run_guard()
+    match = _CONTRACTED.search(out)
+    if code != 0 or not match:
+        raise AssertionError(
+            "تعذَّرَ قياسُ المتعاقَدِ قبلَ الحقن (رمز=%d) — لا عيارَ على مرجعٍ مجهول"
+            % code)
+    _BASELINE["contracted"] = int(match.group(1))
+
+
 def _self_red(fn):
     """(AR) طفرةٌ تُحمِّرُ الحارسَ بنفسِها: بقاؤها يُوقِفُ البوّابةَ فورًا."""
     fn.residue = _SELF_RED
@@ -153,7 +168,11 @@ def _bump_floor(blob: bytes) -> bytes:
     end = at
     while end < len(text) and text[end].isdigit():
         end += 1
-    return (text[:at] + str(int(text[at:end]) + 1) + text[end:]).encode("utf-8")
+    # (AR) المقيسُ + ١ لا المُعلَنُ + ١: الأرضيّةُ مصمَّمةٌ للصعود، فبذرةٌ
+    #      متعاقَدةٌ جديدةٌ تفتحُ هامشًا (٤٣٠٤ فوقَ أرضيّةِ ٤٣٠٣) يبتلعُ
+    #      رفعَ الواحدِ فلا يعضُّ المجسُّ وهو سليم.
+    raised = max(int(text[at:end]), _BASELINE.get("contracted", 0)) + 1
+    return (text[:at] + str(raised) + text[end:]).encode("utf-8")
 
 
 _BOM_MARK = b"\xef\xbb\xbf" + "# @expected 1\n".encode("utf-8")
@@ -215,8 +234,14 @@ PROBES = (
     #      فأوّلُ سدادِ دَينٍ مشروعٍ يُسقِطُ مجسَّينِ سليمَينِ ⇒ لا يُعادُ سجلُّ
     #      العيار ⇒ الحارسُ الفوقيُّ أحمرُ ⇒ **البوّابةُ تُقفَلُ على العملِ الذي
     #      وُجِدَ الحارسُ ليُنجِزَه**. والمِرساةُ الآنَ سطرُ اللامتغيِّرِ وحدَه.
+    # (AR) 🔑 **على بذرةٍ يُنشِئُها المجسُّ لا على بذرةٍ لها عقدٌ سلفًا.**
+    #      كان يُلحِقُ عقدًا ببذرةٍ متعاقَدةٍ فلا يتحرّكُ عدَّادٌ عندَ أيِّ قراءة —
+    #      **شرطٌ لا يمكنُ أن يكونَ كاذبًا**. وبُرهنَ: ردُّ `utf-8-sig` إلى
+    #      `utf-8` في الحارسِ يُبقيه ١٣/١٣. والآنَ العقدُ **وحدَه** خلفَ
+    #      البادئة، فقارئٌ لا يقرؤها يعُدُّ البذرةَ «بلا عقد» فيحمرّ.
     ("⑦ بادئةُ BOM لا تبتلعُ العقد",
-     SEED, _bom_expected, 0, "① تُشغَّلُ بلا عقد"),
+     NEW_SEED, _create(_BOM_MARK + "اطبع_سطر(\"1\")\n".encode("utf-8")),
+     0, "✓ لم ينمُ دَينُ العقد"),
 
     ("⑧ الأرشيفُ متروكٌ — بذرةٌ بلا عقدٍ فيه لا تُحمِّر",
      ARCHIVED, _create("اطبع_سطر(\"أرشيفٌ بلا عقد\")\n".encode("utf-8")),
@@ -233,8 +258,10 @@ PROBES = (
 
     # (AR) وسمٌ في **جسمِ** الملفِّ ليس عقدًا — ولولا `^#` لكان ذكرُ الوسمِ في
     #      سلسلةٍ يُقرأُ عقدًا فيُخفَّضُ الدَّينُ بغشٍّ نصّيّ.
+    # (AR) والنصُّ يحملُ `#` فيقيسَ **المرساةَ `^`** لا اشتراطَ `#`: بلا `#`
+    #      كان يمرُّ ولو نُزِعَت المرساةُ من النمط (مقيس).
     ("⑨ نصٌّ في الجسمِ ليس عقدًا",
-     NEW_SEED, _create("اطبع_سطر(\"@expected 1\")\n".encode("utf-8")),
+     NEW_SEED, _create("اطبع_سطر(\"# @expected 1\")\n".encode("utf-8")),
      1, "① تُشغَّلُ بلا عقد"),
 
     # (AR) 🔑 اللامتغيِّرُ ⑤ (أرضيّةُ المتعاقَد) كان **يُحاكَمُ عليه ولم يُثبَتْ
@@ -309,7 +336,12 @@ def _residue() -> list[str]:
 #      (أو ارفعِ الأرضيّة) ثمّ أعِدِ العيار — وهو السلوكُ الذي يفرضُه تصميمُ
 #      «سقفٌ نازلٌ لا يُرفَع» أصلًا. ولا كلفةَ اليوم: الحدودُ الخمسةُ والعشرونَ
 #      في الحرّاسِ الثلاثةِ **مشدودةٌ كلُّها** (مقيس).
-_BOUND = re.compile(r"(\d+)\s*\((?:السقف|الأرضيّة|المسموح)\s*(\d+)")
+# (AR) 🔑 **السقوفُ وحدَها.** الأرضيّةُ **مصمَّمةٌ للصعود**، فمطالبتُها
+#      بالمساواةِ تُناقِضُ دلالتَها وتجعلُ **إضافةَ بذرةٍ واحدةٍ بعقد** — أعدى
+#      عملٍ مشروعٍ في هذا المستودع — تُوقِفُ العيارَ برمزِ ٢؛ وقِيسَ فعلًا:
+#      «مقيسٌ 4304 ≠ مُعلَنٌ 4303». والمجسُّ الذي يُحمِّرُ الأرضيّةَ يُطفِّرُها
+#      من **المقيسِ + ١** فيعضُّ على أيِّ هامش، فلا حاجةَ إلى شدِّها.
+_BOUND = re.compile(r"(\d+)\s*\((?:السقف|المسموح)\s*(\d+)")
 
 
 def _slack_bounds() -> list[str]:
@@ -317,10 +349,18 @@ def _slack_bounds() -> list[str]:
     code, out = _run_guard()
     if code != 0:
         return ["الحارسُ ليس أخضرَ قبلَ العيار (رمز=%d)" % code]
-    pairs = _BOUND.findall(out)
-    if not pairs:
-        return ["لم يُقرأْ حدٌّ واحدٌ من مخرَجِ الحارس — قارئُ الحدودِ أعمى"]
-    return ["مقيسٌ %s ≠ مُعلَنٌ %s" % (m, b) for m, b in pairs if m != b]
+    lines = [L for L in out.split(chr(10)) if _BOUND.search(L)]
+    if not lines:
+        return ["لم يُقرأْ سقفٌ واحدٌ من مخرَجِ الحارس — قارئُ السقوفِ أعمى"]
+    slack = []
+    for line in lines:
+        for measured, bound in _BOUND.findall(line):
+            if measured != bound:
+                # (AR) ويُسمّى **السطرُ**: في حارسِ المرساةِ ستّةَ عشرَ حدًّا،
+                #      فزوجُ أرقامٍ بلا اسمٍ لا يدلُّ على موضعِه.
+                slack.append("%s  (مقيسٌ %s ≠ سقفٌ %s)"
+                             % (line.strip(), measured, bound))
+    return slack
 
 
 # ═══ سجلُّ الطيرانِ — شبكةٌ تعمُّ المجسّاتِ كلَّها ══════════════════════════
@@ -401,8 +441,14 @@ def _probe(path: str, mutate, want_code: int, want_text: str,
         target.write_bytes(mutate(original))
         code, out = (runner or _run_guard)()
     finally:
+        # (AR) 🔑 **الإغلاقُ ههنا لا بعدَ الكتلة.** كان بعدَها، فأيُّ استثناءٍ
+        #      داخلَ المجسّ (مرساةُ حقنٍ زالت بعملٍ مشروع) يتركُ السجلَّ
+        #      مفتوحًا ببصمةِ لحظتِه — والاستعادةُ تمَّت في `finally` — فيصيرُ
+        #      كلُّ تشغيلةٍ تاليةٍ **رفضًا كاذبًا على شجرةٍ نظيفةٍ بلا مخرج**.
+        #      وقعَ فعلًا وأحمرَ `test_clean_tree_is_not_rejected`.
         if existed:
             target.write_bytes(original)          # type: ignore[arg-type]
+            restored = hashlib.sha256(target.read_bytes()).hexdigest() == before
         else:
             target.unlink(missing_ok=True)
             if made_dir and target.parent.is_dir():
@@ -410,13 +456,14 @@ def _probe(path: str, mutate, want_code: int, want_text: str,
                     target.parent.rmdir()          # يخفقُ إن لم يكنْ فارغًا
                 except OSError:
                     pass
+            restored = not target.exists()
+        if restored:
+            _journal_close()
     if existed:
         if hashlib.sha256(target.read_bytes()).hexdigest() != before:
             raise AssertionError("لم تُستعَدِ البايتاتُ في " + path)
     elif target.exists():
         raise AssertionError("لم يُحذَفِ الملفُّ المؤقّت: " + path)
-    # (AR) ولا يُمحى السجلُّ إلّا بعدَ استعادةٍ مُتحقَّقٍ منها بالبصمةِ أو بالغياب.
-    _journal_close()
     ok = (code == want_code) and (want_text in out)
     detail = "رمز=%d (منتظَر %d)" % (code, want_code)
     if want_text not in out:
@@ -479,19 +526,27 @@ def main() -> int:
         print("✗ عطبُ آلة: أرضيّةٌ ملوّثةٌ بأثرِ تشغيلةٍ سابقةٍ لم تُنهَ:")
         for item in dirty:
             print("    · %s" % item)
+        # (AR) والمخرجُ يُسمّى: السجلُّ في مجلَّدِ git فلا يبلغُه `git clean -xfd`.
+        print("    ⤷ العلاج: استعِدِ الملفَّ المذكورَ من الإيداع، ثمّ احذفْ")
+        print("      %s" % JOURNAL)
+        # (AR) والمخرجُ يُسمّى: السجلُّ في مجلَّدِ git فلا يبلغُه `git clean -xfd`،
+        #      و`git checkout` وحدَه يُتلِفُ تحريرًا مشروعًا ولا يمحوه.
+        print("    ⤷ العلاج: استعِدِ الملفَّ المذكورَ من الإيداع، ثمّ احذفْ")
+        print("      %s" % JOURNAL)
         return 2
 
     # (AR) 🔑 **حدٌّ فيه فجوةٌ يُوقِفُ العيارَ ولا يُخفِقُه.** مجسّاتُ «يجبُ أن
     #      تحمرّ» تحقنُ بندًا واحدًا، فحمرتُها مشروطةٌ بأن يكونَ العدَّادُ على
     #      حدِّه. والمخرجُ مُسمًّى: أنزِلِ السقفَ إلى المقيسِ (أو ارفعِ الأرضيّة)
     #      ثمّ أعِدِ العيار — وهو ما يفرضُه تصميمُ «نازلٌ لا يُرفَع» أصلًا.
-    slack = _slack_bounds()
+    _measure_baseline()              # المرجعُ يُقاسُ قبلَ أوّلِ طفرة
+    slack = _slack_bounds()          # سقوفٌ فقط — الأرضيّةُ تصعد
     if slack:
-        print("✗ عطبُ آلة: حدٌّ فيه فجوةٌ — المجسّاتُ لا تعضُّ على هامش:")
+        print("✗ عطبُ آلة: سقفٌ فيه فجوةٌ — المجسّاتُ لا تعضُّ على هامش:")
         for item in slack:
             print("    · %s" % item)
-        print("    ⤷ العلاج: أنزِلِ السقفَ إلى المقيسِ (أو ارفعِ الأرضيّة)"
-              " في الحارس، ثمّ أعِدِ العيار.")
+        print("    ⤷ العلاج: أنزِلِ السقفَ إلى المقيسِ في الحارسِ ثمّ أعِدِ"
+              " العيار — وهو ما يُوجِبُه «نازلٌ لا يُرفَع» أصلًا.")
         return 2
 
     if len(PROBES) < MIN_PROBES:

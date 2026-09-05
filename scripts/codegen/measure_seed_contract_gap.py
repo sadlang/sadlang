@@ -41,7 +41,6 @@ EXCLUDED_DIRS = ("_archive",)
 
 _NL = chr(10)
 
-SKIP_MARK = re.compile(u"^#\\s*@skip_compiler", re.M)
 # (AR) 🔑 **القارئانِ يُورَّثانِ من الحارسِ ولا يُنسَخان.** كانا منسوخَين فأنتجا
 #      عدّادًا واحدًا بثلاثةِ أرقامٍ متناقضة (١٦٤ · ١٦٥ · ١٦٩). ثمّ صُحِّحا نسخًا
 #      فبقيَ الانحرافُ ممكنًا — وبُرهنَ بالحقن: بذرةٌ ببادئةِ BOM وعقدُها في
@@ -57,6 +56,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from check_seed_contract import _EXPECTED as EXPECTED_MARK  # noqa: E402
 from check_seed_contract import _NEGATIVE as NEGATIVE_MARK  # noqa: E402
 from check_seed_contract import _runner_window  # noqa: E402
+# (AR) 🔑 **والثالثُ أيضًا.** كان `SKIP_MARK` مكتوبًا باليدِ بـ`\s` — وهو الفخُّ
+#      الذي تنهى عنه ترويسةُ الحارسِ نفسِها (`\s` يعبرُ نهايةَ السطرِ في `re.M`)،
+#      وثلاثةُ أسطرٍ فوقَه تقولُ «القارئانِ يُورَّثانِ ولا يُنسَخان». وقِيسَ
+#      الانحراف: بذرةٌ وسمُها على سطرٍ تالٍ ⇒ الحارسُ ٧٧ والمقياسُ ٧٨.
+from check_seed_contract import _SKIP as SKIP_MARK  # noqa: E402
 
 
 def iter_seeds():

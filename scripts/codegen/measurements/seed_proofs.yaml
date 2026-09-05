@@ -7,13 +7,14 @@ version: 1
 measured_at: 2026-09-05
 compiler: build/bin/Release/sad-build.exe
 compiler_sha256: d07d0fc47e95b4ada90a20d1f15b9299e1e55e25dd0bcf97a4f7fc4c6d4d2652
-source_head: e54f6aac589ead45bb2fd680b5af7c858c2b4408
-source_dirty: yes
+source_head: 007364aa2715de24120d51885555b342d82f3c39
+source_dirty: no
 pool: 3830
 sample_requested: 200
 sample_measured: 197
 sample_sha256: ddd032f9e6648d6f6631eb1aafc468bc8afa39eed60035b94ce3c3d38a1ece90
 excluded_not_green: 3
+excluded:
   - tests/behavior/grammar_gaps/بنيات_متقدمة/007_generic.ص
   - tests/behavior/grammar_gaps/تصريحات/0014_nameless_decl_swallows_next_line.ص
   - tests/behavior/grammar_gaps/طرق_النصوص/003_str_trim.ص

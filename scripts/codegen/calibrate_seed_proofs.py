@@ -476,7 +476,10 @@ def main() -> int:
             #      ولا تقولُ ماذا، والعددُ يقولُ «١٩٧» ولا يقولُ **أيّ** ١٩٧.
             #      وبتسميةِ المستبعَداتِ تصيرُ المجموعةُ مشتقّةً كاملةً:
             #      `_sample(_candidates(), sample_requested)` ناقصَ هؤلاء.
+            # (AR) مفتاحانِ لا مفتاحٌ واحد: عددٌ قياسيٌّ تلاه تسلسلٌ أعمقَ
+            #      إزاحةً يلتحمُ نصًّا واحدًا فلا يُقرأُ عددًا ولا يُجرَدُ قائمة.
             "excluded_not_green: %d" % len(unhealthy),
+            "excluded:" if unhealthy else "excluded: []",
             *["  - %s" % p.relative_to(ROOT).as_posix() for p in unhealthy],
             # (AR) وأمرُ إعادةِ الإنتاجِ حرفيًّا — لا يُعادُ بناؤه من الحقول.
             "reproduce: python scripts/codegen/calibrate_seed_proofs.py"
