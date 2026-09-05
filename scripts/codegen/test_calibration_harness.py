@@ -33,8 +33,14 @@ CODEGEN = Path(__file__).resolve().parent
 if str(CODEGEN) not in sys.path:
     sys.path.insert(0, str(CODEGEN))
 
+import calibrate_anchor_integrity as anchor_harness  # noqa: E402
 import calibrate_builtin_coverage as harness  # noqa: E402
 import check_calibration_fresh as meta  # noqa: E402
+
+# (AR) 🔑 **المِحقنتانِ معًا.** كان الاختبارُ يستوردُ واحدةً، فلامتغيِّراتُ الأخرى
+#      بلا قياسٍ في CI — وهما لا تعملانِ في CI أصلًا، فهذا مساسُهما الوحيد.
+#      و«الرقعةُ تسدُّ في ملفٍّ وتتركُ الأخوات» درسٌ مُدوَّن.
+HARNESSES = (harness, anchor_harness)
 
 
 # ═══ ① كلُّ مجسٍّ صامتِ الأثرِ مُتتبَّع ═══════════════════════════════════════
@@ -46,6 +52,10 @@ SILENT_TARGETS = (
     "compiler/src/frontend/builders/",
     "compiler/tests/",
     "scripts/codegen/check_builtin_engine_coverage.py",
+    # (AR) وأهدافُ مِحقنةِ المرساةِ الصامتة: الحارسُ نفسُه، وشجرةُ الأرشيفِ
+    #      المتروكةُ بالتصميمِ (فأثرُها لا يُحمِّرُ شيئًا).
+    "scripts/codegen/check_anchor_integrity.py",
+    "tests/_archive/",
 )
 
 
@@ -53,7 +63,8 @@ def _is_silent(target: str) -> bool:
     return any(target.startswith(prefix) for prefix in SILENT_TARGETS)
 
 
-def test_every_silent_probe_is_tracked():
+@pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
+def test_every_silent_probe_is_tracked(harness):
     derived = {rel for rel, _mark in harness._derive_residue()}
     missing = sorted(entry[1] for entry in harness.PROBES
                      if _is_silent(entry[1]) and entry[1] not in derived)
@@ -62,17 +73,20 @@ def test_every_silent_probe_is_tracked():
         " فوقَ أثرِ نفسِها: %s" % missing)
 
 
-def test_derived_residue_is_not_empty():
+@pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
+def test_derived_residue_is_not_empty(harness):
     assert harness._derive_residue(), "اشتقاقٌ فارغٌ = حارسُ تلوّثٍ لا يمكنُ أن يعضّ"
 
 
-def test_clean_tree_is_not_rejected():
+@pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
+def test_clean_tree_is_not_rejected(harness):
     # (AR) الرفضُ الكاذبُ أسوأُ من الانهيارِ الذي حلَّ محلَّه.
     assert harness._residue() == [], "رفضٌ كاذبٌ على شجرةٍ نظيفة"
 
 
 # ═══ ② سِمةُ الأثرِ دليلٌ لا لفظٌ عابر ═══════════════════════════════════════
-def test_residue_marks_are_evidence():
+@pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
+def test_residue_marks_are_evidence(harness):
     for rel, mark in harness._derive_residue():
         if mark is None:          # ملفٌّ يُنشَأ — وجودُه هو الدليل
             continue
@@ -80,7 +94,8 @@ def test_residue_marks_are_evidence():
             "سِمةُ أثرٍ أقصرُ من أن تكونَ دليلًا في %s: %r" % (rel, mark))
 
 
-def test_append_refuses_a_blind_mark():
+@pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
+def test_append_refuses_a_blind_mark(harness):
     with pytest.raises(AssertionError):
         harness._append(b"\n// x\n")
 
@@ -89,13 +104,15 @@ def test_append_refuses_a_blind_mark():
 # (AR) `.gitattributes` يفرضُ `*.py text eol=lf`، فما يُخرِجُه `git checkout`
 #      بـLF مهما كانت نهاياتُ الأسطرِ على قرصِ الكاتب. وبصمةٌ على البايتاتِ
 #      الخامِّ تُحمِّرُ كلَّ استنساخٍ نظيفٍ بحمرةٍ لا علاقةَ لها بالمحتوى.
-@pytest.mark.parametrize("sha", (harness._sha_bytes,))
+@pytest.mark.parametrize("sha", tuple(m._sha_bytes for m in HARNESSES),
+                         ids=("builtin", "anchor"))
 def test_fingerprint_is_eol_invariant(sha):
     body = ("# -*- coding: utf-8 -*-" + chr(10) + "x = 1" + chr(10)).encode("utf-8")
     assert sha(body) == sha(body.replace(harness.LF_, harness.CRLF))
 
 
-def test_both_sides_share_one_convention(tmp_path):
+@pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
+def test_both_sides_share_one_convention(harness, tmp_path):
     # (AR) اتّفاقُ القراءةِ يجبُ أن يكونَ واحدًا في الطرفَين، وإلّا فالمقارنةُ
     #      بلا معنًى. والملفّانِ منفصلانِ عمدًا (الفوقيُّ لا يستوردُ مِحقنةً
     #      بعينِها)، فاتّفاقُهما **يُقاسُ** ولا يُوعَدُ به في تعليق.
@@ -109,24 +126,29 @@ def test_both_sides_share_one_convention(tmp_path):
 
 
 # ═══ ④ أرضيّةُ العمقِ في الطرفَين لا تتباعد ═════════════════════════════════
-def test_depth_floor_agrees_across_both_sides():
+@pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
+def test_depth_floor_agrees_across_both_sides(harness):
     # (AR) الازدواجُ مقصود: لو استوردَ الفوقيُّ من المِحقنةِ لخفَّضَ تقليصُها
     #      أرضيّتَه ذاتيًّا — «حارسٌ طرفاه من أصلٍ واحد». فيُقاسُ التطابقُ ههنا.
-    assert harness.MIN_PROBES == meta.CEILING_MIN_PROBES
+    # (AR) الأرضيّةُ الجامعةُ في الفوقيِّ حدٌّ **أدنى** لكلِّ مِحقنة، لا مساواةٌ:
+    #      مِحقنةٌ أعمقُ لا تُخالِفُه، ومِحقنةٌ أضحلُ منه تُرَدُّ.
+    assert harness.MIN_PROBES >= meta.CEILING_MIN_PROBES
     assert len(harness.PROBES) >= harness.MIN_PROBES, (
         "مِحقنةٌ قُلِّصت تحتَ أرضيّتِها")
 
 
 # ═══ ⑤ التاريخُ تاريخٌ لا شكلٌ يُشبِهُه ════════════════════════════════════
+@pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
 @pytest.mark.parametrize("stamp", ["2026-09-05", "1999-01-01"])
-def test_real_dates_accepted(stamp):
+def test_real_dates_accepted(harness, stamp):
     assert harness._is_date(stamp)
 
 
+@pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
 @pytest.mark.parametrize("stamp", [
     "٢٠٢٦-٠٩-٠٥",   # أرقامٌ عربيّةٌ هنديّة
     "۲۰۲۶-۰۹-۰۵",   # أرقامٌ فارسيّة
     "9999-99-99", "0000-00-00", "2026-9-5", "not-a-date", "",
 ])
-def test_lookalikes_rejected(stamp):
+def test_lookalikes_rejected(harness, stamp):
     assert not harness._is_date(stamp)
