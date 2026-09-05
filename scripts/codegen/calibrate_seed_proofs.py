@@ -72,13 +72,19 @@ DEFAULT_COMPILER = "build/bin/Release/sad-build.exe"
 RECORD_DIR = ROOT / "scripts" / "codegen" / "measurements"
 RECORD = RECORD_DIR / "seed_proofs.yaml"
 
-SKIP_PARTS = ("_archive",)
+# (AR) 🔑 **واستثناءُ الأرشيفِ يُورَثُ أيضًا**: نسخةٌ ثالثةٌ منه تبلى صامتةً
+#      عندَ أوّلِ توسيعٍ للقائمة.
+from check_seed_contract import SKIP_PARTS  # noqa: E402
 # (AR) 🔑 قارئُ العقدِ **يُورَثُ** من الحارسِ ولا يُكتَبُ ثالثةً: `[: \t]+`
 #      صنفُ محارفَ لا تسلسل، فكان يقبلُ `@expected:` بفراغٍ زائلٍ حمولةً —
 #      فيُلحِقُ المُطفِّرُ عقدًا صحيحًا حيثُ لا عقدَ **فيُصلِحُ ما جاءَ ليكشف**.
-from check_seed_contract import _EXPECTED  # noqa: E402  (قارئٌ واحدٌ للعقد)
-_SKIP = re.compile(r"^#[ \t]*@skip_compiler", re.M)
-_NEGATIVE = re.compile(r"^#[ \t]*@expect(?:_compile)?_error[a-z_]*", re.M)
+#      ⚠️ **والثلاثةُ معًا لا العقدُ وحدَه**: كان `_SKIP` و`_NEGATIVE` مكتوبَينِ
+#      باليدِ **تحتَ هذا التعليقِ نفسِه** — نسختانِ يُخفيهما أنّ `re.compile`
+#      يُخبِّئُ فيردُّ `is` صادقًا على نسختَينِ متطابقتَين، فلا يكشفُهما توكيدٌ
+#      بالهويّة.
+from check_seed_contract import _EXPECTED  # noqa: E402
+from check_seed_contract import _SKIP  # noqa: E402
+from check_seed_contract import _NEGATIVE  # noqa: E402
 # (AR) 🔑 **بذرةٌ مُبوَّبةٌ قد تخرجُ بصفرٍ مهما أُفسِدَ عقدُها**: يُعلِنُها العدّاءُ
 #      تخطّيًا (منصّةٌ أخرى · معماريّةٌ أخرى) أو حمراءَ معلومة، ورمزُ الخروجِ صفرٌ
 #      في الحالَين. فهي حينَها طفرةٌ مكافئةٌ **مضمونةٌ لا محتملة**، وإدخالُها في
@@ -454,8 +460,12 @@ def main() -> int:
             # (AR) والنطاقُ يشملُ **البذورَ** أيضًا: هي مادّةُ القياسِ لا خلفيّتُه،
             #      وكان الحقلُ يقولُ `no` وبذرةٌ مُعدَّلةٌ غيرُ مُودَعة.
             "source_dirty: %s" % (
+                # (AR) 🔑 و`scripts/codegen` أيضًا: **أداةُ القياسِ من مادّتِه.**
+                #      وقِيسَ الأثر: سجلٌّ حملَ `source_head` لإيداعٍ لا تُصدِرُ
+                #      أداتُه عندَه حقلًا موجودًا فيه — فأمرُ `reproduce`
+                #      مُنفَّذًا عندَ ذلك الإيداعِ لا يُنتِجُ هذا الملفّ.
                 "yes" if _git("status", "--porcelain", "--", "compiler", "shared",
-                              "tests") else "no"),
+                              "tests", "scripts/codegen") else "no"),
             "pool: %d" % len(pool),
             # (AR) 🔑 **الحجمُ المطلوبُ لا المقيسُ وحدَه.** كان يُسجَّلُ العددُ
             #      **بعدَ** تصفيةِ الحمراءِ قبلَ الطفرة، فلا يُعادُ به إنتاجُ

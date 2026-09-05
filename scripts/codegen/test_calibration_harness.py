@@ -203,11 +203,46 @@ def test_gated_seeds_are_out_of_the_pool():
     assert gated == [], "بذرةٌ مُبوَّبةٌ في مادّةِ العيار: %s" % gated[:3]
 
 
-def test_contract_reader_is_inherited_not_rewritten():
-    """(AR) قارئُ العقدِ **واحدٌ** لا ثلاثة: ثلاثةُ قرّاءٍ أنتجوا ثلاثةَ أرقامٍ
-    متناقضةٍ لعدَّادٍ واحد (١٦٤ · ١٦٥ · ١٦٩)."""
+# (AR) 🔑 **الهويّةُ لا تُميِّزُ التوريثَ من النسخ.** `re.compile` يُخبِّئُ،
+#      فنسخةٌ **بايتيّةٌ حرفيّةٌ** من سطرِ الحارسِ تُعطي الكائنَ نفسَه ويمرُّ
+#      `is` صادقًا. وبُرهنَ بالحقن: استُبدِلَ الاستيرادُ بنسخةٍ حرفيّةٍ فمرَّ
+#      الاختبارُ أخضر. فالمقياسُ **مصدرُ الرمزِ**: لا `re.compile` يُسنِدُ اسمَ
+#      قارئٍ في ملفٍّ غيرِ الحارس.
+READER_NAMES = ("_EXPECTED", "_NEGATIVE", "_SKIP", "_NEG_CODE",
+                "SKIP_MARK", "EXPECTED_MARK", "NEGATIVE_MARK")
+READER_CONSUMERS = ("calibrate_seed_proofs.py", "measure_seed_contract_gap.py")
+
+
+@pytest.mark.parametrize("consumer", READER_CONSUMERS)
+def test_contract_readers_are_inherited_not_rewritten(consumer):
+    """(AR) قارئُ الوسمِ **واحدٌ** لا نسخ: ثلاثةُ قرّاءٍ أنتجوا ثلاثةَ أرقامٍ
+    متناقضةٍ لعدَّادٍ واحد (١٦٤ · ١٦٥ · ١٦٩)، ونسخةٌ رابعةٌ بـ`\\s` جعلت
+    الحارسَ يقولُ ٧٧ والمقياسَ ٧٨."""
+    import ast as _ast
+
+    source = (CODEGEN / consumer).read_text(encoding="utf-8")
+    tree = _ast.parse(source)
+    rewritten = []
+    for node in _ast.walk(tree):
+        if not isinstance(node, _ast.Assign):
+            continue
+        call = node.value
+        if not (isinstance(call, _ast.Call) and isinstance(call.func, _ast.Attribute)
+                and call.func.attr == "compile"):
+            continue
+        for target in node.targets:
+            if isinstance(target, _ast.Name) and target.id in READER_NAMES:
+                rewritten.append("%s:%d %s" % (consumer, node.lineno, target.id))
+    assert not rewritten, (
+        "قارئُ وسمٍ مكتوبٌ باليدِ حيثُ يجبُ أن يُورَّثَ من الحارس: %s" % rewritten)
+
+
+def test_inherited_readers_are_the_guard_objects():
+    """(AR) والهويّةُ تُقاسُ أيضًا — شرطًا ثانيًا لا وحيدًا."""
     import check_seed_contract as contract_guard
-    assert proofs._EXPECTED is contract_guard._EXPECTED
+    for name in ("_EXPECTED", "_NEGATIVE", "_SKIP"):
+        assert getattr(proofs, name) is getattr(contract_guard, name), name
+    assert proofs.SKIP_PARTS is contract_guard.SKIP_PARTS
 
 
 # ═══ ⑤ التاريخُ تاريخٌ لا شكلٌ يُشبِهُه ════════════════════════════════════
