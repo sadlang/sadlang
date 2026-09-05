@@ -1,0 +1,101 @@
+# ═══════════════════════════════════════════════════════════════════
+# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ ولم يُعَدِ العيارُ حمِرَ
+#    check_calibration_fresh.py. وإعادتُه:
+#    python scripts/codegen/calibrate_anchor_integrity.py --record --date=YYYY-MM-DD
+# ═══════════════════════════════════════════════════════════════════
+version: 2
+guard: scripts/codegen/check_anchor_integrity.py
+harness: scripts/codegen/calibrate_anchor_integrity.py
+guard_sha256: 0f4152e19834a507eec97425f5feec388a68d9fbf916376f1001db172935be0c
+harness_sha256: cd2834d51825adb2950dbd3c983927fa3ae49e473f503d33395ffd78ffc85ed3
+calibrated_at: 2026-09-05
+probes_total: 17
+probes_passed: 17
+result: 17/17
+probes:
+  - name: "① مرساةٌ يتيمة — وسمٌ يُسمّي قاعدةً مخترَعة"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "مرساةٌ يتيمة: 1"
+    role: "يجبُ أن يحمرّ"
+  - name: "② دَينُ الشهادةِ ينمو — تُنزَعُ آخرُ مرساةٍ لقاعدة"
+    target: tests/behavior/rules_matrix/_interactions/_generated/adv.ffi_extern_block__adv.ffi_linkage/001_ffi_block_linkage.ص
+    expect_exit: 1
+    expect_text: "بلا شهادة:    3"
+    role: "يجبُ أن يحمرّ"
+  - name: "③ `@مُعلَن:` يُقرأُ فعلًا — مدمجٌ مخترَع"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "bi.ZzNever.NEVER"
+    role: "يجبُ أن يحمرّ"
+  - name: "④ `@expect_error` يُقابَلُ بالكتالوج — SEM999"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "err.SEM999"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑤ العنوانُ مؤهَّلٌ — معرِّفٌ عارٍ يُرَدُّ"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "bi.ADD"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑥ مُعلَنٌ جديدٌ بلا شهادةٍ يرفعُ الدَّين"
+    target: language-truth/grammar/10_statements.yaml
+    expect_exit: 1
+    expect_text: "gr.stmt.zz_probe"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑦ الأرشيفُ متروكٌ — مرساةٌ يتيمةٌ فيه لا تُحمِّر"
+    target: tests/_archive/zz_anchor_probe.ص
+    expect_exit: 0
+    expect_text: "مرساةٌ يتيمة (ترسو على غيرِ مُعلَن): 0"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑧ نصٌّ في الجسمِ ليس مرساةً — لا شهادةَ بالذِّكر"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 0
+    expect_text: "مرساةٌ يتيمة (ترسو على غيرِ مُعلَن): 0"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑪ بادئةُ BOM لا تبتلعُ المرساة"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "مرساةٌ يتيمة: 1"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑫ `@expect_error` بلا نقطتَين يُقابَلُ بالكتالوج"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "err.SEM999"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑬ عائلةٌ تنكمشُ — أرضيّةُ المُعلَن"
+    target: language-truth/stdlib/functions.yaml
+    expect_exit: 1
+    expect_text: "انكمشَ المُعلَن"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑭ معرِّفٌ مكرَّرٌ يبتلعُ بندًا — سقفُ التصادم"
+    target: language-truth/backend/sir_opcodes.yaml
+    expect_exit: 1
+    expect_text: "نما الذوبان"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑮ `@expect_compile_error` هجاءٌ ثانٍ يُقابَلُ بالكتالوج"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "err.SEM999"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑯ قائمةُ رموزٍ — الثاني يُقرأُ كالأوّل"
+    target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص
+    expect_exit: 1
+    expect_text: "err.SEM999"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑰ حذفُ أوپكودٍ له توأمٌ في طبقةِ القيدِ يعضّ"
+    target: language-truth/backend/sir_opcodes.yaml
+    expect_exit: 1
+    expect_text: "انكمشَ المُعلَن"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑨ مسبارٌ أعمى — رمزُ عطبِ آلةٍ 2"
+    target: scripts/codegen/check_anchor_integrity.py
+    expect_exit: 2
+    expect_text: "عيارُ الأداة:"
+    role: "عطبُ آلة"
+  - name: "⑩ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+    target: scripts/codegen/check_anchor_integrity.py
+    expect_exit: 0
+    expect_text: "بصمةٌ ثابتة"
+    role: "انحدار — يجبُ أن يبقى أخضر"

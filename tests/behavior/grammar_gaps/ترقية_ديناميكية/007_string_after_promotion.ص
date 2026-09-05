@@ -1,4 +1,4 @@
-# @rule: gr.stmt.assign
+# @rule: gr.expr.assignment, gr.stmt.expression
 # @gap: ISSUE-063
 # @priority: P1
 # @description: كاشف — إعادة إسناد نصّ إلى متغيّر مرقًّى %SadDyn: يجب التعليب Str والطباعة نصًّا (كان يفشل verifyModule)

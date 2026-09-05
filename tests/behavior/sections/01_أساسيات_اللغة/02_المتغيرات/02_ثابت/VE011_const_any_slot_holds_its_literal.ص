@@ -1,5 +1,5 @@
 # @description ثابتٌ خانتُه «أي» يحمل حرفيّتَه — كان يُقرأ «لاشيء» ببناءٍ ناجحٍ ورمزِ خروجٍ صفر
-# @rule: gr.decl.constant
+# @rule: gr.decl.variable
 # @expected 5\nرقم\n3.5\nصحيح\n5\nنص
 # @priority P0
 
