@@ -7,12 +7,19 @@
 version: 2
 guard: scripts/codegen/check_seed_tag_readers.py
 harness: scripts/codegen/calibrate_seed_tag_readers.py
-guard_sha256: 69beea6dc669948a3af211ca9b7aad9d1f0737e02ea3eaa8bded2a05eb997081
-harness_sha256: ca16165e884ed032409ebf9f7fe894f515ec9d91ec5959745f8f79188e2fe398
+guard_sha256: 0668df586741944c00d332d6a81a315bd01caa71f03bfc3a70435f34c93db2da
+harness_sha256: f1c58348012473d020919f7ac69de40b0c4045eecb5659f7d9767e37a3d17155
 calibrated_at: 2026-09-06
-probes_total: 17
-probes_passed: 17
-result: 17/17
+probes_total: 22
+probes_passed: 22
+result: 22/22
+targets_sha256:
+  scripts/codegen/build_zz_tag_probe.py: (معدوم)
+  scripts/codegen/check_seed_contract.py: f4837d9334061f1558ec3bf64e41d3b2fa6b0464dd2d816b452e8f9213bdfca6
+  scripts/codegen/gen_rules_matrix.py: 528caf875ae7a3e6e23a9ac2a7e00b9ecef1880c83574bcc6a90af5085dc11ce
+  scripts/codegen/zz_tag_reader_probe.py: (معدوم)
+  tests/behavior/rules_matrix/10_statements/zz_tag_probe.ص: (معدوم)
+  tests/runner.py: 952dff00986b5033c2c10e7d1263186e442c7ff47952c781be11c03a89e68a8b
 probes:
   - name: "① وسمٌ مُزاحٌ: العدّاءُ يراهُ والحارسُ لا"
     target: tests/behavior/rules_matrix/10_statements/zz_tag_probe.ص
@@ -99,3 +106,28 @@ probes:
     expect_exit: 0
     expect_text: "بصمةٌ ثابتة"
     role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑱ الشكلُ الشقيقُ `with open` يعودُ إلى utf-8"
+    target: tests/runner.py
+    expect_exit: 1
+    expect_text: "✗ ⑤"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑲ أرضيّةُ قرّاءِ نصِّ البذرةِ تعضّ"
+    target: scripts/codegen/check_seed_tag_readers.py
+    expect_exit: 1
+    expect_text: "✗ ⑧"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑳ أرضيّةُ نطاقِ التخطّي تعضّ"
+    target: scripts/codegen/check_seed_tag_readers.py
+    expect_exit: 1
+    expect_text: "✗ ⑦"
+    role: "يجبُ أن يحمرّ"
+  - name: "㉑ غيابُ مصدرِ النطاقِ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_seed_tag_readers.py
+    expect_exit: 2
+    expect_text: ".gitignore مفقود"
+    role: "عطبُ آلة"
+  - name: "㉒ ملفٌّ ببادئةِ بناءٍ في اسمِه يُمسَحُ لا يُتخطّى"
+    target: scripts/codegen/build_zz_tag_probe.py
+    expect_exit: 1
+    expect_text: "✗ ②"
+    role: "يجبُ أن يحمرّ"

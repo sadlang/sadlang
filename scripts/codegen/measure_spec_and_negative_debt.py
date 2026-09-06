@@ -143,6 +143,25 @@ def main() -> int:
                              " — يُخفِقُ إن خالفَه المقيس")
     parser.add_argument("--د", dest="expect_orphans", type=int, default=None,
                         help="(AR) المتوقَّعُ لـ«د» — يُخفِقُ إن خالفَه المقيس")
+    # (AR) 🔑 **وكلُّ عددٍ يُنشَرُ في `CLAUDE.md` له وسيطٌ ههنا.** وكانا اثنَين
+    #      من أحدَ عشر: «١٠٥٤ بلا params» و«٢٠ معاملًا بنوع» و«٢٧٨ · ٤١ · ١٢»
+    #      و«٢٠ · ٩٦٢ · ٧٢» و«١٩٣ · ١٩٣ · ٩٤» كانت تُطبَعُ ولا تُحرَس — نثرٌ
+    #      بلا أمرٍ يبلى، وقد بلِيَ واحدٌ منها صامتًا (٣٣٠ ← ٣٣١) وهو نفسُه
+    #      الشاهدُ الذي يُستشهَدُ به على البلى. وقارئُ الصفحةِ يرى `✅ مقيسٌ`
+    #      فوقَ صفٍّ ثلاثةُ أعدادِه فيظنُّها كلَّها محروسة.
+    parser.add_argument("--ج-params", dest="expect_params", type=int, default=None,
+                        help="(AR) المتوقَّعُ لـ«بلا params» في المدمجات")
+    parser.add_argument("--ج-تفصيل", dest="expect_spec_split", default=None,
+                        metavar="بلا_مفتاح,فارغةٌ_ودَين,فارغةٌ_وتامّة",
+                        help="(AR) شطرُ «بلا params» ثلاثًا — بفواصل")
+    parser.add_argument("--ج-بنوع", dest="expect_typed", type=int, default=None,
+                        help="(AR) المتوقَّعُ لـ«معاملٌ مكتوبُ النوع»")
+    parser.add_argument("--stdlib", dest="expect_stdlib", default=None,
+                        metavar="مدخلات,بلا_returns,بلا_params",
+                        help="(AR) نطاقُ `stdlib` — دَينٌ مُسمًّى خارجَ «ج»")
+    parser.add_argument("--د-تفصيل", dest="expect_orphan_split", default=None,
+                        metavar="بلا_نمط,برمزِ_SoT,بنثرِ_محرّك",
+                        help="(AR) شطرُ «د» ثلاثًا — بفواصل")
     args = parser.parse_args()
 
     try:
@@ -176,17 +195,52 @@ def main() -> int:
           " · بنثرِ محرّكٍ %4d" % (orphans, no_pattern, code, prose))
     print("─" * 74)
 
+    entries_b, returns_b, missing_b, debt_b, complete_b, typed_b = rows["builtins"]
+    entries_s, returns_s, missing_s, debt_s, complete_s, _typed_s = rows["stdlib"]
+
+    def _split(raw, label, count):
+        """(AR) والوسيطُ المُشوَّهُ عطبُ آلةٍ لا حكمٌ: `--د-تفصيل 278,41` يقيسُ
+        غيرَ ما يظنُّ كاتبُه، فيُقالُ صراحةً بدلَ أن يُقارَنَ صامتًا."""
+        parts = [p.strip() for p in raw.split(",")]
+        if len(parts) != count or not all(p.isdigit() for p in parts):
+            raise AssertionError("%s: يلزمُه %d عددًا مفصولةً بفواصل — ورَدَ %r"
+                                 % (label, count, raw))
+        return [int(p) for p in parts]
+
     failures = []
-    if args.expect_spec is not None and args.expect_spec != rows["builtins"][1]:
-        failures.append("ج: المتوقَّع %d والمقيس %d"
-                        % (args.expect_spec, rows["builtins"][1]))
-    if args.expect_orphans is not None and args.expect_orphans != orphans:
-        failures.append("د: المتوقَّع %d والمقيس %d" % (args.expect_orphans, orphans))
+    checks = [("ج · بلا returns", args.expect_spec, returns_b),
+              ("ج · بلا params", args.expect_params,
+               missing_b + debt_b + complete_b),
+              ("ج · معاملٌ بنوع", args.expect_typed, typed_b),
+              ("د · سوالبُ يتيمة", args.expect_orphans, orphans)]
+    if args.expect_spec_split is not None:
+        for label, want, got in zip(
+                ("ج · بلا مفتاح", "ج · فارغةٌ ودَين", "ج · فارغةٌ وتامّة"),
+                _split(args.expect_spec_split, "--ج-تفصيل", 3),
+                (missing_b, debt_b, complete_b)):
+            checks.append((label, want, got))
+    if args.expect_stdlib is not None:
+        for label, want, got in zip(
+                ("stdlib · مدخلات", "stdlib · بلا returns", "stdlib · بلا params"),
+                _split(args.expect_stdlib, "--stdlib", 3),
+                (entries_s, returns_s, missing_s + debt_s + complete_s)):
+            checks.append((label, want, got))
+    if args.expect_orphan_split is not None:
+        for label, want, got in zip(
+                ("د · بلا نمط", "د · برمزِ SoT", "د · بنثرِ محرّك"),
+                _split(args.expect_orphan_split, "--د-تفصيل", 3),
+                (no_pattern, code, prose)):
+            checks.append((label, want, got))
+    for label, want, got in checks:
+        if want is not None and want != got:
+            failures.append("%s: المتوقَّع %d والمقيس %d" % (label, want, got))
+    print("  المحروسُ في هذه التشغيلة: %d عددًا من %d"
+          % (sum(1 for _l, want, _g in checks if want is not None), len(checks)))
     for line in failures:
         print("  ❌ %s" % line)
     if failures:
         return 1
-    print("  ✅ مقيسٌ — ولا عددَ منثورًا يُصدَّقُ بلا أمرِه.")
+    print("  ✅ مقيسٌ — وكلُّ عددٍ مُرِّرَ وسيطًا طابقَ المقيس.")
     return 0
 
 

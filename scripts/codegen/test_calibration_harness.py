@@ -56,21 +56,43 @@ import check_calibration_fresh as meta  # noqa: E402
 CEILING_UNMEASURED_HARNESSES = 1
 
 
+# (AR) أرضيّةٌ على المُعلَنِ نفسِه — انظر `_declared_harness_files`.
+FLOOR_DECLARED_HARNESSES = 5
+
+
 def _declared_harness_files():
-    """(AR) أسماءُ `calibrate_*.py` كما يُعلِنُها الإيداعُ الحاليّ."""
+    """(AR) أسماءُ `calibrate_*.py` كما يُعلِنُها الإيداعُ الحاليّ.
+
+    🔑 **وصمتُ `git` لا يُصدَّق.** `ls-tree` على مسارٍ **معدومٍ** يردُّ مخرَجًا
+    فارغًا **ورمزَ ٠** — لا `CalledProcessError`. فلو نُقِلَ `scripts/codegen`
+    أو أُعيدت تسميتُه لعادت الدالّةُ `[]`، فصارَ `outside` فارغًا و
+    `assert len(outside) <= CEILING` **صحيحًا أبدًا**: حدٌّ قائمٌ فقدَ عضَّه
+    بلا أن يحمرَّ شيء. والدرسُ مُدوَّنٌ في سجلِّ هذا المستودعِ بعينِه.
+    فتُوضَعُ أرضيّةٌ على العددِ المُعلَنِ نفسِه، وتُقاسُ ضدَّ ما في القرص.
+    (EN) `git ls-tree` on a vanished path exits 0 with no output; a floor on the
+    declared count keeps the bound from silently becoming vacuous."""
     import subprocess
 
     try:
+        # (AR) والمسارُ يُشتقُّ من `CODEGEN` ولا يُهجّى نسخةً ثانية: نسخةٌ
+        #      مهجّاةٌ تبقى تسألُ عن المجلَّدِ القديمِ بعدَ نقلِه، فيردُّ git
+        #      فارغًا ورمزَ ٠ ويُقرأُ «لا شيءَ خارج».
         out = subprocess.run(
             ["git", "-C", str(CODEGEN.parents[1]), "ls-tree", "-r",
-             "--name-only", "HEAD", "--", "scripts/codegen"],
+             "--name-only", "HEAD", "--",
+             CODEGEN.relative_to(CODEGEN.parents[1]).as_posix()],
             capture_output=True, check=True).stdout.decode("utf-8")
     except (OSError, subprocess.CalledProcessError):
         return sorted(p.name for p in CODEGEN.glob("calibrate_*.py"))
     names = [line.rsplit("/", 1)[-1] for line in out.split(chr(10))
              if line.strip()]
-    return sorted(name for name in names
-                  if name.startswith("calibrate_") and name.endswith(".py"))
+    declared = sorted(name for name in names
+                      if name.startswith("calibrate_") and name.endswith(".py"))
+    assert len(declared) >= FLOOR_DECLARED_HARNESSES, (
+        "المستودعُ يُعلِنُ %d مِحقنةً فقط (الأرضيّة %d) — إمّا أنّ المسارَ تبدّلَ "
+        "فردَّ git صفرًا صامتًا، وإمّا أنّ مِحقنةً حُذِفَت فتُنزَّلُ الأرضيّةُ صراحةً: %r"
+        % (len(declared), FLOOR_DECLARED_HARNESSES, declared))
+    return declared
 
 
 def _gate_harnesses():
@@ -481,6 +503,15 @@ def test_inherited_readers_are_the_guard_objects(consumer):
         return
 
     module = importlib.import_module(consumer[:-len(".py")])
+    # (AR) 🔑 **والتوريثُ المؤجَّلُ توريثٌ.** مستهلكٌ ينقلُ استيرادَه إلى داخلِ
+    #      ملتقِطٍ يُرجِعُ رمزَ ٢ (لئلّا يُقرأَ عطبُ الآلةِ حكمًا على المحتوى)
+    #      لا يكونُ اسمُه مربوطًا وقتَ الاستيراد. فتُقامُ النطاقُ أوّلًا بالخُطّافِ
+    #      الذي يُعلِنُه المستهلكُ نفسُه، ثمّ تُقاسُ الهويّة — والشرطُ باقٍ كما هو:
+    #      الكائنُ عينُه لا نسخةٌ ثانيةٌ مهجّاة.
+    #      (EN) Deferred inheritance is still inheritance: establish the module's
+    #      scope via its own declared hook, then measure object identity.
+    if callable(getattr(module, "_ensure_scope", None)):
+        module._ensure_scope()
     for origin, alias in sorted(pairs.items()):
         assert getattr(module, alias) is getattr(contract_guard, origin), (
             "%s.%s ليس كائنَ %s.%s" % (consumer, alias, CONTRACT_GUARD, origin))

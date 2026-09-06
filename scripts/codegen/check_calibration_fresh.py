@@ -100,6 +100,14 @@ CEILING_UNCALIBRATED = 26
 #      ههنا نسخةً ثانيةً: قيمتُه في السطرِ التالي وحدَه.
 CEILING_MIN_PROBES = 10
 
+# (AR) سجلّاتٌ لا تُعلِنُ `targets_sha256` — دَينٌ نازلٌ لا يُرفَع. والباقياتُ
+#      يُلحَقْنَ عندَ أوّلِ إعادةِ عيارٍ لكلٍّ منهنّ، وصمتُ الحقلِ ليس تغطية.
+#      🔑 **والسقفُ مقيسٌ على ما يُعلِنُه المستودعُ (HEAD): ٤ سجلّاتٍ، واحدٌ
+#         منها يُعلِنُ الحقلَ ⇒ ثلاثة.** لا على شجرةِ عملٍ يتشاركُها اثنانِ —
+#         ففيها سجلٌّ خامسٌ قيدَ الإنشاءِ يجعلُ السقفَ ٤ فيُودَعَ بفجوةِ واحد،
+#         وهي عينُ العلّةِ التي أُصلِحَت في `CEILING_UNMEASURED_HARNESSES`.
+CEILING_UNFINGERPRINTED = 3
+
 
 def _key(path: Path) -> str:
     """(AR) هويّةُ الحارسِ **مسارُه** لا اسمُه القاعديّ.
@@ -139,6 +147,32 @@ def _tracked(paths: list[Path], scope: list[Path]) -> tuple[list[Path], str]:
     known = {(ROOT / rel).resolve() for rel in out.split("\0") if rel}
     kept = [p for p in paths if p.resolve() in known]
     return kept, ""
+
+
+def _declared_records() -> frozenset:
+    """(AR) أسماءُ سجلّاتِ العيارِ **كما يُعلِنُها الإيداعُ الحاليّ** (HEAD).
+
+    🔑 وسقفُ «بلا بصمةِ أهدافٍ» يُقاسُ عليها لا على الفهرس: شجرةٌ يعملُ فيها
+    اثنانِ تحملُ سجلًّا خامسًا مُدرَجًا لا صلةَ له، فيُودَعُ السقفُ ٤ والمُعلَنُ
+    ٣ — فجوةُ واحدٍ تمرُّ صامتة. وهي عينُ العلّةِ التي أُصلِحَت في
+    `CEILING_UNMEASURED_HARNESSES` قبلَ إيداعٍ واحد. وفي CI وفي استنساخٍ نظيفٍ
+    الطرفانِ سواء. وإن تعذَّرَ سؤالُ git رُدَّ الكلُّ — لا سقوطَ صامتًا إلى صفر.
+    (EN) Measure the fingerprint debt against what HEAD declares, not the index."""
+    if _declared_records.cache is None:
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(ROOT), "ls-tree", "-r", "--name-only", "HEAD",
+                 "--", RECORDS.relative_to(ROOT).as_posix()],
+                capture_output=True, check=True).stdout.decode("utf-8")
+            _declared_records.cache = frozenset(
+                line.strip() for line in out.split(chr(10)) if line.strip())
+        except (OSError, subprocess.CalledProcessError):
+            _declared_records.cache = None
+            return None
+    return _declared_records.cache
+
+
+_declared_records.cache = None
 
 
 def _guard_scope() -> list[Path]:
@@ -188,6 +222,7 @@ def main() -> int:
     drifted: list[str] = []
     orphaned: list[str] = []
     incomplete: list[str] = []
+    unfingerprinted: list[str] = []
     calibrated: set[str] = set()
 
     for rec in records:
@@ -245,6 +280,28 @@ def main() -> int:
         if drift:
             continue
 
+        # ③ بصماتُ الأهدافِ الثالثة — إن أعلنَها السجلّ.
+        targets = doc.get("targets_sha256")
+        if isinstance(targets, dict):
+            for target_rel, recorded in sorted(targets.items()):
+                target = ROOT / str(target_rel)
+                actual = _sha_norm(target) if target.is_file() else "(معدوم)"
+                if actual != str(recorded):
+                    drifted.append(f"{target_rel}  ← هدفُ مجسٍّ"
+                                   f"\n        مُسجَّل: {recorded}"
+                                   f"\n        فعليّ:  {actual}"
+                                   f"  (عُويِرَ في {doc.get('calibrated_at', '؟')})")
+                    drift = True
+                    break
+        else:
+            # (AR) وسجلٌّ بلا هذا الحقلِ **دَينٌ مُسمًّى** لا سلامة: مجسّاتُه
+            #      قد ترسو في ملفٍّ ثالثٍ ولا شيءَ يحرسُه. والسقفُ نازل.
+            declared = _declared_records()
+            if declared is None or rel in declared:
+                unfingerprinted.append(rel)
+        if drift:
+            continue
+
         if total < CEILING_MIN_PROBES:
             incomplete.append(f"{rel} — {total} مجسًّا < {CEILING_MIN_PROBES}:"
                               " مِحقنةٌ قُلِّصت، وكاملٌ من واحدٍ ليس كاملًا")
@@ -273,6 +330,8 @@ def main() -> int:
     uncalibrated = [_key(g) for g in guards if _key(g) not in calibrated]
     print(f"  بلا سجلِّ عيار: {len(uncalibrated)}"
           f" (السقف {CEILING_UNCALIBRATED} — نازلٌ لا يُرفَع)")
+    print(f"  سجلّاتٌ بلا بصمةِ أهدافٍ ثالثة: {len(unfingerprinted)}"
+          f" (السقف {CEILING_UNFINGERPRINTED} — نازلٌ لا يُرفَع)")
 
     failed = False
     if drifted:
@@ -295,6 +354,14 @@ def main() -> int:
     if len(uncalibrated) > CEILING_UNCALIBRATED:
         print(f"  ✗ نما عددُ الحرّاسِ بلا عيار: {len(uncalibrated)} >"
               f" {CEILING_UNCALIBRATED} — حارسٌ جديدٌ يصلُ ومعه سجلُّ عيارِه.")
+        failed = True
+    if len(unfingerprinted) > CEILING_UNFINGERPRINTED:
+        print(f"  ✗ نما عددُ السجلّاتِ بلا بصمةِ أهدافٍ ثالثة:"
+              f" {len(unfingerprinted)} > {CEILING_UNFINGERPRINTED}")
+        for item in unfingerprinted:
+            print(f"      · {item}")
+        print("      ⤷ أعِدْ عيارَ المِحقنةِ بعدَ أن تُودِعَ `targets_sha256`"
+              " في سجلِّها — ومراسي مجسّاتِها في ملفّاتٍ ثالثةٍ بلا حارسٍ حتّى ذلك.")
         failed = True
 
     if failed:

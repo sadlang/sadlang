@@ -42,6 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # (EN) Import the generator's own helpers rather than reimplementing them.
 from check_grammar_conformance import (  # noqa: E402
     _category_of, _extract_rule_ids, _folder_rule_of,
+    check_coverage_and_linkage, load_productions, scan_tests,
 )
 
 for _تيّار in (sys.stdout, sys.stderr):
@@ -183,6 +184,47 @@ def اقرأ_إحالات_الملخّص() -> tuple:
                 مشوّهة.append(سطر[:80])
 
     return إحالات, مشوّهة, أقسامٌ_مرئيّة
+
+
+# (AR) عمودُ «اختبارات» في جدولِ القواعدِ — الترويسةُ مأذونةٌ أعلاه حرفيًّا،
+#      والنمطُ يقرأُ العمودَ الثالثَ منها وحدَه.
+نمط_صفّ_القاعدة = re.compile(r"^\|\s*`(gr\.[A-Za-z0-9_.]+)`\s*\|[^|]*\|\s*(\d+)\s*\|")
+
+
+def افحص_عمود_الاختبارات() -> list:
+    """(AR) 🔑 **العددُ المُودَعُ يُعادُ حسابُه، ولا يُصدَّقُ لأنّه مولَّد.**
+
+    العلّةُ المقيسة (٢٠٢٦-٠٩-٠٦): رقعةُ `utf-8-sig` في `_extract_rule_ids` حرّرت
+    أربعَ بذورٍ من «بلا وسم @rule» — كنّ يحملنَ الوسمَ خلفَ بادئةِ BOM — فصارَ
+    صفُّ `gr.decl.variable` يقولُ ٢٣٥ والمقيسُ ٢٣٩. **بفعلِ الرقعةِ نفسِها**،
+    وبلا صوتٍ واحد: `check_grammar_conformance.py` ليس في `x.py gen --check`
+    (مسارُه `--run` وحدَه: ٢٩٢٨ عيّنةً · ٣٨–٤٦ دقيقة · ويلزمُه مترجّمٌ مبنيّ)،
+    وهذا الحارسُ — وهو **في** البوّابة — كان يقيسُ أنّ لكلِّ صفٍّ ملفًّا وللعكس،
+    ولا يُعيدُ حسابَ عمودٍ واحد. فبقيَ التقريرُ يُستشهَدُ به حكمًا وهو كاذبٌ بأربعة.
+
+    والعمودُ — بخلافِ عمودَي الحالةِ والزمنِ — **دالّةُ مسحٍ ساكنٍ لا دالّةُ
+    تشغيل**، فيُقاسُ ههنا رخيصًا بدوالِّ المولِّدِ نفسِها لا بإعادةِ هجائِها.
+    (EN) The rules table's "tests" column is a pure static-scan function, so it is
+    recomputed here with the generator's own helpers — cheaply, no run required."""
+    if not مسار_الملخّص.exists():
+        return []
+    _تغطية, _ترابط, أعداد = check_coverage_and_linkage(load_productions(), scan_tests())
+    مخالفة = []
+    مقروءة = 0
+    for سطر in مسار_الملخّص.read_text(encoding="utf-8").splitlines():
+        م = نمط_صفّ_القاعدة.match(سطر)
+        if not م:
+            continue
+        مقروءة += 1
+        مقيس = sum(أعداد.get(م.group(1), {}).values())
+        if مقيس != int(م.group(2)):
+            مخالفة.append(f"{م.group(1)}: التقريرُ {م.group(2)} · المقيسُ {مقيس}")
+    if not مقروءة:
+        # (AR) وصفرُ صفٍّ مقروءٍ **عمًى** لا سلامة: تبدُّلُ الجدولِ يُسقِطُ
+        #      الفحصَ كلَّه بلا عَرَض — وهي عينُ العلّةِ التي يُبلِّغُ عنها
+        #      «الصفُّ المشوَّه» في القارئِ الشقيق.
+        return ["لم يُقرأْ صفُّ قاعدةٍ واحدٌ من جدولِ الملخّص — قارئُ العمودِ أعمى"]
+    return مخالفة
 
 
 def افحص_الملخّص(كلّ_الشجرة: set) -> list:
@@ -448,6 +490,14 @@ def افحص() -> int:
             print(f"     {س}", file=sys.stderr)
         فشل = True
 
+    عمود_الاختبارات = افحص_عمود_الاختبارات()
+    if عمود_الاختبارات:
+        print(f"  ❌ {len(عمود_الاختبارات)} صفًّا عمودُ «اختبارات» فيه يخالف المقيسَ "
+              "اليومَ — والعمودُ مسحٌ ساكنٌ لا نتيجةُ تشغيل:", file=sys.stderr)
+        for س in عمود_الاختبارات[:10]:
+            print(f"     {س}", file=sys.stderr)
+        فشل = True
+
     if فشل:
         print("  ⇦ العلاج: توليدٌ كامل يُحدِّث التقرير:", file=sys.stderr)
         print("     py -3.12 scripts/codegen/check_grammar_conformance.py --run "
@@ -471,6 +521,7 @@ def افحص() -> int:
         return 1
 
     print("  ✓ سليم — لا شهادةَ لملفٍّ لا تراه git، ولا ملفَّ بلا شهادة، "
+          "وعمودُ «اختبارات» يطابق المسحَ الساكنَ صفًّا صفًّا، "
           "والفواصلُ موحَّدة، والأقسامُ المطلوبةُ حاضرة — بلا دَينٍ مُعلَنٍ "
           "في أيٍّ من التقريرَين ولا في كاشفةِ الثغرات.")
     return 0

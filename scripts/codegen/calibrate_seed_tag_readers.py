@@ -175,7 +175,7 @@ _eol_to_lf = _no_trace(
 #      أبقى العيارَ **١٢/١٢ ورمزَ صفر** — أي أنّ العيارَ بارَكَ حارسًا فيه
 #      لامتغيِّرٌ ميّت. والمرساةُ الآنَ سطرُ الإخفاقِ (`✗ ①`)، **ويُنفى ما
 #      سواه** فيبرهنَ المجسُّ أنّ الحمرةَ من اللامتغيِّرِ الذي يدّعيه.
-_ALL = ("✗ ①", "✗ ②", "✗ ③", "✗ ④", "✗ ⑤", "✗ ⑥")
+_ALL = ("✗ ①", "✗ ②", "✗ ③", "✗ ④", "✗ ⑤", "✗ ⑥", "✗ ⑦", "✗ ⑧")
 
 
 def _only(mark):
@@ -232,11 +232,15 @@ PROBES = (
 
     # (AR) 🔑 **والانكماشُ يُحمِّرُ ولا يُقرأُ تقدّمًا**: قِيسَ أنّ توسيعَ قائمةِ
     #      الاستثناءِ بكلمةٍ واحدةٍ يُخفي أربعةَ أنماطٍ والحارسُ أخضر.
+    # (AR) ⚠️ ويُسمَحُ لـ⑧ وحدَه أن يُرافِقَ ②: توسيعُ نطاقِ التخطّي يُخفي
+    #      **الأنماطَ والقرّاءَ معًا** بالضرورة (في `scripts/ci` كلاهما)،
+    #      فحمرةُ الأرضيّتَينِ إنذارانِ صحيحانِ لا تلوُّثُ مجسّ. وما سواهما
+    #      منفيٌّ كما في كلِّ مجسّ.
     ("⑦ استثناءٌ أوسعُ يُخفي أنماطًا",
      GUARD_REL,
      _sub(b'ALWAYS_SKIP = (".git"', b'ALWAYS_SKIP = ("ci", ".git"',
           residue=True),
-     1, _only("✗ ②")),
+     1, ("✗ ②", tuple(m for m in _ALL if m not in ("✗ ②", "✗ ⑧")))),
 
     # ═══ ③ خلافُ قرّاءِ @rule ═══
     # (AR) 🔑 وكان هذا اللامتغيِّرُ **ميّتًا**: المفتاحُ الهجاءُ وحدَه وهجاءُ
@@ -325,9 +329,60 @@ PROBES = (
 
     ("⑮ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)",
      GUARD_REL, _eol_to_lf, 0, "بصمةٌ ثابتة", _run_eol_invariance),
+
+    # ═══ ⑤ الشكلُ الشقيقُ — وفيه مُنفِّذُ العقدِ نفسُه ═══
+    # (AR) 🔑 **وهذا هو المجسُّ الذي لم يكنْ موجودًا فبقيَ الثقبُ حيًّا.**
+    #      كان ⑤ يقيسُ `for … in open(…)` وحدَه، فعمِيَ عن
+    #      `with open(…) as f: for … in f` — وهو شكلُ `tests/runner.py:323`،
+    #      أي **مُنفِّذُ العقدِ**. فرُدَّ إلى `utf-8` ⇒ ⑤ صفرٌ و③ صفرٌ و① صفرٌ،
+    #      والبوّابةُ خضراءُ والعقدُ يُبتلَعُ في أوّلِ بذرةٍ ببادئة.
+    ("⑱ الشكلُ الشقيقُ `with open` يعودُ إلى utf-8",
+     "tests/runner.py",
+     _sub(b'with open(filepath, "r", encoding="utf-8-sig") as f:',
+          b'with open(filepath, "r", encoding="utf-8") as f:', residue=True),
+     1, _only("✗ ⑤")),
+
+    # ═══ ⑧ أرضيّةُ تغطيةِ ⑤ ═══
+    # (AR) صفرُ قارئٍ يُقرأُ «صفرَ مخالفة» — والأرضيّةُ هي ما يمنعُ ذلك.
+    ("⑲ أرضيّةُ قرّاءِ نصِّ البذرةِ تعضّ",
+     GUARD_REL,
+     _sub(b"FLOOR_SEED_READERS = 7", b"FLOOR_SEED_READERS = 8", residue=True),
+     1, _only("✗ ⑧")),
+
+    # ═══ ⑦ أرضيّةُ نطاقِ التخطّي ═══
+    # (AR) أرضيّةٌ أنشأتها رقعةُ «النطاقُ يُشتقُّ من `.gitignore`» ونُسِيَ أن
+    #      تُقاس: كانت ٨ والمشتقُّ ٢٧ — فجوةُ ١٩ لا تحمرُّ إلّا بعدَ انهيارِ
+    #      سبعينَ بالمئةِ من الملفّ.
+    ("⑳ أرضيّةُ نطاقِ التخطّي تعضّ",
+     GUARD_REL,
+     _sub(b"FLOOR_IGNORED_DIRS = 27", b"FLOOR_IGNORED_DIRS = 28", residue=True),
+     1, _only("✗ ⑦")),
+
+    # ═══ رمزُ الآلةِ يُبلَغُ من طبقةِ الاشتقاق ═══
+    # (AR) 🔑 كان `_ignored_parts()` يُنفَّذُ عندَ **الاستيراد**، فغيابُ مصدرِه
+    #      يُخرِجُ رمزَ ١ وتتبُّعًا خامًّا — و`x.py` يقرأُ ١ حكمًا على المحتوى.
+    #      فأداةٌ لم تقِسْ شيئًا كانت تُقرأُ «وجدَت انجرافَ قرّاء».
+    ("㉑ غيابُ مصدرِ النطاقِ — رمزُ آلةٍ ٢",
+     GUARD_REL,
+     _sub(b'path = ROOT / ".gitignore"',
+          b'path = ROOT / ".gitignore_zz_probe"', residue=True),
+     2, (".gitignore مفقود", ("مصدرُ معجمٍ مفقود", "لا مرجعَ للمقارنة"))),
+
+    # ═══ البادئةُ للمجلَّداتِ وحدَها ═══
+    # (AR) 🔑 ملفٌّ **متتبَّعٌ** اسمُه يبدأُ ببادئةِ بناءٍ كان يسقطُ من المسحِ
+    #      كلِّه (قِيسَ: `distribution/android/build-android.py`). والمجسُّ
+    #      يُنشِئُ نظيرَه بنمطٍ جديد: يُعَدُّ الآنَ (② ٣١ > ٣٠)، ولو رُدَّت
+    #      البادئةُ إلى كلِّ الأجزاءِ لاختفى ولم يعضَّ هذا المجسّ.
+    ("㉒ ملفٌّ ببادئةِ بناءٍ في اسمِه يُمسَحُ لا يُتخطّى",
+     "scripts/codegen/build_zz_tag_probe.py",
+     _create(("# -*- coding: utf-8 -*-" + LF
+              + "import re" + LF
+              + 'ZZ = re.compile(r"^#[ ]*@expected:?[ ]+(.+)$")' + LF
+              ).encode("utf-8")),
+     1, _only("✗ ②")),
 )
 # (AR) أرضيّةُ العمق. تُقرأُ في الحارسِ الفوقيِّ أيضًا (`CEILING_MIN_PROBES`).
-MIN_PROBES = 17
+MIN_PROBES = 22
 
 
 def _derive_residue() -> tuple:
@@ -388,6 +443,11 @@ _BOUND = re.compile(r"(\d+)\s*\(السقف\s*(\d+)")
 #      فيها بـ**١٥/١٥ ورمزِ صفر** — أي سجلُّ عيارٍ كاملٌ يُبارِكُ أرضيّةً لم
 #      تعُدْ تعضُّ على اختفاءِ نمط. (قِيسَ بالحقن.)
 _FLOOR = re.compile(r"(\d+)\s*\(السقف\s*\d+\s*·\s*الأرضيّة\s*(\d+)")
+# (AR) 🔑 **وأرضيّةٌ بلا سقفٍ أرضيّةٌ كذلك.** لامتغيِّرا التغطيةِ (⑦ نطاقُ
+#      التخطّي · ⑧ قرّاءُ نصِّ البذرة) يُطبَعانِ بصيغةِ «N (الأرضيّة M)» بلا
+#      سقفٍ — وقارئٌ يشترطُ لفظَ «السقف» لا يبلغُهما، فتمرُّ فيهما الفجوةُ
+#      كما مرَّت في أختِهما قبلَ صفٍّ واحد.
+_FLOOR_ONLY = re.compile(r"(\d+)\s*\(الأرضيّة\s*(\d+)\)")
 
 
 def _slack_bounds() -> list[str]:
@@ -395,9 +455,12 @@ def _slack_bounds() -> list[str]:
     code, out = _run_guard()
     if code != 0:
         return ["الحارسُ ليس أخضرَ قبلَ العيار (رمز=%d)" % code]
-    lines = [L for L in out.split(chr(10)) if _BOUND.search(L)]
+    lines = [L for L in out.split(chr(10))
+             if _BOUND.search(L) or _FLOOR_ONLY.search(L)]
     if not lines:
-        return ["لم يُقرأْ سقفٌ واحدٌ من مخرَجِ الحارس — قارئُ السقوفِ أعمى"]
+        return ["لم يُقرأْ حدٌّ واحدٌ من مخرَجِ الحارس — قارئُ الحدودِ أعمى"]
+    if not [L for L in lines if _FLOOR_ONLY.search(L)]:
+        return ["لم تُقرأْ أرضيّةٌ مفردةٌ واحدة — صفّا ⑦ و⑧ خارجَ المرساة"]
     slack = []
     for line in lines:
         for measured, bound in _BOUND.findall(line):
@@ -407,6 +470,10 @@ def _slack_bounds() -> list[str]:
                 slack.append("%s  (مقيسٌ %s ≠ سقفٌ %s)"
                              % (line.strip(), measured, bound))
         for measured, floor in _FLOOR.findall(line):
+            if measured != floor:
+                slack.append("%s  (مقيسٌ %s ≠ أرضيّةٌ %s)"
+                             % (line.strip(), measured, floor))
+        for measured, floor in _FLOOR_ONLY.findall(line):
             if measured != floor:
                 slack.append("%s  (مقيسٌ %s ≠ أرضيّةٌ %s)"
                              % (line.strip(), measured, floor))
@@ -548,8 +615,27 @@ def _write_record(passed: int, stamp: str) -> None:
         "probes_total: %d" % len(PROBES),
         "probes_passed: %d" % passed,
         "result: %d/%d" % (passed, len(PROBES)),
-        "probes:",
     ]
+    # (AR) 🔑 **وأهدافُ المجسّاتِ الثالثةُ تُبصَمُ كذلك.** السجلُّ كان يبصمُ
+    #      الحارسَ والمِحقنةَ وحدَهما، ومراسي بعضِ المجسّاتِ نصوصٌ تعيشُ في
+    #      ملفٍّ **ثالثٍ** (`gen_rules_matrix.py` · `tests/runner.py` …).
+    #      فإعادةُ صياغةِ ذلك السطرِ هناك لا تُحرِّكُ البصمتَين، فيبقى
+    #      `check_calibration_fresh` أخضرَ ويطبعُ «مُعايَر» بينما المجسُّ صارَ
+    #      **لا ينطبقُ أصلًا** — ولا شيءَ يُوجِبُ إعادةَ تشغيلِه ليُكتشَف.
+    #      والمعدومُ ههنا يُعلَنُ لا يُسكَتُ عنه: هدفٌ يُنشِئُه المجسُّ نفسُه
+    #      (`_create`) لا وجودَ له قبلَ التشغيل، فيُبصَمُ بـ`(معدوم)`.
+    #      (EN) Fingerprint third-party probe targets too: a reworded anchor in a
+    #      third file leaves both recorded hashes intact, so a probe that can no
+    #      longer apply keeps reading as "calibrated".
+    third = sorted({entry[1] for entry in PROBES}
+                   - {GUARD.relative_to(ROOT).as_posix(),
+                      HARNESS.relative_to(ROOT).as_posix()})
+    lines.append("targets_sha256:")
+    for rel in third:
+        path = ROOT / rel
+        lines.append("  %s: %s"
+                     % (rel, _sha_norm(path) if path.is_file() else "(معدوم)"))
+    lines.append("probes:")
     for entry in PROBES:
         name, path, _m, code, text = entry[:5]
         role = ("انحدار — يجبُ أن يبقى أخضر" if code == 0

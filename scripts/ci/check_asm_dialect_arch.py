@@ -79,7 +79,12 @@ def جرّد_التشكيل(نصّ: str) -> str:
 
 
 def افتح(مسار: Path) -> str:
-    return io.open(مسار, encoding="utf-8", errors="replace").read()
+    # (AR) 🔑 `utf-8-sig` لا `utf-8` — للسببِ نفسِه: وسمٌ في السطرِ الأوّلِ
+    #      خلفَ بادئةٍ يُقرأُ غيرَ موجود، فلا تُنسَبُ البذرةُ إلى قاعدتِها ولا
+    #      تُفحَصُ لهجتُها، والبوّابةُ خضراء. (قِيسَ: أربعُ بذورٍ يتبدّلُ جوابُ
+    #      هذا القارئِ عليها بينَ الترميزَين.)
+    # (EN) utf-8-sig, not utf-8: a first-line tag behind a BOM reads as absent.
+    return io.open(مسار, encoding="utf-8-sig", errors="replace").read()
 
 
 def اقرأ_المعاجم() -> dict:
