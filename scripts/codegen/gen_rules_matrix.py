@@ -187,7 +187,13 @@ def _extract_rule_ids(filepath: Path) -> list:
         # (EN) errors="replace": non-UTF-8 bytes must not crash the guard with a raw
         #      traceback; a corrupted @rule tag degrades to an unknown rule id that
         #      --check then diagnoses with the offending file name.
-        for i, line in enumerate(open(filepath, encoding="utf-8", errors="replace")):
+        # (AR) 🔑 `utf-8-sig` لا `utf-8`: بادئةُ BOM تسبقُ `#` فلا يبدأُ
+        #      السطرُ الأوّلُ بها بعدَ `strip()` (و`\ufeff` ليس فراغًا في
+        #      بايثون)، فوسمٌ في السطرِ الأوّلِ يُقرأُ **غيرَ موجود**.
+        #      وقِيسَ أثرُه: أربعُ بذورٍ في `gr.decl.variable/negative`
+        #      كانت تُشخَّصُ «اختبارٌ بلا وسم @rule» وهي تحملُه.
+        for i, line in enumerate(open(filepath, encoding="utf-8-sig",
+                                      errors="replace")):
             if i >= 30:
                 break
             m = _RE_RULE_TAG.match(line.strip())

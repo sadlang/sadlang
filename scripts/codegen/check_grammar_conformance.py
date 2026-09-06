@@ -148,7 +148,12 @@ def _extract_rule_ids(filepath: Path) -> list[str]:
     """(AR) يستخرج معرّفات القواعد من وسم @rule (يقبل قائمة بفواصل عربية/لاتينية)."""
     ids: list[str] = []
     try:
-        for i, line in enumerate(open(filepath, encoding="utf-8")):
+        # (AR) 🔑 `utf-8-sig` لا `utf-8`: بادئةُ BOM تسبقُ `#` فلا يبدأُ
+        #      السطرُ الأوّلُ بها بعدَ `strip()` (و`\ufeff` ليس فراغًا في
+        #      بايثون)، فوسمٌ في السطرِ الأوّلِ يُقرأُ **غيرَ موجود**.
+        #      وقِيسَ أثرُه: أربعُ بذورٍ في `gr.decl.variable/negative`
+        #      كانت تُشخَّصُ «اختبارٌ بلا وسم @rule» وهي تحملُه.
+        for i, line in enumerate(open(filepath, encoding="utf-8-sig")):
             if i >= 30:
                 break
             m = _RE_RULE_TAG.match(line.strip())
@@ -473,7 +478,12 @@ _RE_GAP_TAG = re.compile(r"^#\s*@gap:?\s+(.+)$")
 def _gap_tag(filepath: Path) -> str:
     """(AR) يقرأ وسم @gap من ملف اختبار كاشف."""
     try:
-        for i, line in enumerate(open(filepath, encoding="utf-8")):
+        # (AR) 🔑 `utf-8-sig` لا `utf-8`: بادئةُ BOM تسبقُ `#` فلا يبدأُ
+        #      السطرُ الأوّلُ بها بعدَ `strip()` (و`\ufeff` ليس فراغًا في
+        #      بايثون)، فوسمٌ في السطرِ الأوّلِ يُقرأُ **غيرَ موجود**.
+        #      وقِيسَ أثرُه: أربعُ بذورٍ في `gr.decl.variable/negative`
+        #      كانت تُشخَّصُ «اختبارٌ بلا وسم @rule» وهي تحملُه.
+        for i, line in enumerate(open(filepath, encoding="utf-8-sig")):
             if i >= 30:
                 break
             m = _RE_GAP_TAG.match(line.strip())

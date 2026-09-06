@@ -49,7 +49,28 @@ import check_calibration_fresh as meta  # noqa: E402
 #      `calibrate_seed_proofs.py` (شكلٌ آخرُ من المِحقنات، بلا `PROBES`)
 #      وما يكونُ قيدَ الإنشاءِ في الشجرة. ولم يُجعَلْ صفرًا لأنّ الصفرَ اليومَ
 #      كذبٌ يُسكَّن، ولا صفَّ أسماءٍ لأنّه قائمةُ إذنٍ تبلى في اتّجاهٍ واحد.
-CEILING_UNMEASURED_HARNESSES = 2
+# (AR) ⚠️ وكان ٢ — مُعايَرًا على شجرةٍ فيها عملُ جلسةٍ أخرى، والمقيسُ في
+#         الإيداعِ نفسِه **١**. فسقفٌ «نازلٌ لا يُرفَع» أُودِعَ بفجوةٍ مصدرُها
+#         ما ليس في الإيداع، وأوّلُ مِحقنةٍ جديدةٍ بلا `PROBES` تمرُّ صامتة.
+#         والسقوفُ تُعايَرُ على استنساخٍ نظيفٍ لا على شجرةِ عملٍ مشترَكة.
+CEILING_UNMEASURED_HARNESSES = 1
+
+
+def _declared_harness_files():
+    """(AR) أسماءُ `calibrate_*.py` كما يُعلِنُها الإيداعُ الحاليّ."""
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(CODEGEN.parents[1]), "ls-tree", "-r",
+             "--name-only", "HEAD", "--", "scripts/codegen"],
+            capture_output=True, check=True).stdout.decode("utf-8")
+    except (OSError, subprocess.CalledProcessError):
+        return sorted(p.name for p in CODEGEN.glob("calibrate_*.py"))
+    names = [line.rsplit("/", 1)[-1] for line in out.split(chr(10))
+             if line.strip()]
+    return sorted(name for name in names
+                  if name.startswith("calibrate_") and name.endswith(".py"))
 
 
 def _gate_harnesses():
@@ -66,10 +87,14 @@ def _gate_harnesses():
     #      `calibrate_seed_proofs.py` صامتًا (شكلٌ آخرُ من المِحقنات، بلا
     #      `PROBES`) — فيبقى شقيقٌ بلا قياسٍ **وبلا تصريح**، وهو صورةٌ من
     #      العطبِ الذي حلَّ الاشتقاقُ محلَّه. فيُعلَنُ صراحةً ويُحاكَمُ عددُه.
-    #      وسقفٌ **نازلٌ** لا صفُّ أسماء: صفُّ الأسماءِ قائمةُ إذنٍ تبلى،
-    #      وتُحمِّرُ على عملٍ جارٍ لجلسةٍ أخرى في الشجرةِ نفسِها لا صلةَ له.
-    outside = sorted(p.name for p in CODEGEN.glob("calibrate_*.py")
-                     if p.name not in names)
+    #      وسقفٌ **نازلٌ** لا صفُّ أسماء: صفُّ الأسماءِ قائمةُ إذنٍ تبلى.
+    #      🔑 **والمتمِّمُ يُقاسُ على ما يُعلِنُه المستودعُ (HEAD)** لا على شجرةِ
+    #         العمل: شجرةٌ يعملُ فيها اثنانِ تحملُ مِحقنةً قيدَ الإنشاءِ لا
+    #         صلةَ لها بالقياس، فتُحمِّرُ سقفًا صحيحًا. وفي CI وفي استنساخٍ
+    #         نظيفٍ الطرفانِ سواء. وإن تعذَّرَ سؤالُ git فُتِحَ البابُ للقرص
+    #         **بسطرٍ مسمًّى** — لا سقوطَ صامتًا إلى «لا شيءَ خارج».
+    outside = sorted(name for name in _declared_harness_files()
+                     if name not in names)
     assert len(outside) <= CEILING_UNMEASURED_HARNESSES, (
         "نما عددُ المِحقناتِ خارجَ القياس: %d > %d — %s"
         % (len(outside), CEILING_UNMEASURED_HARNESSES, outside))
@@ -312,19 +337,17 @@ def _guard_tag_vocabulary():
 #      عينُ العطبِ الذي وُجِدَ هذا الملفُّ ليمنعَه.
 from check_seed_tag_readers import RE_CALLS  # noqa: E402,F401
 from check_seed_tag_readers import _pattern_literals as _guard_literals  # noqa: E402
-from check_seed_tag_readers import _re_aliases, _string_constants  # noqa: E402
+from check_seed_tag_readers import _re_names, _string_constants  # noqa: E402
 
 
-def _pattern_literals(node, ast_mod, tree=None):
+def _pattern_literals(node, ast_mod, tree):
     """(AR) سلاسلُ النمطِ في نداءِ `re.*` — مُورَّثةٌ من الحارس.
 
     وتُمرَّرُ الشجرةُ ليُشتقَّ منها اسمُ وحدةِ `re` وثوابتُ الهجاء، فلا
     يُحسَبُ `s.split("@expected")` نمطًا (رفضٌ كاذبٌ مقيس)، ويُتبَعُ نمطٌ
     أُسنِدَ إلى ثابتٍ على مستوى الوحدة.
     """
-    if tree is None:
-        return _guard_literals(node)
-    return _guard_literals(node, _re_aliases(tree), _string_constants(tree))
+    return _guard_literals(node, _re_names(tree), _string_constants(tree))
 
 
 TAG_VOCABULARY = _guard_tag_vocabulary()

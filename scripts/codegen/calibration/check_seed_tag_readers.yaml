@@ -7,12 +7,12 @@
 version: 2
 guard: scripts/codegen/check_seed_tag_readers.py
 harness: scripts/codegen/calibrate_seed_tag_readers.py
-guard_sha256: 7de9742d015f630109e743b90223709ffd1893d50a7464d932aa8da14ae05e69
-harness_sha256: d40273a2a58936f75f2a949938ca905bde5d557ebdf7f647190b7c1e791bc924
+guard_sha256: 69beea6dc669948a3af211ca9b7aad9d1f0737e02ea3eaa8bded2a05eb997081
+harness_sha256: ca16165e884ed032409ebf9f7fe894f515ec9d91ec5959745f8f79188e2fe398
 calibrated_at: 2026-09-06
-probes_total: 15
-probes_passed: 15
-result: 15/15
+probes_total: 17
+probes_passed: 17
+result: 17/17
 probes:
   - name: "① وسمٌ مُزاحٌ: العدّاءُ يراهُ والحارسُ لا"
     target: tests/behavior/rules_matrix/10_statements/zz_tag_probe.ص
@@ -62,12 +62,22 @@ probes:
   - name: "⑩ مصدرُ معجمٍ مفقود — رمزُ آلةٍ ٢"
     target: scripts/codegen/check_seed_tag_readers.py
     expect_exit: 2
-    expect_text: "عطبُ آلة"
+    expect_text: "مصدرُ معجمٍ مفقود"
     role: "عطبُ آلة"
-  - name: "⑪ تضييقٌ جزئيٌّ للمعجم — رمزُ آلةٍ ٢"
+  - name: "⑪ انكماشُ المعجمِ يُحمِّرُ ⑥ حكمًا لا آلةً"
+    target: scripts/codegen/check_seed_tag_readers.py
+    expect_exit: 1
+    expect_text: "✗ ⑥"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑯ قارئُ أسطرٍ يعودُ إلى utf-8"
+    target: scripts/codegen/gen_rules_matrix.py
+    expect_exit: 1
+    expect_text: "✗ ⑤"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑰ لا مرجعَ على طرازِ العدّاء — رمزُ آلةٍ ٢"
     target: scripts/codegen/check_seed_tag_readers.py
     expect_exit: 2
-    expect_text: "انكمشَ المعجم"
+    expect_text: "لا مرجعَ للمقارنة"
     role: "عطبُ آلة"
   - name: "⑫ بذرةٌ متعاقَدةٌ جديدةٌ لا تُحمِّر"
     target: tests/behavior/rules_matrix/10_statements/zz_tag_probe.ص
