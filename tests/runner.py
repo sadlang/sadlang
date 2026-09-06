@@ -312,7 +312,12 @@ def parse_metadata(filepath: Path) -> TestMetadata:
     """(AR) استخراج البيانات الوصفية من تعليقات أول 30 سطر في الملف"""
     meta = TestMetadata()
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        # (AR) 🔑 `utf-8-sig` لا `utf-8`: بادئةُ BOM تسبقُ `#` فلا يبدأُ سطرُ
+        #      الوسمِ الأوّلِ بـ`#` بعدَ `strip()` (و`﻿` ليس فراغًا)، فيُبتلَعُ
+        #      العقدُ صامتًا والبذرةُ تُشغَّلُ بلا محاكمة — بينما `check_seed_contract`
+        #      يراهُ عقدًا فيعُدُّها متعاقَدة. حارسٌ يقرأُ غيرَ ما يقرؤه مَن يُنفِّذُ
+        #      العقدَ يحرسُ وهمًا. (٨٦ بذرةً ببادئةٍ في الشجرة.)
+        with open(filepath, "r", encoding="utf-8-sig") as f:
             for i, line in enumerate(f):
                 if i >= 30:
                     break

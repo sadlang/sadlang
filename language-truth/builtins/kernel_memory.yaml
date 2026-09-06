@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_خصص
   description_en: kernel memory function
   params: []
@@ -24,7 +24,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_حرر
   description_en: kernel memory function
   params: []
@@ -37,7 +37,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_إحصائيات
   description_en: kernel memory function
   params: []
@@ -50,7 +50,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_حجم
   description_en: kernel memory function
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_ذروة
   description_en: kernel memory function
   params: []
@@ -76,7 +76,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_صفر
   description_en: kernel memory function
   params: []
@@ -89,7 +89,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: انسخ_ذاكرة
   description_en: kernel memory function
   params: []
@@ -102,7 +102,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_أعد_حجم
   description_en: kernel memory function
   params: []
@@ -115,7 +115,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_محاذاة
   description_en: kernel memory function
   params: []
@@ -128,7 +128,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_تسرب
   description_en: kernel memory function
   params: []
@@ -141,7 +141,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قمامة_اجمع
   description_en: kernel memory function
   params: []
@@ -154,7 +154,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قمامة_إحصائيات
   description_en: kernel memory function
   params: []
@@ -167,7 +167,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قمامة_فعل
   description_en: kernel memory function
   params: []
@@ -180,7 +180,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قمامة_عطل
   description_en: kernel memory function
   params: []
@@ -193,7 +193,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قمامة_عتبة
   description_en: kernel memory function
   params: []
@@ -206,7 +206,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قمامة_كائنات_حية
   description_en: kernel memory function
   params: []
@@ -219,7 +219,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قمامة_حجم_كومة
   description_en: kernel memory function
   params: []
@@ -232,7 +232,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: قمامة_أقصى_توقف
   description_en: kernel memory function
   params: []
@@ -245,7 +245,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_عدد_تخصيصات
   description_en: kernel memory function
   params: []
@@ -258,7 +258,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ذاكرة_إجمالي
   description_en: kernel memory function
   params: []

@@ -27,7 +27,7 @@ functions:
   module: ASSERTIONS
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: يجب ألا يتساوى
   description_en: Assert NEQ
   params: []
@@ -132,7 +132,7 @@ functions:
   module: ASSERTIONS
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تأكد أنه null
   description_en: Assert null
   params: []
@@ -145,7 +145,7 @@ functions:
   module: ASSERTIONS
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تأكد ليس null
   description_en: Assert not null
   params: []
@@ -158,7 +158,7 @@ functions:
   module: ASSERTIONS
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تأكد أصغر
   description_en: Assert less than
   params: []

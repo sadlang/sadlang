@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: احصل_بيئة
   description_en: احصل_بيئة
   params: []
@@ -24,7 +24,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عين_بيئة
   description_en: عين_بيئة
   params: []
@@ -37,7 +37,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مجلد_حالي
   description_en: مجلد_حالي
   params: []
@@ -50,7 +50,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: غير_مجلد
   description_en: غير_مجلد
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: نفذ
   description_en: نفذ
   params: []
@@ -76,7 +76,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: منصة
   description_en: منصة
   params: []
@@ -89,7 +89,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: نظام
   description_en: نظام
   params: []
@@ -102,7 +102,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: طابع_زمن
   description_en: طابع_زمن
   params: []
@@ -115,7 +115,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ساعة
   description_en: ساعة
   params: []

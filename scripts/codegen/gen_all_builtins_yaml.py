@@ -1,6 +1,29 @@
 """
 يُولِّد ملفات language-truth/builtins/*.yaml الكاملة من البيانات المستخرجة من builtin_registry.h
 """
+
+# ═══════════════════════════════════════════════════════════════════════════
+# (AR) ⚠️ **مولِّدٌ بائتٌ يمحو حقلَ `intent`.** لا يُشغّلُه `x.py` ولا CI ولا CMake.
+#      وهو يبثُّ `"status": "stable"` ثابتًا حرفيًّا على **كلِّ** بندٍ يكتبُه —
+#      فتشغيلُه اليومَ يمحو ٥٩٩ وسمَ `intent: مؤجَّل` ويُعيدُ الوعدَ الكاذبَ الذي
+#      أُزيل. والحارسُ `check_builtin_engine_coverage.py` يمسكُ الأثرَ بعدَه
+#      (٥٩٩ وعدًا كاذبًا ⇒ أحمر)، لكنّ التشخيصَ سيقولُ «صِلْ أو أجِّل» لا
+#      «شغّلتَ مولِّدًا بائتًا». فالمنعُ ههنا أرخصُ من التشخيصِ هناك.
+# (EN) Dormant generator: stamps a literal `"status": "stable"` on every entry it
+#      writes, wiping the 599 `intent: مؤجَّل` markings. Not wired to x.py/CI/CMake.
+# ═══════════════════════════════════════════════════════════════════════════
+import sys as _sys
+
+if "--overwrite-intent" not in _sys.argv:
+    _sys.stdout.reconfigure(encoding="utf-8")
+    print("✗ مولِّدٌ بائتٌ: "
+          "يمحو وسمَ `intent: مؤجَّل` "
+          "عن كلِّ ما يكتب.")
+    print("  وإن قُصِدَ ذلك فـ"
+          "`--overwrite-intent`، ثمّ يُعادُ "
+          "الوسمُ من المسبار.")
+    raise SystemExit(2)
+
 import yaml, pathlib, sys
 sys.stdout.reconfigure(encoding='utf-8')
 

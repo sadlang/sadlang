@@ -282,7 +282,7 @@ functions:
   module: MATH
   compiler_strategy: LLVM_INTRINSIC
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: ظل عكسي ثنائي
   description_en: Atan2
   params: []
@@ -346,7 +346,7 @@ functions:
   module: MATH
   compiler_strategy: LLVM_INTRINSIC
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: الدالة الأسية
   description_en: Exponential
   params: []
@@ -414,7 +414,7 @@ functions:
   module: MATH
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: صحيح عشوائي
   description_en: Random int
   params: []
@@ -427,7 +427,7 @@ functions:
   module: MATH
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عشوائي في نطاق
   description_en: Random range
   params: []
@@ -440,7 +440,7 @@ functions:
   module: MATH
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: عشري عشوائي
   description_en: Random float
   params: []
@@ -521,7 +521,7 @@ functions:
   module: MATH
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: استيفاء خطي
   description_en: Lerp
   params: []

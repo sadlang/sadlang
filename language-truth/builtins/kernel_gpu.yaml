@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تهيئة_يدوي
   description_en: kernel gpu function
   params: []
@@ -24,7 +24,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تعيين_وضع
   description_en: kernel gpu function
   params: []
@@ -37,7 +37,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_هل_مهيأ
   description_en: kernel gpu function
   params: []
@@ -50,7 +50,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تهيئة_gpu
   description_en: kernel gpu function
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_الوضع_الحالي
   description_en: kernel gpu function
   params: []
@@ -76,7 +76,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_قراءة_نقطة
   description_en: kernel gpu function
   params: []
@@ -89,7 +89,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_نقطة_شفافة
   description_en: kernel gpu function
   params: []
@@ -102,7 +102,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_دائرة_ممتلئة
   description_en: kernel gpu function
   params: []
@@ -115,7 +115,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_مثلث
   description_en: kernel gpu function
   params: []
@@ -128,7 +128,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_مثلث_ممتلئ
   description_en: kernel gpu function
   params: []
@@ -141,7 +141,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_قوس
   description_en: kernel gpu function
   params: []
@@ -154,7 +154,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_مستطيل_دائري
   description_en: kernel gpu function
   params: []
@@ -167,7 +167,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_مستطيل_دائري_ممتلئ
   description_en: kernel gpu function
   params: []
@@ -180,7 +180,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_حرف
   description_en: kernel gpu function
   params: []
@@ -193,7 +193,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_نص_utf8
   description_en: kernel gpu function
   params: []
@@ -206,7 +206,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تعيين_قص
   description_en: kernel gpu function
   params: []
@@ -219,7 +219,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_إلغاء_قص
   description_en: kernel gpu function
   params: []
@@ -232,7 +232,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تمرير
   description_en: kernel gpu function
   params: []
@@ -245,7 +245,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تخزين_مزدوج
   description_en: kernel gpu function
   params: []
@@ -258,7 +258,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_هل_مزدوج
   description_en: kernel gpu function
   params: []
@@ -271,7 +271,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_انتظار_متزامن
   description_en: kernel gpu function
   params: []
@@ -284,7 +284,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تحريك_مؤشر
   description_en: kernel gpu function
   params: []
@@ -297,7 +297,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_إظهار_مؤشر
   description_en: kernel gpu function
   params: []
@@ -310,7 +310,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تعيين_vsync
   description_en: kernel gpu function
   params: []
@@ -323,7 +323,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شاشة_تدرج_عمودي
   description_en: kernel gpu function
   params: []

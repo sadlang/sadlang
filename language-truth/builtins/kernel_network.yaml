@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_مسح
   description_en: kernel network function
   params: []
@@ -24,7 +24,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_عدد_البطاقات
   description_en: kernel network function
   params: []
@@ -37,7 +37,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_موديل_البطاقة
   description_en: kernel network function
   params: []
@@ -50,7 +50,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_تهيئة
   description_en: kernel network function
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_تقرير
   description_en: kernel network function
   params: []
@@ -76,7 +76,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_تعيين_ip
   description_en: kernel network function
   params: []
@@ -89,7 +89,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_عنوان_ip
   description_en: kernel network function
   params: []
@@ -102,7 +102,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_عنوان_mac
   description_en: kernel network function
   params: []
@@ -115,7 +115,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_تعيين_القناع
   description_en: kernel network function
   params: []
@@ -128,7 +128,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_تعيين_البوابة
   description_en: kernel network function
   params: []
@@ -141,7 +141,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_القناع
   description_en: kernel network function
   params: []
@@ -154,7 +154,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_البوابة
   description_en: kernel network function
   params: []
@@ -167,7 +167,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_طلب_arp
   description_en: kernel network function
   params: []
@@ -180,7 +180,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_بحث_arp
   description_en: kernel network function
   params: []
@@ -193,7 +193,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_حجم_جدول_arp
   description_en: kernel network function
   params: []
@@ -206,7 +206,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_مسح_جدول_arp
   description_en: kernel network function
   params: []
@@ -219,7 +219,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_بنج
   description_en: kernel network function
   params: []
@@ -232,7 +232,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_اخر_بنج
   description_en: kernel network function
   params: []
@@ -245,7 +245,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_ارسال_udp
   description_en: kernel network function
   params: []
@@ -258,7 +258,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_استقبال_udp
   description_en: kernel network function
   params: []
@@ -271,7 +271,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_ربط_udp
   description_en: kernel network function
   params: []
@@ -284,7 +284,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_الارتباط_فعال
   description_en: kernel network function
   params: []
@@ -297,7 +297,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_سرعة_الارتباط
   description_en: kernel network function
   params: []
@@ -310,7 +310,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_ارسال_خام
   description_en: kernel network function
   params: []
@@ -323,7 +323,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_الحزم_المرسلة
   description_en: kernel network function
   params: []
@@ -336,7 +336,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_الحزم_المستقبلة
   description_en: kernel network function
   params: []
@@ -349,7 +349,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_حاله_البطاقة
   description_en: kernel network function
   params: []
@@ -362,7 +362,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_اعادة_تعيين
   description_en: kernel network function
   params: []
@@ -375,7 +375,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_مصنع_البطاقة
   description_en: kernel network function
   params: []
@@ -388,7 +388,7 @@ functions:
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: شبكة_فك_ربط_udp
   description_en: kernel network function
   params: []

@@ -11,7 +11,7 @@ functions:
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مكدس
   description_en: compiler builtin (builtins_ui)
   params: []
@@ -63,7 +63,7 @@ functions:
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: زر_ايقونة
   description_en: compiler builtin (builtins_ui)
   params: []
@@ -76,7 +76,7 @@ functions:
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مربع_تحقق
   description_en: compiler builtin (builtins_ui)
   params: []
@@ -89,7 +89,7 @@ functions:
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: مبدل
   description_en: compiler builtin (builtins_ui)
   params: []
@@ -102,7 +102,7 @@ functions:
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: خط_فاصل
   description_en: compiler builtin (builtins_ui)
   params: []

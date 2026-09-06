@@ -43,7 +43,7 @@ functions:
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
-  status: stable
+  intent: مؤجَّل
   description_ar: تاكد_مساواة
   description_en: compiler builtin (builtins_security)
   params: []

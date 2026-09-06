@@ -1,4 +1,4 @@
-# @rule: gr.expr.binary
+# @rule: gr.expr.term, gr.expr.factor, gr.expr.unary, gr.expr.comparison, gr.expr.equality
 # @gap: ISSUE-INT64-PRECISION
 # @description: كان المفسّر يحسب العمليّات الحسابيّة الصحيحة بدقّة int32 (toInt) بينما المترجم i64 — فكان «9007199254740993 / 1» يطبع 1 بالمفسّر. هذا اختبار مزدوج يثبّت الدقّة الكاملة 64-بت في: الجمع/الطرح/الضرب/القسمة الأرضيّة/الباقي/السالب الأحاديّ/المقارنات، عند 2^40 و2^53±1 وحدود int64 والسوالب الكبيرة وضربٍ يفيض int32 دون i64
 # @requires: اطبع_سطر، نص
