@@ -30,6 +30,7 @@ import io
 import os
 import re
 import sys
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SEEDS_ROOT = os.path.join(ROOT, "tests", "behavior")
@@ -37,7 +38,12 @@ SAD_SUFFIX = u".ص"
 
 # (AR) شجرةٌ محفوظةٌ لا تُشغَّل — استثناؤها جزءٌ من التعريفِ لا تفصيلُ تنفيذ.
 # (EN) An archived tree that never runs — its exclusion is part of the definition.
-EXCLUDED_DIRS = ("_archive",)
+# (AR) 🔑 **واستثناءُ الأرشيفِ يُورَثُ ههنا أيضًا.** كان نسخةً ثالثةً
+#      (`("_archive",)`) في الملفِّ الذي يعدُّه اختبارُ التوريثِ مستهلكًا —
+#      وقِيسَ أثرُها: توسيعُ `SKIP_PARTS` في الحارسِ إلى مقطعٍ ثانٍ جعلَ
+#      الحارسَ يمسحُ ٤٤٣٠ بذرةً والمقياسَ ٤٥٤٥، والاختباراتُ خضراءُ كلُّها.
+#      ودلالةُ التصفيةِ تُوحَّدُ معها: الحارسُ يفحصُ **كلَّ مقطعٍ في المسار**،
+#      وكان المقياسُ يُقلِّمُ مجلَّداتِ `os.walk` وحدَها.
 
 _NL = chr(10)
 
@@ -61,6 +67,7 @@ from check_seed_contract import _runner_window  # noqa: E402
 #      وثلاثةُ أسطرٍ فوقَه تقولُ «القارئانِ يُورَّثانِ ولا يُنسَخان». وقِيسَ
 #      الانحراف: بذرةٌ وسمُها على سطرٍ تالٍ ⇒ الحارسُ ٧٧ والمقياسُ ٧٨.
 from check_seed_contract import _SKIP as SKIP_MARK  # noqa: E402
+from check_seed_contract import SKIP_PARTS as EXCLUDED_DIRS  # noqa: E402
 
 
 def iter_seeds():
@@ -68,8 +75,16 @@ def iter_seeds():
     for base, dirs, files in os.walk(SEEDS_ROOT):
         dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
         for name in files:
-            if name.endswith(SAD_SUFFIX):
-                yield os.path.join(base, name)
+            if not name.endswith(SAD_SUFFIX):
+                continue
+            full = os.path.join(base, name)
+            # (AR) وبدلالةِ الحارسِ: أيُّ مقطعٍ في المسار، لا مجلَّدَ المشيِ وحدَه.
+            #      🔑 وعلى المسارِ **المطلقِ** كالحارسِ سواءً بسواء: كان يُقاسُ
+            #      نسبيًّا عن `SEEDS_ROOT`، فمقاطعُ الجذرِ نفسِه لا تُفحَص —
+            #      واستنساخٌ جدُّه `_archive` يستثنيه الحارسُ ويحتسبُه المقياس.
+            if any(part in EXCLUDED_DIRS for part in Path(full).parts):
+                continue
+            yield full
 
 
 def group_of(path):

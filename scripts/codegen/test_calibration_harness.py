@@ -41,7 +41,89 @@ import check_calibration_fresh as meta  # noqa: E402
 # (AR) 🔑 **المِحقنتانِ معًا.** كان الاختبارُ يستوردُ واحدةً، فلامتغيِّراتُ الأخرى
 #      بلا قياسٍ في CI — وهما لا تعملانِ في CI أصلًا، فهذا مساسُهما الوحيد.
 #      و«الرقعةُ تسدُّ في ملفٍّ وتتركُ الأخوات» درسٌ مُدوَّن.
-HARNESSES = (harness, anchor_harness, seed_harness)
+# (AR) 🔑 **ومِحقناتُ البوّابةِ تُشتقُّ ولا تُكتَبُ صفًّا.** صفٌّ يدويٌّ يبلى
+#      في اتّجاهٍ واحد: مِحقنةٌ رابعةٌ تصلُ فتفلتُ من كلِّ لامتغيِّرٍ ههنا،
+#      والاختبارُ يبقى أخضرَ لأنّه لا يعرفُ بوجودِها. والمعيارُ **نحويٌّ
+#      وبنيويّ**: مِحقنةٌ لها `PROBES` و`MIN_PROBES` هي مِحقنةُ بوّابة.
+# (AR) مِحقناتٌ لا يبلغُها هذا القياسُ — سقفٌ **نازلٌ لا يُرفَع**. اليومَ
+#      `calibrate_seed_proofs.py` (شكلٌ آخرُ من المِحقنات، بلا `PROBES`)
+#      وما يكونُ قيدَ الإنشاءِ في الشجرة. ولم يُجعَلْ صفرًا لأنّ الصفرَ اليومَ
+#      كذبٌ يُسكَّن، ولا صفَّ أسماءٍ لأنّه قائمةُ إذنٍ تبلى في اتّجاهٍ واحد.
+# (AR) ⚠️ وكان ٢ — مُعايَرًا على شجرةٍ فيها عملُ جلسةٍ أخرى، والمقيسُ في
+#         الإيداعِ نفسِه **١**. فسقفٌ «نازلٌ لا يُرفَع» أُودِعَ بفجوةٍ مصدرُها
+#         ما ليس في الإيداع، وأوّلُ مِحقنةٍ جديدةٍ بلا `PROBES` تمرُّ صامتة.
+#         والسقوفُ تُعايَرُ على استنساخٍ نظيفٍ لا على شجرةِ عملٍ مشترَكة.
+CEILING_UNMEASURED_HARNESSES = 1
+
+
+# (AR) أرضيّةٌ على المُعلَنِ نفسِه — انظر `_declared_harness_files`.
+FLOOR_DECLARED_HARNESSES = 5
+
+
+def _declared_harness_files():
+    """(AR) أسماءُ `calibrate_*.py` كما يُعلِنُها الإيداعُ الحاليّ.
+
+    🔑 **وصمتُ `git` لا يُصدَّق.** `ls-tree` على مسارٍ **معدومٍ** يردُّ مخرَجًا
+    فارغًا **ورمزَ ٠** — لا `CalledProcessError`. فلو نُقِلَ `scripts/codegen`
+    أو أُعيدت تسميتُه لعادت الدالّةُ `[]`، فصارَ `outside` فارغًا و
+    `assert len(outside) <= CEILING` **صحيحًا أبدًا**: حدٌّ قائمٌ فقدَ عضَّه
+    بلا أن يحمرَّ شيء. والدرسُ مُدوَّنٌ في سجلِّ هذا المستودعِ بعينِه.
+    فتُوضَعُ أرضيّةٌ على العددِ المُعلَنِ نفسِه، وتُقاسُ ضدَّ ما في القرص.
+    (EN) `git ls-tree` on a vanished path exits 0 with no output; a floor on the
+    declared count keeps the bound from silently becoming vacuous."""
+    import subprocess
+
+    try:
+        # (AR) والمسارُ يُشتقُّ من `CODEGEN` ولا يُهجّى نسخةً ثانية: نسخةٌ
+        #      مهجّاةٌ تبقى تسألُ عن المجلَّدِ القديمِ بعدَ نقلِه، فيردُّ git
+        #      فارغًا ورمزَ ٠ ويُقرأُ «لا شيءَ خارج».
+        out = subprocess.run(
+            ["git", "-C", str(CODEGEN.parents[1]), "ls-tree", "-r",
+             "--name-only", "HEAD", "--",
+             CODEGEN.relative_to(CODEGEN.parents[1]).as_posix()],
+            capture_output=True, check=True).stdout.decode("utf-8")
+    except (OSError, subprocess.CalledProcessError):
+        return sorted(p.name for p in CODEGEN.glob("calibrate_*.py"))
+    names = [line.rsplit("/", 1)[-1] for line in out.split(chr(10))
+             if line.strip()]
+    declared = sorted(name for name in names
+                      if name.startswith("calibrate_") and name.endswith(".py"))
+    assert len(declared) >= FLOOR_DECLARED_HARNESSES, (
+        "المستودعُ يُعلِنُ %d مِحقنةً فقط (الأرضيّة %d) — إمّا أنّ المسارَ تبدّلَ "
+        "فردَّ git صفرًا صامتًا، وإمّا أنّ مِحقنةً حُذِفَت فتُنزَّلُ الأرضيّةُ صراحةً: %r"
+        % (len(declared), FLOOR_DECLARED_HARNESSES, declared))
+    return declared
+
+
+def _gate_harnesses():
+    import importlib
+
+    found, names = [], []
+    for path in sorted(CODEGEN.glob("calibrate_*.py")):
+        module = importlib.import_module(path.stem)
+        if hasattr(module, "PROBES") and hasattr(module, "MIN_PROBES"):
+            found.append(module)
+            names.append(path.name)
+    assert found, "لا مِحقنةَ عيارٍ في الشجرة — الاختبارُ صارَ يحرسُ العدم"
+    # (AR) 🔑 **والمتمِّمُ يُسمّى ولا يُغفَل.** الاشتقاقُ البنيويُّ يُسقِطُ
+    #      `calibrate_seed_proofs.py` صامتًا (شكلٌ آخرُ من المِحقنات، بلا
+    #      `PROBES`) — فيبقى شقيقٌ بلا قياسٍ **وبلا تصريح**، وهو صورةٌ من
+    #      العطبِ الذي حلَّ الاشتقاقُ محلَّه. فيُعلَنُ صراحةً ويُحاكَمُ عددُه.
+    #      وسقفٌ **نازلٌ** لا صفُّ أسماء: صفُّ الأسماءِ قائمةُ إذنٍ تبلى.
+    #      🔑 **والمتمِّمُ يُقاسُ على ما يُعلِنُه المستودعُ (HEAD)** لا على شجرةِ
+    #         العمل: شجرةٌ يعملُ فيها اثنانِ تحملُ مِحقنةً قيدَ الإنشاءِ لا
+    #         صلةَ لها بالقياس، فتُحمِّرُ سقفًا صحيحًا. وفي CI وفي استنساخٍ
+    #         نظيفٍ الطرفانِ سواء. وإن تعذَّرَ سؤالُ git فُتِحَ البابُ للقرص
+    #         **بسطرٍ مسمًّى** — لا سقوطَ صامتًا إلى «لا شيءَ خارج».
+    outside = sorted(name for name in _declared_harness_files()
+                     if name not in names)
+    assert len(outside) <= CEILING_UNMEASURED_HARNESSES, (
+        "نما عددُ المِحقناتِ خارجَ القياس: %d > %d — %s"
+        % (len(outside), CEILING_UNMEASURED_HARNESSES, outside))
+    return tuple(found)
+
+
+HARNESSES = _gate_harnesses()
 
 
 # ═══ ① كلُّ مجسٍّ يُصرِّحُ بأثرِه ══════════════════════════════════════════
@@ -131,7 +213,13 @@ def test_append_refuses_a_blind_mark(harness):
 #      بـLF مهما كانت نهاياتُ الأسطرِ على قرصِ الكاتب. وبصمةٌ على البايتاتِ
 #      الخامِّ تُحمِّرُ كلَّ استنساخٍ نظيفٍ بحمرةٍ لا علاقةَ لها بالمحتوى.
 @pytest.mark.parametrize("sha", tuple(m._sha_bytes for m in HARNESSES),
-                         ids=("builtin", "anchor", "seed_contract"))
+                         # (AR) والأسماءُ تُشتقُّ كالقائمة: صفٌّ يدويٌّ بثلاثةِ
+                         #      أسماءٍ أوقفَ **جمعَ الملفِّ كلِّه** حينَ صارت
+                         #      المِحقناتُ أربعًا (قِيسَ: `Interrupted`).
+                         #      ⚠️ والقيمُ ههنا **دوالُّ** لا وحدات، فاسمُها
+                         #         واحدٌ للجميعِ (`_sha_bytes0…3`) ولا يدلُّ
+                         #         على المِحقنة — تُؤخَذُ من الوحداتِ نفسِها.
+                         ids=tuple(m.__name__ for m in HARNESSES))
 def test_fingerprint_is_eol_invariant(sha):
     body = ("# -*- coding: utf-8 -*-" + chr(10) + "x = 1" + chr(10)).encode("utf-8")
     assert sha(body) == sha(body.replace(harness.LF_, harness.CRLF))
@@ -206,43 +294,253 @@ def test_gated_seeds_are_out_of_the_pool():
 # (AR) 🔑 **الهويّةُ لا تُميِّزُ التوريثَ من النسخ.** `re.compile` يُخبِّئُ،
 #      فنسخةٌ **بايتيّةٌ حرفيّةٌ** من سطرِ الحارسِ تُعطي الكائنَ نفسَه ويمرُّ
 #      `is` صادقًا. وبُرهنَ بالحقن: استُبدِلَ الاستيرادُ بنسخةٍ حرفيّةٍ فمرَّ
-#      الاختبارُ أخضر. فالمقياسُ **مصدرُ الرمزِ**: لا `re.compile` يُسنِدُ اسمَ
-#      قارئٍ في ملفٍّ غيرِ الحارس.
-READER_NAMES = ("_EXPECTED", "_NEGATIVE", "_SKIP", "_NEG_CODE",
-                "SKIP_MARK", "EXPECTED_MARK", "NEGATIVE_MARK")
-READER_CONSUMERS = ("calibrate_seed_proofs.py", "measure_seed_contract_gap.py")
+#      الاختبارُ أخضر.
+#
+#      ⚠️ **ثمّ بُرهِنَ أنّ نفيَ `re.compile` هجاءٌ لا حقيقة.** كان التوكيدُ
+#      يرفضُ صورةَ كتابةٍ واحدةً (`اسم = re.compile(...)`) فيفلتُ منه سبعٌ من
+#      إحدى عشرةَ صورة. وقِيسَ نهايةً إلى نهاية: `_T = re.compile(...)` ثمّ
+#      `SKIP_MARK = _T` في `measure_seed_contract_gap.py` ⇒ الاختباراتُ
+#      **خضراءُ كلُّها**، والعدَّادُ الواحدُ برقمَين متناقضَين (أ ٥٤ ≠ ٧٧ ·
+#      هـ ١٨٦ ≠ ١٦٥) — وهو حرفيًّا العطبُ (١٦٤ · ١٦٥ · ١٦٩) الذي وُجِدَ هذا
+#      الاختبارُ لمنعِه.
+#
+#      ⚠️⚠️ **ثمّ بُرهِنَ أنّ قلبَ التوكيدِ لم يُخرِجْه من الهجاء.** انتقلت
+#      المرساةُ من «صورةِ كتابةٍ واحدةٍ» إلى **قائمةِ أسماءٍ مكتوبةٍ باليد**،
+#      وهي غيرُ محصاةٍ كسابقتها. وقِيسَ: قارئٌ ثانٍ **باسمٍ جديدٍ**
+#      (`_TAG_READER`) في `measure_seed_contract_gap.py` — والاسمُ الموروثُ
+#      باقٍ صحيحًا فيمرُّ فحصُ الهويّة — أعطى `142 passed` ورمزَ ٠ للبوّابة،
+#      والحارسَ ٧٧ · ١٦٥ والمقياسَ **١٦ · ١٧٠**. العطبُ نفسُه، عبرَ الرقعةِ
+#      التي جاءت لسدِّه. ومعها **رفضانِ كاذبان**: مولِّدٌ محضٌ صارَ «مستهلكًا»
+#      لأنّ تعليقًا فيه يذكرُ اسمَ الحارس، ومتغيِّرٌ محلّيٌّ مشروعٌ فيه يُرفَض.
+#
+#      🔑 فالمرساةُ الآنَ **هجاءُ الوسمِ داخلَ نمطٍ مُصرَّف** — لا اسمُ
+#      المتغيِّرِ ولا صورةُ الكتابة. ومفرداتُ الوسومِ **محدودةٌ ومشتقّةٌ من
+#      الحارسِ نفسِه**، بخلافِ الأسماءِ التي لا تُحصى. والمستهلكُ **مَن يستوردُ
+#      الحارسَ** (نحويًّا)، لا مَن يذكرُ اسمَه في تعليق.
+CONTRACT_GUARD = "check_seed_contract"
+
+
+def _guard_tag_vocabulary():
+    """(AR) مفرداتُ الوسمِ من أنماطِ الحارسِ لا من هجاءٍ يدويٍّ ههنا."""
+    import ast as _ast
+    import re as _re
+
+    source = (CODEGEN / (CONTRACT_GUARD + ".py")).read_text(encoding="utf-8")
+    tree = _ast.parse(source)
+    tags = set()
+    for node in _ast.walk(tree):
+        for text in _pattern_literals(node, _ast, tree):
+            tags.update(_re.findall(r"@[a-z_]+", text))
+    # (AR) 🔑 **وثوابتُ الهجاءِ أيضًا، لا الأنماطُ المُصرَّفةُ وحدَها.** حينَ
+    #      وُحِّدَ هجاءُ الوسمِ السالبِ في ثابتٍ نصّيٍّ (`NEGATIVE_TAG`)
+    #      واستُورِدَ، اختفى `@expect` من المفرداتِ فورًا — فالنمطُ صارَ
+    #      `re.compile(NEGATIVE_TAG, ...)` بلا سلسلةٍ حرفيّة. أي أنّ **إصلاحَ
+    #      النسخِ كان يُعمي المرساةَ عن الوسمِ الذي وحّدَه**.
+    for node in tree.body:
+        if isinstance(node, (_ast.Assign, _ast.AnnAssign)):
+            value = node.value
+            if isinstance(value, _ast.Constant) and isinstance(value.value, str):
+                tags.update(_re.findall(r"@[a-z_]+", value.value))
+    assert tags, "لا وسمَ في أنماطِ الحارس — أُعيدَت صياغتُه فبطلَ المقياس"
+    return tuple(sorted(tags))
+
+
+# (AR) 🔑 **وأيُّ نداءِ `re.*` لا `compile` وحدَه.** كان المقيسُ `compile`
+#      فقط، فقارئٌ ثانٍ بـ`re.search(r"^#[ \t]*@skip_compiler", text)` مرَّ
+#      أخضرَ: `140 passed` ورمزُ صفرٍ للبوّابة، والحارسُ ٧٧ · ١٦٥ والمقياسُ
+#      **١٦ · ١٦٩**. العطبُ (١٦٤ · ١٦٥ · ١٦٩) نفسُه، للمرّةِ الثالثة.
+#      ⚠️ **ويُشترَطُ `Attribute` من `re`**: `compile()` المدمجةُ في بايثون
+#         نداءٌ مشروعٌ تمامًا (`compile(src, "<x>", "exec")`)، وكان يُرفَضُ لو
+#         حملَ مصدرُه وسمًا — رفضٌ كاذبٌ كامن.
+# (AR) 🔑 **ولا نسخةَ ثانيةً من المُستخرِج.** كان مكتوبًا ههنا وفي
+#      `check_seed_tag_readers.py` — والحارسُ هو مَن أنشأ الثانية. متطابقتانِ
+#      يومَها، ولا شيءَ يقيسُ اتّفاقَهما، ولا يراهما عدَّادُ الأنماطِ نفسُه
+#      (المُستخرِجُ ليس قارئَ وسم). انجرافُ إحداهما = «عدَّادٌ واحدٌ برقمَين» —
+#      عينُ العطبِ الذي وُجِدَ هذا الملفُّ ليمنعَه.
+from check_seed_tag_readers import RE_CALLS  # noqa: E402,F401
+from check_seed_tag_readers import _pattern_literals as _guard_literals  # noqa: E402
+from check_seed_tag_readers import _re_names, _string_constants  # noqa: E402
+
+
+def _pattern_literals(node, ast_mod, tree):
+    """(AR) سلاسلُ النمطِ في نداءِ `re.*` — مُورَّثةٌ من الحارس.
+
+    وتُمرَّرُ الشجرةُ ليُشتقَّ منها اسمُ وحدةِ `re` وثوابتُ الهجاء، فلا
+    يُحسَبُ `s.split("@expected")` نمطًا (رفضٌ كاذبٌ مقيس)، ويُتبَعُ نمطٌ
+    أُسنِدَ إلى ثابتٍ على مستوى الوحدة.
+    """
+    return _guard_literals(node, _re_names(tree), _string_constants(tree))
+
+
+TAG_VOCABULARY = _guard_tag_vocabulary()
+
+
+# (AR) 🔑 **وقائمةُ المستهلكينَ تُشتقُّ ولا تُكتَب.** كانت صفًّا حرفيًّا
+#      بملفَّين — قائمةَ إذنٍ تبلى في اتّجاهٍ واحد: مستهلكٌ ثالثٌ يصلُ **بلا
+#      قياس**، والاختبارُ يبقى أخضرَ لأنّه لا يعرفُ بوجودِه.
+#      ⚠️ **ثمّ قِيسَ أنّ «ذِكرَ الاسمِ في النصّ» معيارٌ يُرقّي البريءَ متّهمًا**:
+#         تعليقٌ واحدٌ يذكرُ اسمَ الحارسِ رقّى مولِّدًا محضًا (`gen_rules_matrix`)
+#         إلى «مستهلك»، فصارَ متغيِّرٌ محلّيٌّ مشروعٌ فيه يُرفَضُ رفضًا كاذبًا.
+#         والمعيارُ الآنَ **نحويٌّ**: مَن يستوردُ الحارسَ فعلًا. و`level == 0`
+#         مقروءٌ صراحةً وإلّا مرَّ `from .check_seed_contract import …`.
+def _reader_consumers():
+    import ast as _ast
+
+    consumers = []
+    for path in sorted(CODEGEN.glob("*.py")):
+        if path.name in (CONTRACT_GUARD + ".py", Path(__file__).name):
+            continue
+        tree = _ast.parse(path.read_text(encoding="utf-8"))
+        # (AR) و`rsplit(".")[-1]` كان يقبلُ **أيَّ** حزمةٍ تنتهي بهذا الاسمِ
+        #      (`vendor.pkg.check_seed_contract`) — قبولٌ كاذب. والوحدةُ
+        #      بعينِها. و`import اسم` المجرَّدُ استهلاكٌ كذلك: كان يفلت.
+        if any((isinstance(node, _ast.ImportFrom) and node.level == 0
+                and node.module == CONTRACT_GUARD)
+               or (isinstance(node, _ast.Import)
+                   and any(a.name == CONTRACT_GUARD for a in node.names))
+               for node in _ast.walk(tree)):
+            consumers.append(path.name)
+    assert consumers, (
+        "لا مستهلكَ لقارئِ العقد — أُعيدَت تسميةُ الحارسِ أو زالَ، "
+        "والاختبارُ صارَ يحرسُ العدم")
+    return tuple(consumers)
+
+
+READER_CONSUMERS = _reader_consumers()
 
 
 @pytest.mark.parametrize("consumer", READER_CONSUMERS)
-def test_contract_readers_are_inherited_not_rewritten(consumer):
+def test_no_consumer_compiles_its_own_tag_reader(consumer):
     """(AR) قارئُ الوسمِ **واحدٌ** لا نسخ: ثلاثةُ قرّاءٍ أنتجوا ثلاثةَ أرقامٍ
-    متناقضةٍ لعدَّادٍ واحد (١٦٤ · ١٦٥ · ١٦٩)، ونسخةٌ رابعةٌ بـ`\\s` جعلت
-    الحارسَ يقولُ ٧٧ والمقياسَ ٧٨."""
+    متناقضةٍ لعدَّادٍ واحد (١٦٤ · ١٦٥ · ١٦٩)، ورابعٌ بـ`\\s` جعلَ الحارسَ ٧٧
+    والمقياسَ ٧٨، وخامسٌ بإسنادٍ غيرِ مباشرٍ جعلَ أ ٥٤، وسادسٌ **باسمٍ جديدٍ**
+    جعلَ أ ١٦ وهـ ١٧٠ والشوطَ كلَّه أخضر."""
     import ast as _ast
 
-    source = (CODEGEN / consumer).read_text(encoding="utf-8")
-    tree = _ast.parse(source)
-    rewritten = []
+    tree = _ast.parse((CODEGEN / consumer).read_text(encoding="utf-8"))
+    strayed = []
     for node in _ast.walk(tree):
-        if not isinstance(node, _ast.Assign):
-            continue
-        call = node.value
-        if not (isinstance(call, _ast.Call) and isinstance(call.func, _ast.Attribute)
-                and call.func.attr == "compile"):
-            continue
-        for target in node.targets:
-            if isinstance(target, _ast.Name) and target.id in READER_NAMES:
-                rewritten.append("%s:%d %s" % (consumer, node.lineno, target.id))
-    assert not rewritten, (
-        "قارئُ وسمٍ مكتوبٌ باليدِ حيثُ يجبُ أن يُورَّثَ من الحارس: %s" % rewritten)
+        for text in _pattern_literals(node, _ast, tree):
+            hit = [tag for tag in TAG_VOCABULARY if tag in text]
+            if hit:
+                strayed.append("%s:%d %s ⇐ %r" % (consumer, node.lineno,
+                                                  "·".join(hit), text[:60]))
+    assert not strayed, (
+        "نمطٌ مُصرَّفٌ يقرأُ وسمَ عقدٍ في ملفٍّ يستوردُ الحارس — والعدَّادُ "
+        "الواحدُ لا يُقرَأُ بقارئَين: %s" % strayed)
 
 
-def test_inherited_readers_are_the_guard_objects():
-    """(AR) والهويّةُ تُقاسُ أيضًا — شرطًا ثانيًا لا وحيدًا."""
+def test_the_tag_rule_can_actually_redden():
+    """(AR) 🔑 **والتوكيدُ يُصدَّقُ بإعادةِ عطبِه.** سابقاه كانا أخضرَينِ وهما
+    عمياوان، فلا يُصدَّقُ توكيدٌ لم تُرَ حمرتُه — ولا يُصدَّقُ ما لم يُقَسْ
+    أنّه لا يرفضُ البريء."""
+    import ast as _ast
+
+    assert "@expected" in TAG_VOCABULARY and "@skip_compiler" in TAG_VOCABULARY, (
+        "مفرداتُ الوسمِ لم تُشتَقَّ من الحارس: %r" % (TAG_VOCABULARY,))
+
+    def strays(body):
+        # (AR) 🔑 **والقصاصةُ تستوردُ الوحدةَ.** المرساةُ صارت تسألُ عن اسمِ
+        #      وحدةِ `re` في الملفِّ (وإلّا حُسِبَ `s.split("@expected")` نمطًا
+        #      — رفضٌ كاذبٌ مقيس)، فقصاصةٌ بلا استيرادٍ لا يُعرَفُ فيها اسم.
+        source = "import re" + chr(10) + "import regex" + chr(10) + body
+        tree = _ast.parse(source)
+        return [text for node in _ast.walk(tree)
+                for text in _pattern_literals(node, _ast, tree)
+                if any(tag in text for tag in TAG_VOCABULARY)]
+
+    # (AR) والصورُ الستُّ الأخيرةُ **أفلتَت فعلًا** من نسخةٍ سابقةٍ من هذه
+    #      القاعدة، فبقيَت شاهدةً عليها لا تنظيرًا.
+    for source in ('_T = re.compile(r"^#[ \\t]*@skip_compiler")',
+                   '_T = re.compile("^#" + r"[ \\t]*@expected")',
+                   'X = regex.compile(r"@expect_error")',
+                   'def f():\n    return re.compile(r"@expected:?\\s+(.+)")',
+                   '_P = r"@skip_compiler"\n_T = re.compile(_P)',
+                   'x = re.search(r"^#[ \\t]*@skip_compiler", text)',
+                   'x = re.match(r"@expected", text)',
+                   'x = re.findall(r"@expect_error", text)',
+                   'x = re.sub(r"@expected", "", text)',
+                   'x = re.split(r"@skip_compiler", text)',
+                   '_T = re.compile(pattern=r"@expected")'):
+        assert strays(source), "نمطٌ يفلتُ من مرساةِ الوسم: %r" % source
+
+    for source in ('_T = re.compile(r"^[0-9]+$")',
+                   'lines.append(f"# @expected: {exp}")',
+                   '_SKIP = "# @skip_compiler"',
+                   'code = compile("# @expected 1", "<x>", "exec")',
+                   'text = "@expected".join(parts)',
+                   'part = s.split("@expected")[0]'):
+        assert not strays(source), "رفضٌ كاذبٌ على صورةٍ مشروعة: %r" % source
+
+
+@pytest.mark.parametrize("consumer", READER_CONSUMERS)
+def test_inherited_readers_are_the_guard_objects(consumer):
+    """(AR) والهويّةُ تُقاسُ أيضًا — شرطًا ثانيًا لا وحيدًا، **ولكلِّ مستهلك**:
+    كان الفحصُ يقتصرُ على واحدٍ فيمرُّ انحرافُ الآخرِ صامتًا. 🔑 وأزواجُ
+    الأسماءِ **تُشتقُّ من جملةِ الاستيرادِ نفسِها** ولا تُكتَبُ صفًّا: صفٌّ
+    بملفَّين قائمةُ إذنٍ تبلى في اتّجاهٍ واحد — مستهلكٌ ثالثٌ يصلُ فتقيسُه
+    مرساةُ الوسمِ ولا يقيسُه هذا."""
+    import ast as _ast
+    import importlib
+
     import check_seed_contract as contract_guard
-    for name in ("_EXPECTED", "_NEGATIVE", "_SKIP"):
-        assert getattr(proofs, name) is getattr(contract_guard, name), name
-    assert proofs.SKIP_PARTS is contract_guard.SKIP_PARTS
+
+    tree = _ast.parse((CODEGEN / consumer).read_text(encoding="utf-8"))
+    pairs = {}
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.ImportFrom) and node.level == 0 \
+                and node.module == CONTRACT_GUARD:
+            for alias in node.names:
+                pairs[alias.name] = alias.asname or alias.name
+    if not pairs:
+        # (AR) ومستهلكٌ بـ`import اسم` المجرَّدِ لا يُسمّي شيئًا فلا اسمَ
+        #      يُقارَن — والوصولُ عبرَ الوحدةِ نفسِها هويّةٌ **بالبناء**.
+        #      ويُشترَطُ أن يكونَ كذلك فعلًا لا أن يكونَ بلا استيرادٍ أصلًا.
+        assert any(isinstance(node, _ast.Import)
+                   and any(a.name == CONTRACT_GUARD for a in node.names)
+                   for node in _ast.walk(tree)), (
+            "مستهلكٌ بلا استيرادٍ يُقاسُ عليه: %s" % consumer)
+        return
+
+    module = importlib.import_module(consumer[:-len(".py")])
+    # (AR) 🔑 **والتوريثُ المؤجَّلُ توريثٌ.** مستهلكٌ ينقلُ استيرادَه إلى داخلِ
+    #      ملتقِطٍ يُرجِعُ رمزَ ٢ (لئلّا يُقرأَ عطبُ الآلةِ حكمًا على المحتوى)
+    #      لا يكونُ اسمُه مربوطًا وقتَ الاستيراد. فتُقامُ النطاقُ أوّلًا بالخُطّافِ
+    #      الذي يُعلِنُه المستهلكُ نفسُه، ثمّ تُقاسُ الهويّة — والشرطُ باقٍ كما هو:
+    #      الكائنُ عينُه لا نسخةٌ ثانيةٌ مهجّاة.
+    #      (EN) Deferred inheritance is still inheritance: establish the module's
+    #      scope via its own declared hook, then measure object identity.
+    if callable(getattr(module, "_ensure_scope", None)):
+        module._ensure_scope()
+    for origin, alias in sorted(pairs.items()):
+        assert getattr(module, alias) is getattr(contract_guard, origin), (
+            "%s.%s ليس كائنَ %s.%s" % (consumer, alias, CONTRACT_GUARD, origin))
+
+
+def test_the_two_counters_agree():
+    """(AR) 🔑 **والحاصلُ يُقاسُ، لا الهجاءُ وحدَه.** ثلاثُ قواعدَ متتاليةٍ
+    حرسَت *صورةَ كتابةِ* القارئِ الثاني، والتُفَّ على ثلاثتِها: صورةٌ أخرى ·
+    اسمٌ آخر · دالّةٌ أخرى من `re`. وهذا التوكيدُ يقيسُ **تطابقَ العدَّادَين
+    نفسَيهما** — فلا يُفلَتُ منه بهجاء، مهما كُتِبَ القارئُ الثاني."""
+    import check_seed_contract as contract_guard
+    import measure_seed_contract_gap as gap
+
+    rows = contract_guard._seeds()
+    skipped, no_contract, total = gap.classify()
+
+    assert total == len(rows), (
+        "مادّةُ القياسِ نفسُها مختلفة: الحارسُ %d · المقياسُ %d"
+        % (len(rows), total))
+    assert sum(skipped.values()) == sum(1 for r in rows if r["skip"]), (
+        "العدّادُ «أ» برقمَين: الحارسُ %d · المقياسُ %d"
+        % (sum(1 for r in rows if r["skip"]), sum(skipped.values())))
+    assert sum(no_contract.values()) == sum(
+        1 for r in rows
+        if not r["skip"] and not r["expected"] and not r["negative"]), (
+        "العدّادُ «هـ» برقمَين: الحارسُ %d · المقياسُ %d"
+        % (sum(1 for r in rows
+               if not r["skip"] and not r["expected"] and not r["negative"]),
+           sum(no_contract.values())))
 
 
 # ═══ ⑤ التاريخُ تاريخٌ لا شكلٌ يُشبِهُه ════════════════════════════════════

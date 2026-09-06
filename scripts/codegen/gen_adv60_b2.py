@@ -61,6 +61,13 @@ def main():
         if exp is None:
             lines.append("# @expect_error")
         else:
+            # (AR) والفارغُ لا يُكتَبُ وسمًا عاريًا ولا يُقلَبُ سالبًا: كلاهما
+            #      يُبدِّلُ دلالةَ البذرةِ بصمت. يُرمى ويُسمّى.
+            #      🔑 و`raise` لا `assert`: الثاني يحذفُه `python -O` كلَّه —
+            #      سدٌّ يُطفَأُ بعَلَمٍ ليس سدًّا (قِيسَ: مرَّ الشرطُ تحتَ `-O`).
+            if not str(exp).strip():
+                raise SystemExit(
+                    "حمولةُ @expected فارغةٌ في %s — وسمٌ عارٍ لا يُحاكَم" % rule)
             lines.append(f"# @expected: {exp}")
         lines.append("")
         lines.append(body)

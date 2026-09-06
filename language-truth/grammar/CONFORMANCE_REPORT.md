@@ -207,7 +207,7 @@
 | `gr.decl.parameters` | declarations | 61 | مُغطّاة (المترجّم وحدَه) |
 | `gr.decl.reexport` | declarations | 8 | مُغطّاة (المترجّم وحدَه) |
 | `gr.decl.type_ref` | declarations | 7 | مُغطّاة (المترجّم وحدَه) |
-| `gr.decl.variable` | declarations | 235 | مُغطّاة (المترجّم وحدَه) |
+| `gr.decl.variable` | declarations | 239 | مُغطّاة (المترجّم وحدَه) |
 | `gr.expr.array_literal` | expressions | 57 | مُغطّاة (المترجّم وحدَه) |
 | `gr.expr.assignment` | expressions | 36 | مُغطّاة (المترجّم وحدَه) |
 | `gr.expr.bitwise_and` | expressions | 22 | مُغطّاة (المترجّم وحدَه) |

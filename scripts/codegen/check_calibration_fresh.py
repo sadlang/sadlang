@@ -43,6 +43,7 @@
 from __future__ import annotations
 
 import hashlib
+import subprocess
 import sys
 from pathlib import Path
 
@@ -82,6 +83,13 @@ RECORDS = CODEGEN / "calibration"
 #      كُتِبَ «٢٧ حارسًا وواحدٌ مُعايَر» ثمّ صارا ٢٨ واثنَين.)
 #      وخمسةٌ منها تحملُ عيارًا **نثرًا في تعليقٍ** لا سجلًّا — والنثرُ لا يُحتسَب:
 #      لا يُعادُ تقييمُه حين يتغيّرُ الحارس، وهو عينُ ما يمنعُه هذا الملفّ.
+# (AR) 🔑 **السقفُ ينزلُ بالعملِ لا بالقلم — وهذا الملفُّ شهدَ نقضَ قاعدتِه.**
+#      أُنزِلَ ٢٦ ← ٢٥ في إيداعٍ لم يُودِعْ سجلَّ العيارِ الرابعَ الذي يُبرِّرُه
+#      (كان تعديلَ شجرةِ عملٍ لجلسةٍ أخرى، ابتلعَه `git commit -- <مسارات>`
+#      لأنّه يُودِعُ **محتوى شجرةِ العمل** لتلك المسارات لا ما رُحِّلَ وحدَه).
+#      والمقيسُ على شجرةِ ذلك الإيداعِ نفسِها: `بلا سجلِّ عيار: 26 (السقف 25)`
+#      ⇒ رمز ١ بتشخيصٍ **كاذب** («حارسٌ جديدٌ يصلُ ومعه سجلُّ عيارِه») — رفضٌ
+#      كاذبٌ يوقفُ البوّابةَ على كلِّ استنساخٍ نظيف. يُنزَّلُ حينَ يُودَعُ سجلُّه.
 CEILING_UNCALIBRATED = 26
 
 # (AR) 🔑 **أرضيّةُ عمقِ العيار — تنزلُ المِحقنةُ إليها ولا تحتها.**
@@ -91,6 +99,14 @@ CEILING_UNCALIBRATED = 26
 #      وتنزلُ إلى عددِ مجسّاتِ المِحقنةِ القائمةِ ولا تحتَه — ولا يُنثَرُ العددُ
 #      ههنا نسخةً ثانيةً: قيمتُه في السطرِ التالي وحدَه.
 CEILING_MIN_PROBES = 10
+
+# (AR) سجلّاتٌ لا تُعلِنُ `targets_sha256` — دَينٌ نازلٌ لا يُرفَع. والباقياتُ
+#      يُلحَقْنَ عندَ أوّلِ إعادةِ عيارٍ لكلٍّ منهنّ، وصمتُ الحقلِ ليس تغطية.
+#      🔑 **والسقفُ مقيسٌ على ما يُعلِنُه المستودعُ (HEAD): ٤ سجلّاتٍ، واحدٌ
+#         منها يُعلِنُ الحقلَ ⇒ ثلاثة.** لا على شجرةِ عملٍ يتشاركُها اثنانِ —
+#         ففيها سجلٌّ خامسٌ قيدَ الإنشاءِ يجعلُ السقفَ ٤ فيُودَعَ بفجوةِ واحد،
+#         وهي عينُ العلّةِ التي أُصلِحَت في `CEILING_UNMEASURED_HARNESSES`.
+CEILING_UNFINGERPRINTED = 3
 
 
 def _key(path: Path) -> str:
@@ -103,6 +119,66 @@ def _key(path: Path) -> str:
     return path.resolve().relative_to(ROOT).as_posix()
 
 
+# (AR) 🔑 **والسجلُّ غيرُ المُودَعِ ليس من الشجرة.** كان المسحُ `glob` على
+#      القرصِ وحدَه، فسجلُّ عيارٍ قيدَ الإنشاءِ عندَ أحدِهم يُحمِّرُ البوّابةَ
+#      **محلّيًّا ولا يراه CI** — حمرةٌ لا يُسكِتُها صاحبُها إلّا بإيداعِ عملٍ
+#      ناقص، وهي صورةُ الرفضِ الكاذبِ عينُها. وقِيسَت حيّةً: سجلُّ حارسٍ آخرَ
+#      قيدَ الإنشاءِ (٦ مجسّاتٍ) أوقفَ بوّابةَ عملٍ لا صلةَ له به.
+#      وفي CI كلُّ ما في الشجرةِ مُودَعٌ، فالمقيسُ هناك لا يتبدَّل.
+#      ⚠️ ولا يُسكَتُ عن تعذُّرِ التصفية: إن لم يُجَبْ `git` **يُقالُ ذلك سطرًا
+#         مسمًّى** ويُمسَحُ القرصُ كما كان — سقوطٌ صامتٌ إلى السلوكِ القديمِ هو
+#         العطبُ الذي يُدوِّنُه سجلُّ دروسِ هذا المستودعِ مرارًا.
+#      🔑 **والمسارُ يُشتقُّ من `RECORDS` لا يُهجّى.** كان مكتوبًا باليدِ
+#         نسخةً ثانية، و`git ls-files -- <مسارٌ غيرُ موجود>` يردُّ **رمزَ ٠
+#         ومخرَجًا فارغًا** — فلا يلتقطُه `check=True`، وتسقطُ السجلّاتُ كلُّها
+#         صامتةً. وقِيسَ الأثر: `سجلّاتُ عيار: 0` ثمّ `بلا سجلِّ عيار: 29 > 26`
+#         بتشخيصٍ **كاذب** («حارسٌ جديدٌ يصلُ») ورمزِ ١ — رفضٌ كاذبٌ شاملٌ في
+#         CI. والهامشُ صفرٌ اليوم، فأيُّ إخفاقٍ في التصفيةِ يُحمِّرُ فورًا.
+#      🔑 **وطرفا الكسرِ من أصلٍ واحد.** كانت السجلّاتُ تُصفّى والحرّاسُ لا
+#         يُصفَّون، فحارسٌ جديدٌ غيرُ مُودَعٍ يُحسَبُ ويُغفَلُ سجلُّه — وهي عينُ
+#         الحمرةِ المحلّيّةِ التي لا يراها CI، مَنقولةً من المقامِ إلى البسط.
+def _tracked(paths: list[Path], scope: list[Path]) -> tuple[list[Path], str]:
+    args = [p.relative_to(ROOT).as_posix() for p in scope]
+    try:
+        out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--"] + args,
+                             capture_output=True, check=True).stdout.decode("utf-8")
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return paths, "  ⚠️ تعذَّرَ سؤالُ git (%s) — مُسِحَ القرصُ بلا تصفية" % exc
+    known = {(ROOT / rel).resolve() for rel in out.split("\0") if rel}
+    kept = [p for p in paths if p.resolve() in known]
+    return kept, ""
+
+
+def _declared_records() -> frozenset:
+    """(AR) أسماءُ سجلّاتِ العيارِ **كما يُعلِنُها الإيداعُ الحاليّ** (HEAD).
+
+    🔑 وسقفُ «بلا بصمةِ أهدافٍ» يُقاسُ عليها لا على الفهرس: شجرةٌ يعملُ فيها
+    اثنانِ تحملُ سجلًّا خامسًا مُدرَجًا لا صلةَ له، فيُودَعُ السقفُ ٤ والمُعلَنُ
+    ٣ — فجوةُ واحدٍ تمرُّ صامتة. وهي عينُ العلّةِ التي أُصلِحَت في
+    `CEILING_UNMEASURED_HARNESSES` قبلَ إيداعٍ واحد. وفي CI وفي استنساخٍ نظيفٍ
+    الطرفانِ سواء. وإن تعذَّرَ سؤالُ git رُدَّ الكلُّ — لا سقوطَ صامتًا إلى صفر.
+    (EN) Measure the fingerprint debt against what HEAD declares, not the index."""
+    if _declared_records.cache is None:
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(ROOT), "ls-tree", "-r", "--name-only", "HEAD",
+                 "--", RECORDS.relative_to(ROOT).as_posix()],
+                capture_output=True, check=True).stdout.decode("utf-8")
+            _declared_records.cache = frozenset(
+                line.strip() for line in out.split(chr(10)) if line.strip())
+        except (OSError, subprocess.CalledProcessError):
+            _declared_records.cache = None
+            return None
+    return _declared_records.cache
+
+
+_declared_records.cache = None
+
+
+def _guard_scope() -> list[Path]:
+    return [CODEGEN] + ([CI] if CI.is_dir() else [])
+
+
 def _guards() -> list[Path]:
     found = sorted(CODEGEN.glob("check_*.py"))
     if CI.is_dir():
@@ -112,15 +188,41 @@ def _guards() -> list[Path]:
 
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
-    guards = _guards()
-    records = sorted(RECORDS.glob("*.yaml")) if RECORDS.is_dir() else []
+    all_guards = _guards()
+    on_disk = sorted(RECORDS.glob("*.yaml")) if RECORDS.is_dir() else []
+    guards, note = _tracked(all_guards, _guard_scope())
+    records, rec_note = _tracked(on_disk, [RECORDS])
+    note = note or rec_note
 
     print("حارس «عيارٌ قديمٌ لحارسٍ جديدٍ ليس عيارًا»:")
     print(f"  حرّاسُ الشجرة: {len(guards)} · سجلّاتُ عيار: {len(records)}")
+    if note:
+        print(note)
+    else:
+        # (AR) 🔑 **والطرفانِ يُسمَّيانِ منفصلَين.** عددٌ واحدٌ يجمعُهما لا يقولُ
+        #      للقارئِ أيُّهما سقط، والحكمُ يختلفُ اختلافًا تامًّا بينهما.
+        dropped = (len(all_guards) - len(guards), len(on_disk) - len(records))
+        if any(dropped):
+            print("  · غيرُ مُودَعٍ أُغفِلَ — حرّاسٌ %d · سجلّاتٌ %d (لا يراه CI)"
+                  % dropped)
+
+    # (AR) 🔑 **وصفرُ حارسٍ ليس نجاحًا.** التصفيةُ بـgit تسقطُ إلى «لا شيء» حينَ
+    #      يردُّ `ls-files` رمزَ ٠ ومخرَجًا فارغًا — في نسخةٍ مُصدَّرةٍ بلا
+    #      `.git`، أو فهرسٍ فارغ. وقِيسَ: `حرّاسُ الشجرة: 0 · سجلّاتُ عيار: 0`
+    #      ثمّ `✓ كلُّ سجلٍّ يطابقُ …` **ورمزُ صفر** — أخضرُ لأنّ الشرطَ لا
+    #      يمكنُ أن يكونَ كاذبًا. والدرسُ مكتوبٌ في `scripts/run_tests.ps1`.
+    if all_guards and not guards:
+        print("  ✗ عطبُ آلة: التصفيةُ أسقطت الحرّاسَ كلَّهم (%d) — لم يُقَسْ شيء"
+              % len(all_guards))
+        return 2
+    if not all_guards:
+        print("  ✗ عطبُ آلة: لا حارسَ في الشجرة — لم يُقَسْ شيء")
+        return 2
 
     drifted: list[str] = []
     orphaned: list[str] = []
     incomplete: list[str] = []
+    unfingerprinted: list[str] = []
     calibrated: set[str] = set()
 
     for rec in records:
@@ -178,6 +280,28 @@ def main() -> int:
         if drift:
             continue
 
+        # ③ بصماتُ الأهدافِ الثالثة — إن أعلنَها السجلّ.
+        targets = doc.get("targets_sha256")
+        if isinstance(targets, dict):
+            for target_rel, recorded in sorted(targets.items()):
+                target = ROOT / str(target_rel)
+                actual = _sha_norm(target) if target.is_file() else "(معدوم)"
+                if actual != str(recorded):
+                    drifted.append(f"{target_rel}  ← هدفُ مجسٍّ"
+                                   f"\n        مُسجَّل: {recorded}"
+                                   f"\n        فعليّ:  {actual}"
+                                   f"  (عُويِرَ في {doc.get('calibrated_at', '؟')})")
+                    drift = True
+                    break
+        else:
+            # (AR) وسجلٌّ بلا هذا الحقلِ **دَينٌ مُسمًّى** لا سلامة: مجسّاتُه
+            #      قد ترسو في ملفٍّ ثالثٍ ولا شيءَ يحرسُه. والسقفُ نازل.
+            declared = _declared_records()
+            if declared is None or rel in declared:
+                unfingerprinted.append(rel)
+        if drift:
+            continue
+
         if total < CEILING_MIN_PROBES:
             incomplete.append(f"{rel} — {total} مجسًّا < {CEILING_MIN_PROBES}:"
                               " مِحقنةٌ قُلِّصت، وكاملٌ من واحدٍ ليس كاملًا")
@@ -206,6 +330,8 @@ def main() -> int:
     uncalibrated = [_key(g) for g in guards if _key(g) not in calibrated]
     print(f"  بلا سجلِّ عيار: {len(uncalibrated)}"
           f" (السقف {CEILING_UNCALIBRATED} — نازلٌ لا يُرفَع)")
+    print(f"  سجلّاتٌ بلا بصمةِ أهدافٍ ثالثة: {len(unfingerprinted)}"
+          f" (السقف {CEILING_UNFINGERPRINTED} — نازلٌ لا يُرفَع)")
 
     failed = False
     if drifted:
@@ -228,6 +354,14 @@ def main() -> int:
     if len(uncalibrated) > CEILING_UNCALIBRATED:
         print(f"  ✗ نما عددُ الحرّاسِ بلا عيار: {len(uncalibrated)} >"
               f" {CEILING_UNCALIBRATED} — حارسٌ جديدٌ يصلُ ومعه سجلُّ عيارِه.")
+        failed = True
+    if len(unfingerprinted) > CEILING_UNFINGERPRINTED:
+        print(f"  ✗ نما عددُ السجلّاتِ بلا بصمةِ أهدافٍ ثالثة:"
+              f" {len(unfingerprinted)} > {CEILING_UNFINGERPRINTED}")
+        for item in unfingerprinted:
+            print(f"      · {item}")
+        print("      ⤷ أعِدْ عيارَ المِحقنةِ بعدَ أن تُودِعَ `targets_sha256`"
+              " في سجلِّها — ومراسي مجسّاتِها في ملفّاتٍ ثالثةٍ بلا حارسٍ حتّى ذلك.")
         failed = True
 
     if failed:
