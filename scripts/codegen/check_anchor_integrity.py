@@ -44,6 +44,9 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_seed_contract import NEGATIVE_TAG  # noqa: E402
 LT = ROOT / "language-truth"
 TESTS = ROOT / "tests"
 
@@ -88,8 +91,9 @@ _ANCHOR_FORMS = (
     #      سطرَ الشفرةِ التالي حمولةً. وقِيسَ: ٢٩٤ مطابقةً كانت تعبرُ سطرًا —
     #      فسطرٌ يبدأُ بما يُشبِهُ رمزًا يُقرأُ **مرساةً يتيمةً** ⇒ حمرةٌ كاذبة.
     #      ولا شاهدَ زائفٌ اليومَ (صفرُ عابرةٍ تُنتِجُ رمزًا) — لكنّه فخٌّ منصوب.
-    (re.compile(r"^#[ \t]*@expect(?:_compile)?_error[a-z_]*:?[ \t]+(.+)$", re.M),
-     "err."),
+    # (AR) 🔑 والهجاءُ **مستوردٌ** لا مكتوبٌ ثالثةً: كان هذا القارئُ نسخةً
+    #      يدويّةً ثالثةً لوسمٍ واحد، **خارجَ كلَّ مرساةٍ تحرسُ النسخ**.
+    (re.compile(NEGATIVE_TAG + r":?[ \t]+(.+)$", re.M), "err."),
 )
 _SPLIT = re.compile(r"[,،]")
 

@@ -238,25 +238,52 @@ def _guard_tag_vocabulary():
     import re as _re
 
     source = (CODEGEN / (CONTRACT_GUARD + ".py")).read_text(encoding="utf-8")
+    tree = _ast.parse(source)
     tags = set()
-    for node in _ast.walk(_ast.parse(source)):
+    for node in _ast.walk(tree):
         for text in _pattern_literals(node, _ast):
             tags.update(_re.findall(r"@[a-z_]+", text))
+    # (AR) 🔑 **وثوابتُ الهجاءِ أيضًا، لا الأنماطُ المُصرَّفةُ وحدَها.** حينَ
+    #      وُحِّدَ هجاءُ الوسمِ السالبِ في ثابتٍ نصّيٍّ (`NEGATIVE_TAG`)
+    #      واستُورِدَ، اختفى `@expect` من المفرداتِ فورًا — فالنمطُ صارَ
+    #      `re.compile(NEGATIVE_TAG, ...)` بلا سلسلةٍ حرفيّة. أي أنّ **إصلاحَ
+    #      النسخِ كان يُعمي المرساةَ عن الوسمِ الذي وحّدَه**.
+    for node in tree.body:
+        if isinstance(node, (_ast.Assign, _ast.AnnAssign)):
+            value = node.value
+            if isinstance(value, _ast.Constant) and isinstance(value.value, str):
+                tags.update(_re.findall(r"@[a-z_]+", value.value))
     assert tags, "لا وسمَ في أنماطِ الحارس — أُعيدَت صياغتُه فبطلَ المقياس"
     return tuple(sorted(tags))
 
 
+# (AR) 🔑 **وأيُّ نداءِ `re.*` لا `compile` وحدَه.** كان المقيسُ `compile`
+#      فقط، فقارئٌ ثانٍ بـ`re.search(r"^#[ \t]*@skip_compiler", text)` مرَّ
+#      أخضرَ: `140 passed` ورمزُ صفرٍ للبوّابة، والحارسُ ٧٧ · ١٦٥ والمقياسُ
+#      **١٦ · ١٦٩**. العطبُ (١٦٤ · ١٦٥ · ١٦٩) نفسُه، للمرّةِ الثالثة.
+#      ⚠️ **ويُشترَطُ `Attribute` من `re`**: `compile()` المدمجةُ في بايثون
+#         نداءٌ مشروعٌ تمامًا (`compile(src, "<x>", "exec")`)، وكان يُرفَضُ لو
+#         حملَ مصدرُه وسمًا — رفضٌ كاذبٌ كامن.
+RE_CALLS = ("compile", "search", "match", "fullmatch", "findall", "finditer",
+            "sub", "subn", "split")
+
+
 def _pattern_literals(node, ast_mod):
-    """(AR) سلاسلُ النمطِ في نداءِ `…compile(…)` — ولو رُكِّبَ النمطُ بالجمع."""
+    """(AR) سلاسلُ النمطِ في نداءِ `re.*` — ولو رُكِّبَ النمطُ بالجمعِ أو
+    مُرِّرَ وسيطًا مُسمًّى."""
     call = node
-    if not isinstance(call, ast_mod.Call) or not call.args:
+    if not isinstance(call, ast_mod.Call):
         return []
     func = call.func
-    name = (func.attr if isinstance(func, ast_mod.Attribute)
-            else func.id if isinstance(func, ast_mod.Name) else "")
-    if name != "compile":
+    if not isinstance(func, ast_mod.Attribute) or func.attr not in RE_CALLS:
         return []
-    return [child.value for child in ast_mod.walk(call.args[0])
+    source = call.args[0] if call.args else None
+    for keyword in call.keywords:
+        if keyword.arg == "pattern":
+            source = keyword.value
+    if source is None:
+        return []
+    return [child.value for child in ast_mod.walk(source)
             if isinstance(child, ast_mod.Constant) and isinstance(child.value, str)]
 
 
@@ -279,8 +306,13 @@ def _reader_consumers():
         if path.name in (CONTRACT_GUARD + ".py", Path(__file__).name):
             continue
         tree = _ast.parse(path.read_text(encoding="utf-8"))
-        if any(isinstance(node, _ast.ImportFrom) and node.level == 0
-               and (node.module or "").rsplit(".", 1)[-1] == CONTRACT_GUARD
+        # (AR) و`rsplit(".")[-1]` كان يقبلُ **أيَّ** حزمةٍ تنتهي بهذا الاسمِ
+        #      (`vendor.pkg.check_seed_contract`) — قبولٌ كاذب. والوحدةُ
+        #      بعينِها. و`import اسم` المجرَّدُ استهلاكٌ كذلك: كان يفلت.
+        if any((isinstance(node, _ast.ImportFrom) and node.level == 0
+                and node.module == CONTRACT_GUARD)
+               or (isinstance(node, _ast.Import)
+                   and any(a.name == CONTRACT_GUARD for a in node.names))
                for node in _ast.walk(tree)):
             consumers.append(path.name)
     assert consumers, (
@@ -328,41 +360,79 @@ def test_the_tag_rule_can_actually_redden():
                 for text in _pattern_literals(node, _ast)
                 if any(tag in text for tag in TAG_VOCABULARY)]
 
+    # (AR) والصورُ الستُّ الأخيرةُ **أفلتَت فعلًا** من نسخةٍ سابقةٍ من هذه
+    #      القاعدة، فبقيَت شاهدةً عليها لا تنظيرًا.
     for source in ('_T = re.compile(r"^#[ \\t]*@skip_compiler")',
                    '_T = re.compile("^#" + r"[ \\t]*@expected")',
                    'X = regex.compile(r"@expect_error")',
-                   'def f():\n    return re.compile(r"@expected:?\\s+(.+)")'):
+                   'def f():\n    return re.compile(r"@expected:?\\s+(.+)")',
+                   'x = re.search(r"^#[ \\t]*@skip_compiler", text)',
+                   'x = re.match(r"@expected", text)',
+                   'x = re.findall(r"@expect_error", text)',
+                   'x = re.sub(r"@expected", "", text)',
+                   'x = re.split(r"@skip_compiler", text)',
+                   '_T = re.compile(pattern=r"@expected")'):
         assert strays(source), "نمطٌ يفلتُ من مرساةِ الوسم: %r" % source
 
     for source in ('_T = re.compile(r"^[0-9]+$")',
                    'lines.append(f"# @expected: {exp}")',
-                   '_SKIP = "# @skip_compiler"'):
+                   '_SKIP = "# @skip_compiler"',
+                   'code = compile("# @expected 1", "<x>", "exec")',
+                   'text = "@expected".join(parts)'):
         assert not strays(source), "رفضٌ كاذبٌ على صورةٍ مشروعة: %r" % source
 
 
-def test_inherited_readers_are_the_guard_objects():
-    """(AR) والهويّةُ تُقاسُ أيضًا — شرطًا ثانيًا لا وحيدًا، **ولكِلا
-    المستهلكَين**: كان الفحصُ يقتصرُ على `proofs` فيمرُّ انحرافُ الآخرِ
-    صامتًا."""
+@pytest.mark.parametrize("consumer", READER_CONSUMERS)
+def test_inherited_readers_are_the_guard_objects(consumer):
+    """(AR) والهويّةُ تُقاسُ أيضًا — شرطًا ثانيًا لا وحيدًا، **ولكلِّ مستهلك**:
+    كان الفحصُ يقتصرُ على واحدٍ فيمرُّ انحرافُ الآخرِ صامتًا. 🔑 وأزواجُ
+    الأسماءِ **تُشتقُّ من جملةِ الاستيرادِ نفسِها** ولا تُكتَبُ صفًّا: صفٌّ
+    بملفَّين قائمةُ إذنٍ تبلى في اتّجاهٍ واحد — مستهلكٌ ثالثٌ يصلُ فتقيسُه
+    مرساةُ الوسمِ ولا يقيسُه هذا."""
+    import ast as _ast
     import importlib
 
     import check_seed_contract as contract_guard
 
-    aliases = {
-        "calibrate_seed_proofs": {"_EXPECTED": "_EXPECTED", "_SKIP": "_SKIP",
-                                  "_NEGATIVE": "_NEGATIVE",
-                                  "SKIP_PARTS": "SKIP_PARTS"},
-        "measure_seed_contract_gap": {"_EXPECTED": "EXPECTED_MARK",
-                                      "_SKIP": "SKIP_MARK",
-                                      "_NEGATIVE": "NEGATIVE_MARK",
-                                      "SKIP_PARTS": "EXCLUDED_DIRS"},
-    }
-    for module_name, pairs in aliases.items():
-        module = importlib.import_module(module_name)
-        for origin, alias in pairs.items():
-            assert getattr(module, alias) is getattr(contract_guard, origin), (
-                "%s.%s ليس كائنَ %s.%s" % (module_name, alias,
-                                           CONTRACT_GUARD, origin))
+    tree = _ast.parse((CODEGEN / consumer).read_text(encoding="utf-8"))
+    pairs = {}
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.ImportFrom) and node.level == 0 \
+                and node.module == CONTRACT_GUARD:
+            for alias in node.names:
+                pairs[alias.name] = alias.asname or alias.name
+    assert pairs, "مستهلكٌ بلا اسمٍ موروثٍ واحد: %s" % consumer
+
+    module = importlib.import_module(consumer[:-len(".py")])
+    for origin, alias in sorted(pairs.items()):
+        assert getattr(module, alias) is getattr(contract_guard, origin), (
+            "%s.%s ليس كائنَ %s.%s" % (consumer, alias, CONTRACT_GUARD, origin))
+
+
+def test_the_two_counters_agree():
+    """(AR) 🔑 **والحاصلُ يُقاسُ، لا الهجاءُ وحدَه.** ثلاثُ قواعدَ متتاليةٍ
+    حرسَت *صورةَ كتابةِ* القارئِ الثاني، والتُفَّ على ثلاثتِها: صورةٌ أخرى ·
+    اسمٌ آخر · دالّةٌ أخرى من `re`. وهذا التوكيدُ يقيسُ **تطابقَ العدَّادَين
+    نفسَيهما** — فلا يُفلَتُ منه بهجاء، مهما كُتِبَ القارئُ الثاني."""
+    import check_seed_contract as contract_guard
+    import measure_seed_contract_gap as gap
+
+    rows = contract_guard._seeds()
+    skipped, no_contract, total = gap.classify()
+
+    assert total == len(rows), (
+        "مادّةُ القياسِ نفسُها مختلفة: الحارسُ %d · المقياسُ %d"
+        % (len(rows), total))
+    assert sum(skipped.values()) == sum(1 for r in rows if r["skip"]), (
+        "العدّادُ «أ» برقمَين: الحارسُ %d · المقياسُ %d"
+        % (sum(1 for r in rows if r["skip"]), sum(skipped.values())))
+    assert sum(no_contract.values()) == sum(
+        1 for r in rows
+        if not r["skip"] and not r["expected"] and not r["negative"]), (
+        "العدّادُ «هـ» برقمَين: الحارسُ %d · المقياسُ %d"
+        % (sum(1 for r in rows
+               if not r["skip"] and not r["expected"] and not r["negative"]),
+           sum(no_contract.values())))
 
 
 # ═══ ⑤ التاريخُ تاريخٌ لا شكلٌ يُشبِهُه ════════════════════════════════════
