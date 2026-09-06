@@ -36,7 +36,12 @@ if str(CODEGEN) not in sys.path:
 import calibrate_anchor_integrity as anchor_harness  # noqa: E402
 import calibrate_builtin_coverage as harness  # noqa: E402
 import calibrate_seed_contract as seed_harness  # noqa: E402
-import check_calibration_fresh as meta  # noqa: E402
+import check_calibration_fresh as meta
+# (AR) 🔑 **والآليّةُ صارت في قلبٍ واحد**، فالمقيسُ تبدّلَ تبدُّلًا جوهريًّا:
+#      كان «هل تتّفقُ النسخُ الستّ؟» وصارَ «هل بقيت نسخةٌ ثانيةٌ أصلًا؟».
+#      والأوّلُ كان يقيسُ الاتّفاقَ ولا يمنعُ الانجراف — وقد انجرفَت ستَّ عشرةَ
+#      دالّةً تحتَ عينِه. والثاني يمنعُه بنيويًّا.
+from _lib import calibration as calib  # noqa: E402  # noqa: E402
 
 # (AR) 🔑 **المِحقنتانِ معًا.** كان الاختبارُ يستوردُ واحدةً، فلامتغيِّراتُ الأخرى
 #      بلا قياسٍ في CI — وهما لا تعملانِ في CI أصلًا، فهذا مساسُهما الوحيد.
@@ -57,6 +62,11 @@ CEILING_UNMEASURED_HARNESSES = 1
 
 
 # (AR) أرضيّةٌ على المُعلَنِ نفسِه — انظر `_declared_harness_files`.
+#      🔑 وهي **أرضيّةُ سلامةٍ لا سقّاطةُ تغطية**: غرضُها أن يستحيلَ أن يُقرأَ
+#         `[]` الصامتُ سلامةً، لا أن تتبعَ كلَّ مِحقنةٍ تُضاف. وشدُّها على
+#         العددِ الحاليِّ يجعلُ إضافةَ مِحقنةٍ تحتاجُ **إيداعَين**: الأوّلُ
+#         يُخفِقُ محلّيًّا لأنّ HEAD لم يُعلِنْها بعد. وتغطيةُ المِحقناتِ
+#         محروسةٌ في مكانِها الصحيح: `CEILING_UNMEASURED_HARNESSES`.
 FLOOR_DECLARED_HARNESSES = 5
 
 
@@ -140,9 +150,12 @@ HARNESSES = _gate_harnesses()
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
 def test_every_probe_declares_its_residue(harness):
     """(AR) صفٌّ لكلِّ مجسّ — **ويُقاسُ الرفضُ بالحقنِ لا بطولِ القائمة.**
-    طولٌ يساوي طولًا تحصيلُ حاصلٍ بعدَ أن صارَ الاشتقافُ يرمي؛ فيُدَسُّ مجسٌّ
-    بلا تصريحٍ ويُنتظَرُ الرفض."""
-    assert len(harness._derive_residue()) == len(harness.PROBES), (
+
+    ⚠️ والتوكيدُ الأوّلُ لا يقيسُ «الاشتقاقَ لا يطوي» (فهو يُلحِقُ صفًّا لكلِّ
+       مجسٍّ بالبناء) بل **أنّ `_HARNESS.probes` هو `PROBES` بعينِه** — وهو
+       شرطٌ نافعٌ يمكنُ أن يكذب: كائنٌ بُنيَ على صفٍّ آخرَ يُقاسُ غيرَ المُودَع.
+       والقياسُ الحقيقيُّ للرفضِ هو الدسُّ أدناه."""
+    assert len(harness._HARNESS.derive_residue()) == len(harness.PROBES), (
         "الاشتقاقُ يطوي مجسَّينِ في صفٍّ واحد — أحدُهما يركبُ تسجيلَ الآخر")
 
     def _undeclared(blob):
@@ -150,11 +163,15 @@ def test_every_probe_declares_its_residue(harness):
 
     saved = harness.PROBES
     try:
-        harness.PROBES = saved + (("زائفٌ بلا تصريح", "zz", _undeclared, 0, ""),)
+        # (AR) 🔑 والدسُّ في **كائنِ المِحقنة** لا في وحدتِها: الصفُّ يُلتقَطُ
+        #      عندَ البناءِ مرّةً واحدة، فتبديلُ اسمِ الوحدةِ لا يبلغُ المقيسَ —
+        #      و«DID NOT RAISE» كان يعني أنّ الاختبارَ يقيسُ نسخةً لا تُقرَأ.
+        harness._HARNESS.probes = saved + (
+            ("زائفٌ بلا تصريح", "zz", _undeclared, 0, ""),)
         with pytest.raises(AssertionError):
-            harness._derive_residue()
+            harness._HARNESS.derive_residue()
     finally:
-        harness.PROBES = saved
+        harness._HARNESS.probes = saved
 
 
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
@@ -164,16 +181,16 @@ def test_a_green_probe_may_not_claim_the_gate_catches_it(harness):
     يُكذِّبُه شيءٌ سواه."""
     liars = [entry[0] for entry in harness.PROBES
              if entry[3] == 0
-             and getattr(entry[2], "residue", None) is harness._SELF_RED]
+             and getattr(entry[2], "residue", None) is calib.SELF_RED]
     assert not liars, (
         "مجسٌّ أخضرُ يزعمُ أنّ البوّابةَ تلتقطُ أثرَه — ولا شاهدَ عليه: %s" % liars)
 
 
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
 def test_no_trace_carries_a_reason(harness):
-    """(AR) `_NO_TRACE` بابُ صمتٍ مشروع — فيُقفَلُ بتعليلٍ مكتوبٍ لا بإغفال."""
+    """(AR) `NO_TRACE` بابُ صمتٍ مشروع — فيُقفَلُ بتعليلٍ مكتوبٍ لا بإغفال."""
     for entry in harness.PROBES:
-        if getattr(entry[2], "residue", None) is not harness._NO_TRACE:
+        if getattr(entry[2], "residue", None) is not calib.NO_TRACE:
             continue
         why = getattr(entry[2], "no_trace_reason", "")
         assert len(why) >= 40, (
@@ -182,59 +199,119 @@ def test_no_trace_carries_a_reason(harness):
 
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
 def test_derived_residue_is_not_empty(harness):
-    assert harness._derive_residue(), "اشتقاقٌ فارغٌ = حارسُ تلوّثٍ لا يمكنُ أن يعضّ"
+    assert harness._HARNESS.derive_residue(), "اشتقاقٌ فارغٌ = حارسُ تلوّثٍ لا يمكنُ أن يعضّ"
 
 
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
 def test_clean_tree_is_not_rejected(harness):
     # (AR) الرفضُ الكاذبُ أسوأُ من الانهيارِ الذي حلَّ محلَّه.
-    assert harness._residue() == [], "رفضٌ كاذبٌ على شجرةٍ نظيفة"
+    assert harness._HARNESS.residue() == [], "رفضٌ كاذبٌ على شجرةٍ نظيفة"
 
 
 # ═══ ② سِمةُ الأثرِ دليلٌ لا لفظٌ عابر ═══════════════════════════════════════
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
 def test_residue_marks_are_evidence(harness):
-    sentinels = (harness._CREATED, harness._SELF_RED, harness._NO_TRACE)
-    for name, rel, mark in harness._derive_residue():
+    sentinels = (calib.CREATED, calib.SELF_RED, calib.NO_TRACE)
+    for name, rel, mark in harness._HARNESS.derive_residue():
         if mark in sentinels:     # الدليلُ وجودُ ملفٍّ أو حمرةُ بوّابةٍ لا سِمة
             continue
-        assert len(mark) >= harness.MIN_RESIDUE_MARK, (
+        assert len(mark) >= calib.MIN_RESIDUE_MARK, (
             "سِمةُ أثرٍ أقصرُ من أن تكونَ دليلًا في %s (%s): %r" % (rel, name, mark))
 
 
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
 def test_append_refuses_a_blind_mark(harness):
     with pytest.raises(AssertionError):
-        harness._append(b"\n// x\n")
+        calib.append(b"\n// x\n")
 
 
 # ═══ ③ البصمةُ لا تتغيّرُ بنهاياتِ الأسطر ══════════════════════════════════
 # (AR) `.gitattributes` يفرضُ `*.py text eol=lf`، فما يُخرِجُه `git checkout`
 #      بـLF مهما كانت نهاياتُ الأسطرِ على قرصِ الكاتب. وبصمةٌ على البايتاتِ
 #      الخامِّ تُحمِّرُ كلَّ استنساخٍ نظيفٍ بحمرةٍ لا علاقةَ لها بالمحتوى.
-@pytest.mark.parametrize("sha", tuple(m._sha_bytes for m in HARNESSES),
-                         # (AR) والأسماءُ تُشتقُّ كالقائمة: صفٌّ يدويٌّ بثلاثةِ
-                         #      أسماءٍ أوقفَ **جمعَ الملفِّ كلِّه** حينَ صارت
-                         #      المِحقناتُ أربعًا (قِيسَ: `Interrupted`).
-                         #      ⚠️ والقيمُ ههنا **دوالُّ** لا وحدات، فاسمُها
-                         #         واحدٌ للجميعِ (`_sha_bytes0…3`) ولا يدلُّ
-                         #         على المِحقنة — تُؤخَذُ من الوحداتِ نفسِها.
-                         ids=tuple(m.__name__ for m in HARNESSES))
-def test_fingerprint_is_eol_invariant(sha):
+def test_fingerprint_is_eol_invariant():
+    # (AR) وكانت مُعامَلةً على ستِّ نسخٍ من الدالّةِ نفسِها — والآنَ نسخةٌ
+    #      واحدةٌ، فتُقاسُ مرّةً واحدة. وتكرارُ التوكيدِ على كائنٍ واحدٍ ستًّا
+    #      «أخضرُ لأنّ الشرطَ لا يمكنُ أن يكذب» في صورةٍ أخرى.
     body = ("# -*- coding: utf-8 -*-" + chr(10) + "x = 1" + chr(10)).encode("utf-8")
-    assert sha(body) == sha(body.replace(harness.LF_, harness.CRLF))
+    assert calib.sha_bytes(body) == calib.sha_bytes(
+        body.replace(calib.LF_, calib.CRLF))
+
+
+# (AR) 🔑 **والحدُّ الحقيقيُّ بعدَ التوحيد: لا نسخةَ ثانية.** مِحقنةٌ تُعيدُ
+#      هجاءَ أيِّ آليّةٍ محليًّا تُعيدُ فتحَ بابِ الانجرافِ الذي أُغلِق — وهذا
+#      يقيسُه بنيويًّا لا بالاتّفاق.
+# (AR) 🔑 **والصفُّ يُشتقُّ من القلبِ ولا يُكتَبُ باليد.** وقِيسَ لِمَ: صفٌّ
+#      يدويٌّ بلِيَ **قبلَ أن يُودَع** — كان في الشجرةِ خمسُ نسخٍ حيّةٍ من
+#      `to_lf` باسمَينِ لا يعرفُهما الصفُّ (`to_lf_local` · `_eol_to_lf`)،
+#      واثنتانِ منها فقدَتا `blob or b""`. فالمجموعةُ تُشتقُّ بصورتَيها —
+#      بالشرطةِ السفليّةِ وبدونِها — من أسماءِ القلبِ وطرائقِ `Harness`.
+def _core_names():
+    names = {n for n in vars(calib) if not n.startswith("__")}
+    names |= {n for n in vars(calib.Harness) if not n.startswith("__")}
+    machinery = {n for n in names if callable(getattr(calib, n, None))
+                 or callable(getattr(calib.Harness, n, None))}
+    return frozenset(machinery | {"_" + n for n in machinery})
+
+
+RESPELLABLE = _core_names()
+# (AR) ⚠️ و`_run_guard`/`_run_eol_invariance` **مُوجِّهانِ لا نسخة**: `PROBES`
+#      يُبنى قبلَ `_HARNESS` فلا يمكنُ أن يُشيرَ إليه مباشرةً. ويُشترَطُ عليهما
+#      أن يكونا توجيهًا فعلًا — سطرَ إرجاعٍ ينادي `_HARNESS` — وإلّا عادَ بابُ
+#      النسخِ من تحتِ اسمٍ مأذونٍ له.
+FORWARDERS = ("_run_guard", "_run_eol_invariance")
 
 
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
-def test_both_sides_share_one_convention(harness, tmp_path):
+def test_no_harness_respells_the_core(harness):
+    import ast as _ast
+
+    source = Path(harness.__file__).read_text(encoding="utf-8")
+    local = {node.name for node in _ast.walk(_ast.parse(source))
+             if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef))}
+    # (AR) و`Harness` و`Journal` أصنافٌ لا دوالّ، ومُوجِّها التشغيلِ مأذونٌ
+    #      لهما أدناه بشرطِ أن يكونا توجيهًا — فيُستثنَيانِ من المطابقةِ ههنا.
+    respelled = sorted(local & RESPELLABLE - set(FORWARDERS))
+    assert not respelled, (
+        "%s يُعيدُ هجاءَ آليّةٍ في القلب: %s — تُورَثُ ولا تُنسَخ"
+        % (Path(harness.__file__).name, respelled))
+    for node in _ast.walk(_ast.parse(source)):
+        if not isinstance(node, _ast.FunctionDef) or node.name not in FORWARDERS:
+            continue
+        body = [s for s in node.body if not (isinstance(s, _ast.Expr)
+                                             and isinstance(s.value, _ast.Constant))]
+        text = _ast.dump(_ast.Module(body=body, type_ignores=[]))
+        assert len(body) == 1 and "_HARNESS" in text, (
+            "%s.%s ليس توجيهًا إلى القلبِ بل جسمًا ثانيًا"
+            % (Path(harness.__file__).name, node.name))
+
+    # (AR) 🔑 **والنسخةُ المعادُ تسميتُها تُلتقَطُ بجسمِها لا باسمِها.** وهو ما
+    #      أفلتَ فعلًا: `to_lf` نُسِخَت خمسًا تحتَ اسمَينِ آخرَين. فيُقابَلُ جسمُ
+    #      كلِّ دالّةٍ في المِحقنةِ بأجسامِ القلبِ بعدَ تجريدِ الأسماء.
+    core_bodies = {}
+    core_src = Path(calib.__file__).read_text(encoding="utf-8")
+    for node in _ast.walk(_ast.parse(core_src)):
+        if isinstance(node, _ast.FunctionDef) and len(node.body) > 1:
+            core_bodies[_ast.dump(_ast.Module(body=node.body[1:],
+                                              type_ignores=[]))] = node.name
+    for node in _ast.walk(_ast.parse(source)):
+        if not isinstance(node, _ast.FunctionDef) or len(node.body) < 2:
+            continue
+        key = _ast.dump(_ast.Module(body=node.body[1:], type_ignores=[]))
+        assert key not in core_bodies, (
+            "%s.%s نسخةٌ من `%s` في القلبِ باسمٍ آخر — تُورَثُ ولا تُنسَخ"
+            % (Path(harness.__file__).name, node.name, core_bodies[key]))
+
+
+def test_both_sides_share_one_convention(tmp_path):
     # (AR) اتّفاقُ القراءةِ يجبُ أن يكونَ واحدًا في الطرفَين، وإلّا فالمقارنةُ
     #      بلا معنًى. والملفّانِ منفصلانِ عمدًا (الفوقيُّ لا يستوردُ مِحقنةً
     #      بعينِها)، فاتّفاقُهما **يُقاسُ** ولا يُوعَدُ به في تعليق.
     probe = tmp_path / "probe.py"
     probe.write_bytes(("a = 1" + chr(10) + "b = 2" + chr(10)).encode("utf-8"))
-    lf_digest = (harness._sha_norm(probe), meta._sha_norm(probe))
-    probe.write_bytes(probe.read_bytes().replace(harness.LF_, harness.CRLF))
-    crlf_digest = (harness._sha_norm(probe), meta._sha_norm(probe))
+    lf_digest = (calib.sha_norm(probe), meta._sha_norm(probe))
+    probe.write_bytes(probe.read_bytes().replace(calib.LF_, calib.CRLF))
+    crlf_digest = (calib.sha_norm(probe), meta._sha_norm(probe))
     assert lf_digest[0] == lf_digest[1], "الطرفانِ لا يتّفقانِ على البصمة"
     assert lf_digest == crlf_digest, "البصمةُ تتغيّرُ بنهاياتِ الأسطر"
 
@@ -318,6 +395,7 @@ def test_gated_seeds_are_out_of_the_pool():
 #      الحارسِ نفسِه**، بخلافِ الأسماءِ التي لا تُحصى. والمستهلكُ **مَن يستوردُ
 #      الحارسَ** (نحويًّا)، لا مَن يذكرُ اسمَه في تعليق.
 CONTRACT_GUARD = "check_seed_contract"
+
 
 
 def _guard_tag_vocabulary():
@@ -547,7 +625,7 @@ def test_the_two_counters_agree():
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
 @pytest.mark.parametrize("stamp", ["2026-09-05", "1999-01-01"])
 def test_real_dates_accepted(harness, stamp):
-    assert harness._is_date(stamp)
+    assert calib.is_date(stamp)
 
 
 @pytest.mark.parametrize("harness", HARNESSES, ids=lambda m: m.__name__)
@@ -557,4 +635,4 @@ def test_real_dates_accepted(harness, stamp):
     "9999-99-99", "0000-00-00", "2026-9-5", "not-a-date", "",
 ])
 def test_lookalikes_rejected(harness, stamp):
-    assert not harness._is_date(stamp)
+    assert not calib.is_date(stamp)

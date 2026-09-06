@@ -1,18 +1,25 @@
 # ═══════════════════════════════════════════════════════════════════
 # سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
-# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ ولم يُعَدِ العيارُ حمِرَ
-#    check_calibration_fresh.py. وإعادتُه:
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
 #    python scripts/codegen/calibrate_builtin_coverage.py --record --date=YYYY-MM-DD
 # ═══════════════════════════════════════════════════════════════════
-version: 2
+version: 3
 guard: scripts/codegen/check_builtin_engine_coverage.py
 harness: scripts/codegen/calibrate_builtin_coverage.py
 guard_sha256: b87ba6bdad58cb17d03cd90a6db429bcd469474c8be03d03221d568086c4f6b4
-harness_sha256: d1684cd1fba6aa25c49f448e2eab4d4e07c38b1a68ceeed166226a37c0e8478a
+harness_sha256: d351ee8ba649942bef9b6dc1f50d20fb06fed1755bef5860604d46bd691cc369
 calibrated_at: 2026-09-06
 probes_total: 10
 probes_passed: 10
 result: 10/10
+targets_sha256:
+  compiler/src/frontend/builders/builtins_core.cpp: 13139e1e8e64e85195d54422911849519116f4565beaef2f791f82b4cd8ccce6
+  compiler/src/frontend/builders/builtins_network.cpp: a6e1ca4057de241c4acc8080187c9aed5a192d1d5919b51940723859d7b2ee33
+  compiler/tests/zz_calibration_launder_probe.h: (معدوم)
+  language-truth/builtins/core.yaml: 147fdb1f6d253c35083b0820ecfe3118ba26724425ed6245dd65cdf7b030b596
+  language-truth/builtins/sadnet.yaml: f690a64644979d1db6568b9cfa702bcda37d7642fb8992bde8a1ee01da22597f
+  scripts/codegen/_lib/calibration.py: 31b9243f971ee2bd2fbc4b283fd211e717ef195054d48ebe3a9446a6eea2b611
 probes:
   - name: "① وعدٌ كاذب — مؤجَّلٌ يُوسَمُ stable"
     target: language-truth/builtins/sadnet.yaml

@@ -1,19 +1,20 @@
 # ═══════════════════════════════════════════════════════════════════
 # سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
-# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ ولم يُعَدِ العيارُ حمِرَ
-#    check_calibration_fresh.py. وإعادتُه:
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
 #    python scripts/codegen/calibrate_seed_tag_readers.py --record --date=YYYY-MM-DD
 # ═══════════════════════════════════════════════════════════════════
-version: 2
+version: 3
 guard: scripts/codegen/check_seed_tag_readers.py
 harness: scripts/codegen/calibrate_seed_tag_readers.py
 guard_sha256: 0668df586741944c00d332d6a81a315bd01caa71f03bfc3a70435f34c93db2da
-harness_sha256: f1c58348012473d020919f7ac69de40b0c4045eecb5659f7d9767e37a3d17155
+harness_sha256: 6d9e351795d7e1f94a5e88e73b734cc0c42143c97b05120e697c344547e215ad
 calibrated_at: 2026-09-06
 probes_total: 22
 probes_passed: 22
 result: 22/22
 targets_sha256:
+  scripts/codegen/_lib/calibration.py: 31b9243f971ee2bd2fbc4b283fd211e717ef195054d48ebe3a9446a6eea2b611
   scripts/codegen/build_zz_tag_probe.py: (معدوم)
   scripts/codegen/check_seed_contract.py: f4837d9334061f1558ec3bf64e41d3b2fa6b0464dd2d816b452e8f9213bdfca6
   scripts/codegen/gen_rules_matrix.py: 528caf875ae7a3e6e23a9ac2a7e00b9ecef1880c83574bcc6a90af5085dc11ce

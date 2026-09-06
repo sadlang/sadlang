@@ -1,18 +1,23 @@
 # ═══════════════════════════════════════════════════════════════════
 # سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
-# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ ولم يُعَدِ العيارُ حمِرَ
-#    check_calibration_fresh.py. وإعادتُه:
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
 #    python scripts/codegen/calibrate_seed_contract.py --record --date=YYYY-MM-DD
 # ═══════════════════════════════════════════════════════════════════
-version: 2
+version: 3
 guard: scripts/codegen/check_seed_contract.py
 harness: scripts/codegen/calibrate_seed_contract.py
 guard_sha256: f4837d9334061f1558ec3bf64e41d3b2fa6b0464dd2d816b452e8f9213bdfca6
-harness_sha256: c05718fbf3212f6a8edc1646caad9c8107074aa28279d52b5d50348ce266e42b
+harness_sha256: 4fd6ba824d4cd4775e020f5456e80cfb412587d52e6a0cfefcd8352f83edb36a
 calibrated_at: 2026-09-06
 probes_total: 14
 probes_passed: 14
 result: 14/14
+targets_sha256:
+  scripts/codegen/_lib/calibration.py: 31b9243f971ee2bd2fbc4b283fd211e717ef195054d48ebe3a9446a6eea2b611
+  tests/behavior/_archive/zz_contract_probe.ص: (معدوم)
+  tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص: e5e6bfb6921f698b140951249872e3b7431deab953b63f1314e49020adbe6c6a
+  tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص: (معدوم)
 probes:
   - name: "① بذرةٌ جديدةٌ بلا عقدٍ ترفعُ الدَّين"
     target: tests/behavior/rules_matrix/10_statements/zz_contract_probe.ص

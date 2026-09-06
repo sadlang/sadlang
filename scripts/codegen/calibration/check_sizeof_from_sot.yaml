@@ -1,0 +1,99 @@
+# ═══════════════════════════════════════════════════════════════════
+# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
+#    python scripts/codegen/calibrate_sizeof_from_sot.py --record --date=YYYY-MM-DD
+# ═══════════════════════════════════════════════════════════════════
+version: 3
+guard: scripts/codegen/check_sizeof_from_sot.py
+harness: scripts/codegen/calibrate_sizeof_from_sot.py
+guard_sha256: 3e5c89310c020db95f44c918b97e4300399d7cf301888af5b20f4c45786d9990
+harness_sha256: 6834cf0a545d8db6ccdedc4e429f2873ff7c3c89dfd311185715c83505ac3607
+calibrated_at: 2026-09-06
+probes_total: 16
+probes_passed: 16
+result: 16/16
+targets_sha256:
+  compiler/src/frontend/builders/expression_lowlevel.cpp: 7059fb76c42a5e5cc5a9835f364295e575d4cdb808e96dc1ecd8e1af9fc02330
+  scripts/codegen/_lib/calibration.py: 31b9243f971ee2bd2fbc4b283fd211e717ef195054d48ebe3a9446a6eea2b611
+probes:
+  - name: "① سلسلةٌ عربيّةٌ في جسمِ الدالّة"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 1
+    expect_text: "⇐ جدولُ أحجامٍ مكتوبٌ باليدِ عاد"
+    role: "يجبُ أن يحمرّ"
+  - name: "② حرفٌ عربيٌّ واحدٌ في سلسلةٍ يكفي"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 1
+    expect_text: "⇐ جدولُ أحجامٍ مكتوبٌ باليدِ عاد"
+    role: "يجبُ أن يحمرّ"
+  - name: "③ سلسلتانِ تُعَدّانِ اثنتَينِ لا واحدة"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 1
+    expect_text: "⇐ جدولُ أحجامٍ مكتوبٌ باليدِ عاد"
+    role: "يجبُ أن يحمرّ"
+  - name: "④ نزعُ نداءِ الاشتقاقِ يُحمِّر"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 1
+    expect_text: "⇐ لا نداءَ لـ"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑤ اسمُ النداءِ المطلوبِ ينجرفُ عن المترجّم"
+    target: scripts/codegen/check_sizeof_from_sot.py
+    expect_exit: 1
+    expect_text: "⇐ لا نداءَ لـ"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑥ توقيعٌ أُعيدت تسميتُه — رمزُ آلةٍ ٢"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 2
+    expect_text: "لم يُعثَر على توقيعِ الدالّة"
+    role: "عطبُ آلة"
+  - name: "⑦ موقعٌ مفقودٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_sizeof_from_sot.py
+    expect_exit: 2
+    expect_text: "ملفٌّ مفقود"
+    role: "عطبُ آلة"
+  - name: "⑧ جسمٌ غيرُ مُغلَقٍ — رمزُ آلةٍ ٢"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 2
+    expect_text: "جسمٌ غيرُ مُغلَق"
+    role: "عطبُ آلة"
+  - name: "⑨ تعليقٌ عربيٌّ سطريٌّ في الجسمِ لا يُحمِّر"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 0
+    expect_text: "لا جدولَ يدويًّا فيه"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑩ تعليقٌ عربيٌّ كتليٌّ في الجسمِ لا يُحمِّر"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 0
+    expect_text: "لا جدولَ يدويًّا فيه"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑪ سلسلةٌ عربيّةٌ خارجَ الجسمِ لا تُحمِّر"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 0
+    expect_text: "لا جدولَ يدويًّا فيه"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑫ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+    target: scripts/codegen/check_sizeof_from_sot.py
+    expect_exit: 0
+    expect_text: "بصمةٌ ثابتة"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑬ صفُّ المواقعِ خالٍ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_sizeof_from_sot.py
+    expect_exit: 2
+    expect_text: "لا موقعَ يُقاس"
+    role: "عطبُ آلة"
+  - name: "⑭ جدولٌ بأعدادٍ حرفيّةٍ بلا عربيّةٍ يُحمِّر"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 1
+    expect_text: "⇐ عددٌ حرفيٌّ في جسمِ"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑮ ذِكرُ الاسمِ بلا نداءٍ ليس اشتقاقًا"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 1
+    expect_text: "⇐ لا نداءَ لـ"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑯ توقيعٌ بلا جسمٍ — رمزُ آلةٍ ٢"
+    target: compiler/src/frontend/builders/expression_lowlevel.cpp
+    expect_exit: 2
+    expect_text: "توقيعٌ بلا جسمٍ"
+    role: "عطبُ آلة"
