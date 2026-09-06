@@ -8,6 +8,12 @@ $sad = Join-Path $repoRoot "build\bin\Debug\sad-build.exe"
 #      — **أخضرَ لأنّ الشرطَ لا يمكنُ أن يكونَ كاذبًا**. وسبعُ وثائقِ تخطيطٍ
 #      تستشهدُ بمخرَجِها بوّابةَ قبول (`PASS:137 / FAIL:20`)، فالرقمُ المنشورُ
 #      كذبٌ بالبناءِ لا بالخطأ. وههنا يُرفَضُ صراحةً بدلَ أن يُطمئِنَ.
+# (AR) ⚠️ **ولا مستدعيَ حيًّا لهذا الملفِّ في هذا المستودع.** مادّتُه
+#      (`tests/dual_execution`) حُذِفَت مع المفسِّر، ولا يُنادى من `.github/`
+#      ولا `x.py` ولا `scripts/`؛ وثمانيةُ مراجعَ إليه كلُّها في
+#      `_bmad-output/**` (وثائقُ تخطيطٍ لا مجارٍ). فحكمُه أدناه **مُهيَّأٌ
+#      لعودةِ المادّةِ** لا مقيسٌ عليها اليوم: يخرجُ برمزِ ٢ قبلَ بلوغِه.
+#      وقد قِيسَت متَّجَهاتُه السبعةُ بمادّةٍ مصطنعةٍ لا بمادّتِه.
 # (AR) ⚠️ وهي **قارئٌ رابعٌ لعقدِ `@expected`** لا يُورَّثُ من الحارس: نمطُه
 #      `"# @expected (.+)"` أضيقُ ممّا يقرؤه `check_seed_contract.py`
 #      (لا يقرأُ السوالب، ولا يشترطُ حمولةً غيرَ فارغة). فلا يُتَّخَذُ مرجعًا
@@ -26,6 +32,16 @@ if ($tests.Count -eq 0) {
 $pass = 0; $fail = 0; $failList = @(); $skipped = 0
 foreach ($t in $tests) {
     $content = Get-Content $t.FullName -Raw -Encoding UTF8
+    # (AR) 🔑 **والمتخطّاةُ لا تُشغَّلُ أصلًا.** كان هذا العدّاءُ يقرأُ
+    #      `@expected` وحدَه ولا يعرفُ `@skip_compiler` قطُّ — وهو مقبولٌ ما دامَ
+    #      تجاوزُ المهلةِ يُبتلَعُ صامتًا. فلمّا صارَ `$skipped` يُخرِجُ رمزَ ١،
+    #      انقلبَ العمى **رفضًا كاذبًا**: بذرةٌ مُعلَنٌ صراحةً أنّها لا تُشغَّلُ
+    #      تُحمِّرُ الشوطَ كلَّه إن عَلِقَت. وقِيسَ في `tests/behavior`: ٤٧ بذرةً
+    #      تحملُ الوسمَين معًا. والنمطُ هجاءُ الحارسِ نفسُه (`^#[ \t]*@…`) —
+    #      و`(?m)` لازمةٌ لأنّ `-match` في .NET لا يُعدِّدُ الأسطرَ افتراضًا.
+    # (EN) Seeds marked @skip_compiler are not run at all — a timeout on one
+    #      would otherwise redden the whole run (false rejection).
+    if ($content -match "(?m)^#[ \t]*@skip_compiler") { continue }
     # (AR) يُنفَّذ الاختبار فقط إن حمل وسم "# @expected" بالمخرَج المتوقَّع
     # (EN) A test runs only if it carries the "# @expected" marker with the expected output
     if ($content -match "# @expected (.+)") {

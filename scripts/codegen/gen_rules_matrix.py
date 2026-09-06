@@ -264,7 +264,12 @@ def _header(rule_tag: str, desc: str, expected, negative: bool) -> str:
              "# @requires: اطبع_سطر"]
     if negative:
         lines.append("# @expect_error")
-    elif expected is not None:
+    # (AR) 🔑 **الحمولةُ شرطُ العقدِ عندَ المُنتِجِ كما هي عندَ القارئ.** كان
+    #      الشرطُ `is not None` وحدَه، فحمولةٌ فارغةٌ تكتبُ `# @expected: `
+    #      عاريًا — وهو بعينِه ما شُدَّ له `(?=\S)` في `check_seed_contract.py`.
+    #      فالبذرةُ تبدو متعاقَدةً للعينِ ولا تُحاكَم. والفارغةُ تسقطُ إلى
+    #      `TODO` أدناه: بذرةٌ مُعلَنٌ نقصُها خيرٌ من عقدٍ لا يقولُ شيئًا.
+    elif expected is not None and str(expected).strip():
         lines.append(f"# @expected: {expected}")
     else:
         lines.append("# TODO(بذرة): املأ @expected بتشغيل المفسّر ثم تحقّق من تطابق المترجم")

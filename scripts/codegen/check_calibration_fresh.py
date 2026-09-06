@@ -43,6 +43,7 @@
 from __future__ import annotations
 
 import hashlib
+import subprocess
 import sys
 from pathlib import Path
 
@@ -103,6 +104,30 @@ def _key(path: Path) -> str:
     return path.resolve().relative_to(ROOT).as_posix()
 
 
+# (AR) 🔑 **والسجلُّ غيرُ المُودَعِ ليس من الشجرة.** كان المسحُ `glob` على
+#      القرصِ وحدَه، فسجلُّ عيارٍ قيدَ الإنشاءِ عندَ أحدِهم يُحمِّرُ البوّابةَ
+#      **محلّيًّا ولا يراه CI** — حمرةٌ لا يُسكِتُها صاحبُها إلّا بإيداعِ عملٍ
+#      ناقص، وهي صورةُ الرفضِ الكاذبِ عينُها. وقِيسَت حيّةً: سجلُّ حارسٍ آخرَ
+#      قيدَ الإنشاءِ (٦ مجسّاتٍ) أوقفَ بوّابةَ عملٍ لا صلةَ له به.
+#      وفي CI كلُّ ما في الشجرةِ مُودَعٌ، فالمقيسُ هناك لا يتبدَّل.
+#      ⚠️ ولا يُسكَتُ عن تعذُّرِ التصفية: إن لم يُجَبْ `git` **يُقالُ ذلك سطرًا
+#         مسمًّى** ويُمسَحُ القرصُ كما كان — سقوطٌ صامتٌ إلى السلوكِ القديمِ هو
+#         العطبُ الذي يُدوِّنُه سجلُّ دروسِ هذا المستودعِ مرارًا.
+def _tracked_records(records: list[Path]) -> tuple[list[Path], str]:
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files", "-z", "--", "scripts/codegen/calibration"],
+            capture_output=True, check=True).stdout.decode("utf-8")
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return records, "  ⚠️ تعذَّرَ سؤالُ git (%s) — مُسِحَ القرصُ بلا تصفية" % exc
+    known = {(ROOT / rel).resolve() for rel in out.split("\0") if rel}
+    kept = [r for r in records if r.resolve() in known]
+    dropped = len(records) - len(kept)
+    note = ("  · سجلّاتٌ غيرُ مُودَعةٍ أُغفِلَت: %d (لا يراها CI)" % dropped
+            if dropped else "")
+    return kept, note
+
+
 def _guards() -> list[Path]:
     found = sorted(CODEGEN.glob("check_*.py"))
     if CI.is_dir():
@@ -113,10 +138,13 @@ def _guards() -> list[Path]:
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     guards = _guards()
-    records = sorted(RECORDS.glob("*.yaml")) if RECORDS.is_dir() else []
+    on_disk = sorted(RECORDS.glob("*.yaml")) if RECORDS.is_dir() else []
+    records, note = _tracked_records(on_disk)
 
     print("حارس «عيارٌ قديمٌ لحارسٍ جديدٍ ليس عيارًا»:")
     print(f"  حرّاسُ الشجرة: {len(guards)} · سجلّاتُ عيار: {len(records)}")
+    if note:
+        print(note)
 
     drifted: list[str] = []
     orphaned: list[str] = []

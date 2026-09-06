@@ -8,7 +8,7 @@ version: 2
 guard: scripts/codegen/check_anchor_integrity.py
 harness: scripts/codegen/calibrate_anchor_integrity.py
 guard_sha256: 7beb3bc2727fc129b9943cf676adcc71df5415d1cdb353e2cddeba12d391fdd1
-harness_sha256: 1b648a938d013794f52fd8d8cb9befc496e7deff5c6010b549c57846d91f6bb8
+harness_sha256: 5db6db2ef3055de1fd8a43f1e3e42e6ae90a6b0cc63b8f069793f6e659ca4d4d
 calibrated_at: 2026-09-06
 probes_total: 17
 probes_passed: 17

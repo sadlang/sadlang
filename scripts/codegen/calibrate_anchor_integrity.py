@@ -33,6 +33,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 GUARD = ROOT / "scripts" / "codegen" / "check_anchor_integrity.py"
+
+# (AR) 🔑 **اسمُ العائلةِ يُشتقُّ من الحارسِ لا يُنسَخُ سلسلة.** كان المجسُّ ⑰
+#      يقرأُ مرجعَه بـ`.get(u"أوپكوداتُ الخلفيّة", (0, 0))`، فإعادةُ تسميةٍ
+#      مشروعةٌ في `FAMILIES` تُبقي الحارسَ أخضرَ و`_measure_baseline` ناجحًا
+#      (الصفوفُ الأربعةُ الأخرى موجودة) ويعودُ `need` إلى ١ — أي **عينُ سلوكِ
+#      ما قبلَ الرقعة، بلا رمزِ ٢ وبلا سطرِ تشخيصٍ واحد**. والرسوُّ ههنا على
+#      `"backend"`: مجلَّدٌ في مصدرِ الحقيقةِ لا اسمَ عرضٍ يُترجَم.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_anchor_integrity import FAMILIES as _FAMILIES  # noqa: E402
+
+_OPCODE_FAMILY = next((f[0] for f in _FAMILIES if f[1] == "backend"), None)
+if _OPCODE_FAMILY is None:
+    raise AssertionError(
+        "لا عائلةَ مصدرُها 'backend' في FAMILIES — أُعيدَ ترتيبُ الحارسِ")
 HARNESS = Path(__file__).resolve()
 RECORD_DIR = ROOT / "scripts" / "codegen" / "calibration"
 RECORD = RECORD_DIR / "check_anchor_integrity.yaml"
@@ -132,7 +146,12 @@ def _shrink_opcodes(blob: bytes) -> bytes:
     """(AR) يحذفُ `BUILTIN_CLI` (وله توأمٌ في طبقةِ القيد) ومعه ما يبتلعُه
     هامشُ الأرضيّة — فيعضُّ المجسُّ سواءٌ أكانت مشدودةً أم لا."""
     text = blob.decode("utf-8")
-    addresses, floor = _BASELINE.get("أوپكوداتُ الخلفيّة", (0, 0))
+    # (AR) والغيابُ يرمي ولا يستنُّ صفرًا: مرجعٌ مجهولٌ يعني مجسًّا أعمى.
+    if _OPCODE_FAMILY not in _BASELINE:
+        raise AssertionError(
+            "لم يُقَسْ مرجعُ عائلةِ %s قبلَ الحقن — لا عيارَ على مرجعٍ مجهول"
+            % _OPCODE_FAMILY)
+    addresses, floor = _BASELINE[_OPCODE_FAMILY]
     need = max(1, addresses - floor + 1)
     head = "  - name: BUILTIN_CLI\n"
     if head not in text:
@@ -394,8 +413,11 @@ def _residue() -> list[str]:
 #      ليُنجِزَه**. ونزعُ العددِ من نصِّ المجسِّ عالجَ العَرَضَ لا السبب.
 #      فالفجوةُ تُرفَضُ ههنا صراحةً **بمخرجٍ مسمًّى**: أنزِلِ السقفَ إلى المقيسِ
 #      (أو ارفعِ الأرضيّة) ثمّ أعِدِ العيار — وهو السلوكُ الذي يفرضُه تصميمُ
-#      «سقفٌ نازلٌ لا يُرفَع» أصلًا. ولا كلفةَ اليوم: الحدودُ الخمسةُ والعشرونَ
-#      في الحرّاسِ الثلاثةِ **مشدودةٌ كلُّها** (مقيس).
+#      «سقفٌ نازلٌ لا يُرفَع» أصلًا. والشدُّ يُقاسُ في **كلِّ تشغيلةٍ** بـ
+#      `_slack_bounds()` ولا يُنثَرُ ههنا عددًا: عددٌ منثورٌ نسخةٌ ثانيةٌ من
+#      حقيقةٍ تُقاسُ وتبلى بأوّلِ حدٍّ يُضاف. 🔑 **وقد بلِيَ واحدٌ ههنا فعلًا**:
+#      كُتِبَ أنّ «الحدودَ كلَّها مشدودة» ثمّ قُصِرَ هذا القارئُ على السقوفِ
+#      في السطرِ التالي مباشرةً — فصارَ النصُّ يعِدُ بما لا يقيسُه.
 # (AR) 🔑 **السقوفُ وحدَها.** الأرضيّةُ **مصمَّمةٌ للصعود**، فمطالبتُها
 #      بالمساواةِ تُناقِضُ دلالتَها وتجعلُ **إضافةَ بذرةٍ واحدةٍ بعقد** — أعدى
 #      عملٍ مشروعٍ في هذا المستودع — تُوقِفُ العيارَ برمزِ ٢؛ وقِيسَ فعلًا:
