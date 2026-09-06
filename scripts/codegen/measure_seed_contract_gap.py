@@ -30,6 +30,7 @@ import io
 import os
 import re
 import sys
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SEEDS_ROOT = os.path.join(ROOT, "tests", "behavior")
@@ -78,8 +79,10 @@ def iter_seeds():
                 continue
             full = os.path.join(base, name)
             # (AR) وبدلالةِ الحارسِ: أيُّ مقطعٍ في المسار، لا مجلَّدَ المشيِ وحدَه.
-            rel = os.path.relpath(full, SEEDS_ROOT)
-            if any(part in EXCLUDED_DIRS for part in rel.split(os.sep)):
+            #      🔑 وعلى المسارِ **المطلقِ** كالحارسِ سواءً بسواء: كان يُقاسُ
+            #      نسبيًّا عن `SEEDS_ROOT`، فمقاطعُ الجذرِ نفسِه لا تُفحَص —
+            #      واستنساخٌ جدُّه `_archive` يستثنيه الحارسُ ويحتسبُه المقياس.
+            if any(part in EXCLUDED_DIRS for part in Path(full).parts):
                 continue
             yield full
 

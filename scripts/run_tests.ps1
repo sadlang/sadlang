@@ -44,7 +44,12 @@ foreach ($t in $tests) {
     if ($content -match "(?m)^#[ \t]*@skip_compiler") { continue }
     # (AR) يُنفَّذ الاختبار فقط إن حمل وسم "# @expected" بالمخرَج المتوقَّع
     # (EN) A test runs only if it carries the "# @expected" marker with the expected output
-    if ($content -match "# @expected (.+)") {
+    # (AR) 🔑 **وصيغةُ النقطتَينِ تُقرَأُ كما يقرؤها الحارسُ والعدّاء.** كان
+    #      النمطُ `"# @expected (.+)"` بلا نقطتَينِ ولا مرساةٍ، فيُهمِلُ
+    #      **٣٢٩٧ بذرةً ذاتَ عقدٍ من ٤٥٤٥** — وترويستُه تعُدُّ سببَينِ لضِيقِه
+    #      وتُغفِلُ هذا الحاسم. والمقيسُ في الاتّجاهِ الآخر: صفرٌ — أي أنّه ضيّقٌ
+    #      لا مخالف.
+    if ($content -match "(?m)^#[ \t]*@expected:?[ \t]+(\S.*)$") {
         $expected = ($matches[1] -replace "\\n", "`n").TrimEnd()
         $job = Start-Job -ScriptBlock {
             param($exe, $file)

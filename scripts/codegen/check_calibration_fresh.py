@@ -83,7 +83,7 @@ RECORDS = CODEGEN / "calibration"
 #      كُتِبَ «٢٧ حارسًا وواحدٌ مُعايَر» ثمّ صارا ٢٨ واثنَين.)
 #      وخمسةٌ منها تحملُ عيارًا **نثرًا في تعليقٍ** لا سجلًّا — والنثرُ لا يُحتسَب:
 #      لا يُعادُ تقييمُه حين يتغيّرُ الحارس، وهو عينُ ما يمنعُه هذا الملفّ.
-CEILING_UNCALIBRATED = 26
+CEILING_UNCALIBRATED = 25
 
 # (AR) 🔑 **أرضيّةُ عمقِ العيار — تنزلُ المِحقنةُ إليها ولا تحتها.**
 #      لولاها لكانَ تقليصُ المِحقنةِ من ثمانيةِ مجسّاتٍ إلى واحدٍ ثمّ `--record`
@@ -113,19 +113,29 @@ def _key(path: Path) -> str:
 #      ⚠️ ولا يُسكَتُ عن تعذُّرِ التصفية: إن لم يُجَبْ `git` **يُقالُ ذلك سطرًا
 #         مسمًّى** ويُمسَحُ القرصُ كما كان — سقوطٌ صامتٌ إلى السلوكِ القديمِ هو
 #         العطبُ الذي يُدوِّنُه سجلُّ دروسِ هذا المستودعِ مرارًا.
-def _tracked_records(records: list[Path]) -> tuple[list[Path], str]:
+#      🔑 **والمسارُ يُشتقُّ من `RECORDS` لا يُهجّى.** كان مكتوبًا باليدِ
+#         نسخةً ثانية، و`git ls-files -- <مسارٌ غيرُ موجود>` يردُّ **رمزَ ٠
+#         ومخرَجًا فارغًا** — فلا يلتقطُه `check=True`، وتسقطُ السجلّاتُ كلُّها
+#         صامتةً. وقِيسَ الأثر: `سجلّاتُ عيار: 0` ثمّ `بلا سجلِّ عيار: 29 > 26`
+#         بتشخيصٍ **كاذب** («حارسٌ جديدٌ يصلُ») ورمزِ ١ — رفضٌ كاذبٌ شاملٌ في
+#         CI. والهامشُ صفرٌ اليوم، فأيُّ إخفاقٍ في التصفيةِ يُحمِّرُ فورًا.
+#      🔑 **وطرفا الكسرِ من أصلٍ واحد.** كانت السجلّاتُ تُصفّى والحرّاسُ لا
+#         يُصفَّون، فحارسٌ جديدٌ غيرُ مُودَعٍ يُحسَبُ ويُغفَلُ سجلُّه — وهي عينُ
+#         الحمرةِ المحلّيّةِ التي لا يراها CI، مَنقولةً من المقامِ إلى البسط.
+def _tracked(paths: list[Path], scope: list[Path]) -> tuple[list[Path], str]:
+    args = [p.relative_to(ROOT).as_posix() for p in scope]
     try:
-        out = subprocess.run(
-            ["git", "-C", str(ROOT), "ls-files", "-z", "--", "scripts/codegen/calibration"],
-            capture_output=True, check=True).stdout.decode("utf-8")
+        out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--"] + args,
+                             capture_output=True, check=True).stdout.decode("utf-8")
     except (OSError, subprocess.CalledProcessError) as exc:
-        return records, "  ⚠️ تعذَّرَ سؤالُ git (%s) — مُسِحَ القرصُ بلا تصفية" % exc
+        return paths, "  ⚠️ تعذَّرَ سؤالُ git (%s) — مُسِحَ القرصُ بلا تصفية" % exc
     known = {(ROOT / rel).resolve() for rel in out.split("\0") if rel}
-    kept = [r for r in records if r.resolve() in known]
-    dropped = len(records) - len(kept)
-    note = ("  · سجلّاتٌ غيرُ مُودَعةٍ أُغفِلَت: %d (لا يراها CI)" % dropped
-            if dropped else "")
-    return kept, note
+    kept = [p for p in paths if p.resolve() in known]
+    return kept, ""
+
+
+def _guard_scope() -> list[Path]:
+    return [CODEGEN] + ([CI] if CI.is_dir() else [])
 
 
 def _guards() -> list[Path]:
@@ -137,14 +147,20 @@ def _guards() -> list[Path]:
 
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
-    guards = _guards()
+    all_guards = _guards()
     on_disk = sorted(RECORDS.glob("*.yaml")) if RECORDS.is_dir() else []
-    records, note = _tracked_records(on_disk)
+    guards, note = _tracked(all_guards, _guard_scope())
+    records, rec_note = _tracked(on_disk, [RECORDS])
+    note = note or rec_note
+    untracked = (len(all_guards) - len(guards)) + (len(on_disk) - len(records))
 
     print("حارس «عيارٌ قديمٌ لحارسٍ جديدٍ ليس عيارًا»:")
     print(f"  حرّاسُ الشجرة: {len(guards)} · سجلّاتُ عيار: {len(records)}")
     if note:
         print(note)
+    elif untracked:
+        print("  · غيرُ مُودَعٍ أُغفِلَ: %d (لا يراه CI — الطرفانِ معًا)"
+              % untracked)
 
     drifted: list[str] = []
     orphaned: list[str] = []

@@ -216,23 +216,72 @@ def test_gated_seeds_are_out_of_the_pool():
 #      هـ ١٨٦ ≠ ١٦٥) — وهو حرفيًّا العطبُ (١٦٤ · ١٦٥ · ١٦٩) الذي وُجِدَ هذا
 #      الاختبارُ لمنعِه.
 #
-#      فالتوكيدُ **مقلوبٌ الآن**: لا يُعدَّدُ الممنوعُ (وهو لا يُحصى)، بل
-#      يُشترَطُ المسموح — كلُّ ارتباطٍ لاسمِ قارئٍ يجبُ أن يكونَ `ImportFrom`
-#      مصدرُه الحارسُ نفسُه، بأيِّ صورةِ كتابةٍ جاءَ الارتباط.
-READER_NAMES = ("_EXPECTED", "_NEGATIVE", "_SKIP", "_NEG_CODE",
-                "SKIP_MARK", "EXPECTED_MARK", "NEGATIVE_MARK", "SKIP_PARTS")
+#      ⚠️⚠️ **ثمّ بُرهِنَ أنّ قلبَ التوكيدِ لم يُخرِجْه من الهجاء.** انتقلت
+#      المرساةُ من «صورةِ كتابةٍ واحدةٍ» إلى **قائمةِ أسماءٍ مكتوبةٍ باليد**،
+#      وهي غيرُ محصاةٍ كسابقتها. وقِيسَ: قارئٌ ثانٍ **باسمٍ جديدٍ**
+#      (`_TAG_READER`) في `measure_seed_contract_gap.py` — والاسمُ الموروثُ
+#      باقٍ صحيحًا فيمرُّ فحصُ الهويّة — أعطى `142 passed` ورمزَ ٠ للبوّابة،
+#      والحارسَ ٧٧ · ١٦٥ والمقياسَ **١٦ · ١٧٠**. العطبُ نفسُه، عبرَ الرقعةِ
+#      التي جاءت لسدِّه. ومعها **رفضانِ كاذبان**: مولِّدٌ محضٌ صارَ «مستهلكًا»
+#      لأنّ تعليقًا فيه يذكرُ اسمَ الحارس، ومتغيِّرٌ محلّيٌّ مشروعٌ فيه يُرفَض.
+#
+#      🔑 فالمرساةُ الآنَ **هجاءُ الوسمِ داخلَ نمطٍ مُصرَّف** — لا اسمُ
+#      المتغيِّرِ ولا صورةُ الكتابة. ومفرداتُ الوسومِ **محدودةٌ ومشتقّةٌ من
+#      الحارسِ نفسِه**، بخلافِ الأسماءِ التي لا تُحصى. والمستهلكُ **مَن يستوردُ
+#      الحارسَ** (نحويًّا)، لا مَن يذكرُ اسمَه في تعليق.
 CONTRACT_GUARD = "check_seed_contract"
+
+
+def _guard_tag_vocabulary():
+    """(AR) مفرداتُ الوسمِ من أنماطِ الحارسِ لا من هجاءٍ يدويٍّ ههنا."""
+    import ast as _ast
+    import re as _re
+
+    source = (CODEGEN / (CONTRACT_GUARD + ".py")).read_text(encoding="utf-8")
+    tags = set()
+    for node in _ast.walk(_ast.parse(source)):
+        for text in _pattern_literals(node, _ast):
+            tags.update(_re.findall(r"@[a-z_]+", text))
+    assert tags, "لا وسمَ في أنماطِ الحارس — أُعيدَت صياغتُه فبطلَ المقياس"
+    return tuple(sorted(tags))
+
+
+def _pattern_literals(node, ast_mod):
+    """(AR) سلاسلُ النمطِ في نداءِ `…compile(…)` — ولو رُكِّبَ النمطُ بالجمع."""
+    call = node
+    if not isinstance(call, ast_mod.Call) or not call.args:
+        return []
+    func = call.func
+    name = (func.attr if isinstance(func, ast_mod.Attribute)
+            else func.id if isinstance(func, ast_mod.Name) else "")
+    if name != "compile":
+        return []
+    return [child.value for child in ast_mod.walk(call.args[0])
+            if isinstance(child, ast_mod.Constant) and isinstance(child.value, str)]
+
+
+TAG_VOCABULARY = _guard_tag_vocabulary()
 
 
 # (AR) 🔑 **وقائمةُ المستهلكينَ تُشتقُّ ولا تُكتَب.** كانت صفًّا حرفيًّا
 #      بملفَّين — قائمةَ إذنٍ تبلى في اتّجاهٍ واحد: مستهلكٌ ثالثٌ يصلُ **بلا
 #      قياس**، والاختبارُ يبقى أخضرَ لأنّه لا يعرفُ بوجودِه.
+#      ⚠️ **ثمّ قِيسَ أنّ «ذِكرَ الاسمِ في النصّ» معيارٌ يُرقّي البريءَ متّهمًا**:
+#         تعليقٌ واحدٌ يذكرُ اسمَ الحارسِ رقّى مولِّدًا محضًا (`gen_rules_matrix`)
+#         إلى «مستهلك»، فصارَ متغيِّرٌ محلّيٌّ مشروعٌ فيه يُرفَضُ رفضًا كاذبًا.
+#         والمعيارُ الآنَ **نحويٌّ**: مَن يستوردُ الحارسَ فعلًا. و`level == 0`
+#         مقروءٌ صراحةً وإلّا مرَّ `from .check_seed_contract import …`.
 def _reader_consumers():
+    import ast as _ast
+
     consumers = []
     for path in sorted(CODEGEN.glob("*.py")):
         if path.name in (CONTRACT_GUARD + ".py", Path(__file__).name):
             continue
-        if CONTRACT_GUARD in path.read_text(encoding="utf-8"):
+        tree = _ast.parse(path.read_text(encoding="utf-8"))
+        if any(isinstance(node, _ast.ImportFrom) and node.level == 0
+               and (node.module or "").rsplit(".", 1)[-1] == CONTRACT_GUARD
+               for node in _ast.walk(tree)):
             consumers.append(path.name)
     assert consumers, (
         "لا مستهلكَ لقارئِ العقد — أُعيدَت تسميةُ الحارسِ أو زالَ، "
@@ -243,108 +292,52 @@ def _reader_consumers():
 READER_CONSUMERS = _reader_consumers()
 
 
-def _bound_names(tree, ast_mod):
-    """(AR) كلُّ ارتباطٍ لاسمٍ من `READER_NAMES` — بأيِّ صورةِ كتابة."""
-    found = []
-
-    def _names(target):
-        stack, out = [target], []
-        while stack:
-            cur = stack.pop()
-            if isinstance(cur, (ast_mod.Tuple, ast_mod.List)):
-                stack.extend(cur.elts)
-            elif isinstance(cur, ast_mod.Starred):
-                stack.append(cur.value)
-            elif isinstance(cur, ast_mod.Name):
-                out.append(cur.id)
-        return out
-
-    def _add(lineno, names, kind):
-        for name in names:
-            if name in READER_NAMES:
-                found.append((lineno, name, kind))
-
-    for node in ast_mod.walk(tree):
-        if isinstance(node, ast_mod.ImportFrom):
-            _add(node.lineno, [a.asname or a.name for a in node.names],
-                 "from %s" % (node.module or "?"))
-        elif isinstance(node, ast_mod.Import):
-            _add(node.lineno, [a.asname or a.name.split(".")[0] for a in node.names],
-                 "import")
-        elif isinstance(node, ast_mod.Assign):
-            for target in node.targets:
-                _add(node.lineno, _names(target), "إسناد")
-        elif isinstance(node, (ast_mod.AnnAssign, ast_mod.AugAssign)):
-            _add(node.lineno, _names(node.target), "إسنادٌ موسومٌ أو مُراكَم")
-        elif isinstance(node, ast_mod.NamedExpr):
-            _add(node.lineno, _names(node.target), "إسنادٌ سائر")
-        elif isinstance(node, (ast_mod.For, ast_mod.AsyncFor)):
-            _add(node.lineno, _names(node.target), "متغيِّرُ دَوران")
-        elif isinstance(node, ast_mod.With) or isinstance(node, ast_mod.AsyncWith):
-            for item in node.items:
-                if item.optional_vars is not None:
-                    _add(node.lineno, _names(item.optional_vars), "with … as")
-        elif isinstance(node, (ast_mod.FunctionDef, ast_mod.AsyncFunctionDef,
-                               ast_mod.ClassDef)):
-            _add(node.lineno, [node.name], "تعريف")
-        # (AR) والارتباطُ الديناميُّ يُقاسُ بدقّةٍ لا بالتخمين: سلسلةٌ تُساوي
-        #      اسمَ قارئٍ داخلَ `globals()[…] =` أو `setattr(…)` وحدَهما.
-        elif isinstance(node, ast_mod.Call):
-            func = node.func
-            if isinstance(func, ast_mod.Name) and func.id == "setattr" \
-                    and len(node.args) >= 2:
-                key = node.args[1]
-                if isinstance(key, ast_mod.Constant) and isinstance(key.value, str):
-                    _add(node.lineno, [key.value], "setattr")
-        elif isinstance(node, ast_mod.Subscript):
-            value, key = node.value, node.slice
-            dynamic = (isinstance(value, ast_mod.Call)
-                       and isinstance(value.func, ast_mod.Name)
-                       and value.func.id in ("globals", "vars"))
-            if dynamic and isinstance(key, ast_mod.Constant) \
-                    and isinstance(key.value, str):
-                _add(node.lineno, [key.value], "globals()[…]")
-
-    return found
-
-
 @pytest.mark.parametrize("consumer", READER_CONSUMERS)
-def test_contract_readers_are_inherited_not_rewritten(consumer):
+def test_no_consumer_compiles_its_own_tag_reader(consumer):
     """(AR) قارئُ الوسمِ **واحدٌ** لا نسخ: ثلاثةُ قرّاءٍ أنتجوا ثلاثةَ أرقامٍ
-    متناقضةٍ لعدَّادٍ واحد (١٦٤ · ١٦٥ · ١٦٩)، ونسخةٌ رابعةٌ بـ`\\s` جعلت
-    الحارسَ يقولُ ٧٧ والمقياسَ ٧٨، وخامسةٌ بإسنادٍ غيرِ مباشرٍ جعلت أ ٥٤."""
+    متناقضةٍ لعدَّادٍ واحد (١٦٤ · ١٦٥ · ١٦٩)، ورابعٌ بـ`\\s` جعلَ الحارسَ ٧٧
+    والمقياسَ ٧٨، وخامسٌ بإسنادٍ غيرِ مباشرٍ جعلَ أ ٥٤، وسادسٌ **باسمٍ جديدٍ**
+    جعلَ أ ١٦ وهـ ١٧٠ والشوطَ كلَّه أخضر."""
     import ast as _ast
 
     tree = _ast.parse((CODEGEN / consumer).read_text(encoding="utf-8"))
-    strayed = ["%s:%d %s (%s)" % (consumer, lineno, name, kind)
-               for lineno, name, kind in _bound_names(tree, _ast)
-               if kind != "from " + CONTRACT_GUARD]
+    strayed = []
+    for node in _ast.walk(tree):
+        for text in _pattern_literals(node, _ast):
+            hit = [tag for tag in TAG_VOCABULARY if tag in text]
+            if hit:
+                strayed.append("%s:%d %s ⇐ %r" % (consumer, node.lineno,
+                                                  "·".join(hit), text[:60]))
     assert not strayed, (
-        "ارتباطُ اسمِ قارئٍ من غيرِ توريثِ الحارس — والعدَّادُ الواحدُ لا "
-        "يُقرَأُ بقارئَين: %s" % strayed)
+        "نمطٌ مُصرَّفٌ يقرأُ وسمَ عقدٍ في ملفٍّ يستوردُ الحارس — والعدَّادُ "
+        "الواحدُ لا يُقرَأُ بقارئَين: %s" % strayed)
 
 
-def test_the_inheritance_assertion_can_actually_redden():
-    """(AR) 🔑 **والتوكيدُ نفسُه يُصدَّقُ بإعادةِ عطبِه.** سابقُه كانَ أخضرَ
-    ثلاثَ مرّاتٍ وهو أعمى، فلا يُصدَّقُ توكيدٌ لم يُرَ حمرتُه."""
+def test_the_tag_rule_can_actually_redden():
+    """(AR) 🔑 **والتوكيدُ يُصدَّقُ بإعادةِ عطبِه.** سابقاه كانا أخضرَينِ وهما
+    عمياوان، فلا يُصدَّقُ توكيدٌ لم تُرَ حمرتُه — ولا يُصدَّقُ ما لم يُقَسْ
+    أنّه لا يرفضُ البريء."""
     import ast as _ast
 
-    for source in ('SKIP_MARK = re.compile("x")',
-                   '_T = re.compile("x")\nSKIP_MARK = _T',
-                   'SKIP_MARK: object = re.compile("x")',
-                   'SKIP_MARK, _NEGATIVE = 1, 2',
-                   'globals()["SKIP_MARK"] = 1',
-                   'setattr(m, "SKIP_MARK", 1)',
-                   'for SKIP_MARK in x: pass',
-                   'def SKIP_MARK(): pass'):
-        bound = _bound_names(_ast.parse(source), _ast)
-        assert any(kind != "from " + CONTRACT_GUARD for _l, _n, kind in bound), (
-            "صورةُ كتابةٍ تفلتُ من قارئِ الارتباطات: %r" % source)
-    inherited = _bound_names(
-        _ast.parse("from %s import _SKIP as SKIP_MARK" % CONTRACT_GUARD), _ast)
-    assert inherited and all(kind == "from " + CONTRACT_GUARD
-                             for _l, _n, kind in inherited), (
-        "التوريثُ الصحيحُ يُرفَض — رفضٌ كاذب")
+    assert "@expected" in TAG_VOCABULARY and "@skip_compiler" in TAG_VOCABULARY, (
+        "مفرداتُ الوسمِ لم تُشتَقَّ من الحارس: %r" % (TAG_VOCABULARY,))
+
+    def strays(source):
+        tree = _ast.parse(source)
+        return [text for node in _ast.walk(tree)
+                for text in _pattern_literals(node, _ast)
+                if any(tag in text for tag in TAG_VOCABULARY)]
+
+    for source in ('_T = re.compile(r"^#[ \\t]*@skip_compiler")',
+                   '_T = re.compile("^#" + r"[ \\t]*@expected")',
+                   'X = regex.compile(r"@expect_error")',
+                   'def f():\n    return re.compile(r"@expected:?\\s+(.+)")'):
+        assert strays(source), "نمطٌ يفلتُ من مرساةِ الوسم: %r" % source
+
+    for source in ('_T = re.compile(r"^[0-9]+$")',
+                   'lines.append(f"# @expected: {exp}")',
+                   '_SKIP = "# @skip_compiler"'):
+        assert not strays(source), "رفضٌ كاذبٌ على صورةٍ مشروعة: %r" % source
 
 
 def test_inherited_readers_are_the_guard_objects():

@@ -40,13 +40,21 @@ GUARD = ROOT / "scripts" / "codegen" / "check_anchor_integrity.py"
 #      (الصفوفُ الأربعةُ الأخرى موجودة) ويعودُ `need` إلى ١ — أي **عينُ سلوكِ
 #      ما قبلَ الرقعة، بلا رمزِ ٢ وبلا سطرِ تشخيصٍ واحد**. والرسوُّ ههنا على
 #      `"backend"`: مجلَّدٌ في مصدرِ الحقيقةِ لا اسمَ عرضٍ يُترجَم.
+#      ⚠️ **والاشتقاقُ كسولٌ لا عندَ مستوى الوحدة.** رميٌ عندَ الاستيرادِ
+#         يُوقِفُ **جمعَ pytest كلَّه**: قِيسَ `Interrupted: 1 error during
+#         collection` و**صفرٌ من ١٤٢ اختبارًا يُنفَّذ** — فتُفقَدُ تشخيصاتُ
+#         ١٤١ اختبارًا لا صلةَ لها. ورمزُه ١ يخالفُ عُرفَ «عطبُ الآلةِ = ٢»
+#         المتَّبَعَ في هذا الملفِّ نفسِه.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_anchor_integrity import FAMILIES as _FAMILIES  # noqa: E402
 
-_OPCODE_FAMILY = next((f[0] for f in _FAMILIES if f[1] == "backend"), None)
-if _OPCODE_FAMILY is None:
-    raise AssertionError(
-        "لا عائلةَ مصدرُها 'backend' في FAMILIES — أُعيدَ ترتيبُ الحارسِ")
+
+def _opcode_family() -> str:
+    found = next((f[0] for f in _FAMILIES if f[1] == "backend"), None)
+    if found is None:
+        raise AssertionError(
+            "لا عائلةَ مصدرُها 'backend' في FAMILIES — أُعيدَ ترتيبُ الحارسِ")
+    return found
 HARNESS = Path(__file__).resolve()
 RECORD_DIR = ROOT / "scripts" / "codegen" / "calibration"
 RECORD = RECORD_DIR / "check_anchor_integrity.yaml"
@@ -147,11 +155,12 @@ def _shrink_opcodes(blob: bytes) -> bytes:
     هامشُ الأرضيّة — فيعضُّ المجسُّ سواءٌ أكانت مشدودةً أم لا."""
     text = blob.decode("utf-8")
     # (AR) والغيابُ يرمي ولا يستنُّ صفرًا: مرجعٌ مجهولٌ يعني مجسًّا أعمى.
-    if _OPCODE_FAMILY not in _BASELINE:
+    family = _opcode_family()
+    if family not in _BASELINE:
         raise AssertionError(
             "لم يُقَسْ مرجعُ عائلةِ %s قبلَ الحقن — لا عيارَ على مرجعٍ مجهول"
-            % _OPCODE_FAMILY)
-    addresses, floor = _BASELINE[_OPCODE_FAMILY]
+            % family)
+    addresses, floor = _BASELINE[family]
     need = max(1, addresses - floor + 1)
     head = "  - name: BUILTIN_CLI\n"
     if head not in text:

@@ -110,8 +110,11 @@ def main():
         else:
             # (AR) والفارغُ لا يُكتَبُ وسمًا عاريًا ولا يُقلَبُ سالبًا: كلاهما
             #      يُبدِّلُ دلالةَ البذرةِ بصمت. يُرمى ويُسمّى.
-            assert str(exp).strip(), (
-                "حمولةُ @expected فارغةٌ في %s — وسمٌ عارٍ لا يُحاكَم" % rule)
+            #      🔑 و`raise` لا `assert`: الثاني يحذفُه `python -O` كلَّه —
+            #      سدٌّ يُطفَأُ بعَلَمٍ ليس سدًّا (قِيسَ: مرَّ الشرطُ تحتَ `-O`).
+            if not str(exp).strip():
+                raise SystemExit(
+                    "حمولةُ @expected فارغةٌ في %s — وسمٌ عارٍ لا يُحاكَم" % rule)
             lines.append(f"# @expected: {exp}")
         lines.append("")
         lines.append(body)
