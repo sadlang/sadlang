@@ -41,7 +41,23 @@ import check_calibration_fresh as meta  # noqa: E402
 # (AR) 🔑 **المِحقنتانِ معًا.** كان الاختبارُ يستوردُ واحدةً، فلامتغيِّراتُ الأخرى
 #      بلا قياسٍ في CI — وهما لا تعملانِ في CI أصلًا، فهذا مساسُهما الوحيد.
 #      و«الرقعةُ تسدُّ في ملفٍّ وتتركُ الأخوات» درسٌ مُدوَّن.
-HARNESSES = (harness, anchor_harness, seed_harness)
+# (AR) 🔑 **ومِحقناتُ البوّابةِ تُشتقُّ ولا تُكتَبُ صفًّا.** صفٌّ يدويٌّ يبلى
+#      في اتّجاهٍ واحد: مِحقنةٌ رابعةٌ تصلُ فتفلتُ من كلِّ لامتغيِّرٍ ههنا،
+#      والاختبارُ يبقى أخضرَ لأنّه لا يعرفُ بوجودِها. والمعيارُ **نحويٌّ
+#      وبنيويّ**: مِحقنةٌ لها `PROBES` و`MIN_PROBES` هي مِحقنةُ بوّابة.
+def _gate_harnesses():
+    import importlib
+
+    found = []
+    for path in sorted(CODEGEN.glob("calibrate_*.py")):
+        module = importlib.import_module(path.stem)
+        if hasattr(module, "PROBES") and hasattr(module, "MIN_PROBES"):
+            found.append(module)
+    assert found, "لا مِحقنةَ عيارٍ في الشجرة — الاختبارُ صارَ يحرسُ العدم"
+    return tuple(found)
+
+
+HARNESSES = _gate_harnesses()
 
 
 # ═══ ① كلُّ مجسٍّ يُصرِّحُ بأثرِه ══════════════════════════════════════════
@@ -131,7 +147,10 @@ def test_append_refuses_a_blind_mark(harness):
 #      بـLF مهما كانت نهاياتُ الأسطرِ على قرصِ الكاتب. وبصمةٌ على البايتاتِ
 #      الخامِّ تُحمِّرُ كلَّ استنساخٍ نظيفٍ بحمرةٍ لا علاقةَ لها بالمحتوى.
 @pytest.mark.parametrize("sha", tuple(m._sha_bytes for m in HARNESSES),
-                         ids=("builtin", "anchor", "seed_contract"))
+                         # (AR) والأسماءُ تُشتقُّ كالقائمة: صفٌّ يدويٌّ بثلاثةِ
+                         #      أسماءٍ أوقفَ **جمعَ الملفِّ كلِّه** حينَ صارت
+                         #      المِحقناتُ أربعًا (قِيسَ: `Interrupted`).
+                         ids=lambda m: m.__name__)
 def test_fingerprint_is_eol_invariant(sha):
     body = ("# -*- coding: utf-8 -*-" + chr(10) + "x = 1" + chr(10)).encode("utf-8")
     assert sha(body) == sha(body.replace(harness.LF_, harness.CRLF))
@@ -401,7 +420,15 @@ def test_inherited_readers_are_the_guard_objects(consumer):
                 and node.module == CONTRACT_GUARD:
             for alias in node.names:
                 pairs[alias.name] = alias.asname or alias.name
-    assert pairs, "مستهلكٌ بلا اسمٍ موروثٍ واحد: %s" % consumer
+    if not pairs:
+        # (AR) ومستهلكٌ بـ`import اسم` المجرَّدِ لا يُسمّي شيئًا فلا اسمَ
+        #      يُقارَن — والوصولُ عبرَ الوحدةِ نفسِها هويّةٌ **بالبناء**.
+        #      ويُشترَطُ أن يكونَ كذلك فعلًا لا أن يكونَ بلا استيرادٍ أصلًا.
+        assert any(isinstance(node, _ast.Import)
+                   and any(a.name == CONTRACT_GUARD for a in node.names)
+                   for node in _ast.walk(tree)), (
+            "مستهلكٌ بلا استيرادٍ يُقاسُ عليه: %s" % consumer)
+        return
 
     module = importlib.import_module(consumer[:-len(".py")])
     for origin, alias in sorted(pairs.items()):
