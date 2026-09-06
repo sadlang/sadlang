@@ -91,15 +91,28 @@ _NO_SOT = "لا ملفَّ مدمجاتٍ"
 _NO_SITES = "مستخرِجُ الأذرعِ أعمى"
 _BAD_ARITY = "إعلانُ رتبةٍ معطوبٌ"
 _NO_REACH = "لا هدفَ تبلغُه أذرعُ الإرسال"
+_CRASH = "انهيارٌ غيرُ متوقَّعٍ"
 _ALL_MARKS = (_LITERALS, _FOREIGN, _DEAD, _UNMEASURED, _SILENT, _OVER_UNENF,
               _OVER_INLINE, _OVER_UNREACH, _NO_TABLE, _NO_ROWS, _NO_TM,
-              _NO_SOT, _NO_SITES, _BAD_ARITY, _NO_REACH)
+              _NO_SOT, _NO_SITES, _BAD_ARITY, _NO_REACH, _CRASH)
 
 _CLEAN = "✓ لا رقمَ حرفيًّا"
 
 
 def _only(mark: str):
     return (mark, tuple(other for other in _ALL_MARKS if other != mark))
+
+
+def _type_methods_as_list(_blob: bytes) -> bytes:
+    """(AR) وثيقةُ طرائقِ الأنواعِ بنيتُها صفٌّ لا خريطة — فينهارُ القارئُ.
+
+    🔑 وأوّلُ صياغةٍ للمجسِّ **أضافَت مفتاحًا** قبلَ `methods:` فبقيَتِ الوثيقةُ
+       خريطةً ومرَّ المجسُّ أخضرَ — كان يقيسُ غيرَ ما يدَّعي، والتقطَه العيار.
+    """
+    return ("- zz_probe_type_methods_is_a_list" + LF).encode("utf-8")
+
+
+_type_methods_as_list.residue = b"zz_probe_type_methods_is_a_list"
 
 
 # (AR) (اسمٌ، ملفٌّ، عطبٌ، رمزٌ منتظَر، نصٌّ منتظَر[، عدّاءٌ])
@@ -240,12 +253,20 @@ PROBES = (
               + b"                    " + SQRT_CALL, residue=True),
      0, (_CLEAN, _ALL_MARKS)),
 
-    ("⑰ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)",
+    # (AR) 🔑 **والشبكةُ العليا تُقاسُ ولا تُوعَدُ بها**: مخطَّطٌ يتبدّلُ (صفٌّ
+    #      مكانَ خريطة) كان يُخرِجُ `AttributeError` ⇒ رمزُ ١ يقرؤه `x.py` حكمًا
+    #      على المحتوى. (وكان هذا الحارسُ الخامسَ الذي أُغفِلَ حينَ نُسِخَت
+    #      الشبكةُ أربعَ مرّاتٍ — فرُفِعَت إلى `_lib/guard_exit.py`.)
+    ("⑰ مخطَّطُ طرائقِ الأنواعِ صفٌّ لا خريطةٌ — رمزُ آلةٍ ٢",
+     "language-truth/type_methods.yaml", _type_methods_as_list,
+     2, _only(_CRASH)),
+
+    ("⑱ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)",
      GUARD_REL, eol_to_lf, 0, "بصمةٌ ثابتة", _run_eol_invariance),
 )
 
 # (AR) أرضيّةُ العمق. تُقرأُ في الحارسِ الفوقيِّ أيضًا (`CEILING_MIN_PROBES`).
-MIN_PROBES = 17
+MIN_PROBES = 18
 
 
 # ═══ المِحقنةُ إعلانٌ: حارسٌ · عنوانٌ · صفُّ مجسّات ═════════════════════════
@@ -257,6 +278,9 @@ _HARNESS = Harness(
     probes=PROBES,
     min_probes=MIN_PROBES,
     baseline=None,
+    # (AR) وملفّاتٌ يقرؤها الحارسُ في كلِّ تشغيلةٍ ولا يُطفِّرُها مجسّ
+    #      تبقى بلا بصمةٍ لولا هذا الإعلان — والدائرةُ تُغلَق.
+    depends=("scripts/codegen/_lib/guard_exit.py",),
     # (AR) لا أرضيّةَ في مخرَجِه — ثلاثةُ سقوفٍ نازلةٍ وحدَها، وكلُّها مشدودةٌ
     #      اليومَ (١ · ٢٢ · ٧٦٧) ونزولُها بالعملِ لا بالقلم.
     floors="none",

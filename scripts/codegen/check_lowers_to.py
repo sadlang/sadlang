@@ -35,6 +35,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# (AR) 🔑 **شبكةُ رمزِ الخروجِ قلبٌ واحدٌ** — انظر ترويسةَ الوحدة.
+from _lib.guard_exit import رمز_الخروج  # noqa: E402
+
 try:
     import yaml
 except ImportError:
@@ -131,29 +135,6 @@ def main() -> int:
     opcodes = {e["name"]: e for e in cat.get("opcodes", []) or []}
     archs = sorted({a for e in opcodes.values() for a in (e.get("native_lowered") or [])})
 
-    # ── ① طزاجةُ الكتالوج ────────────────────────────────────────────────────
-    # (AR) لا يكفي أن يوجد الملفّ: كتالوجٌ بائتٌ يمرّ أخضرَ هو نفسُ الانجراف الذي
-    #      بُنيت هذه الحزمةُ لسدّه. نستدعي المولّد بـ‎--check فيقارن المولَّدَ بالمصدر.
-    مولّد = Path(__file__).with_name("gen_sir_opcodes_yaml.py")
-    طزاجة = "غير مفحوصة"
-    if not مولّد.exists():
-        errors.append(f"  ✗ مفقود المولّد: {مولّد.name} — طزاجةُ الكتالوج غير قابلةٍ للفحص")
-    else:
-        نتيجة = subprocess.run([sys.executable, str(مولّد), "--check"],
-                               capture_output=True, text=True, encoding="utf-8", cwd=str(ROOT))
-        if نتيجة.returncode == 0:
-            طزاجة = "محدَّث"
-        else:
-            # (AR) المولّد يبثّ إخفاقاته الحرِجة عبر SystemExit ⇒ **stderr**، وبَياناتِ
-            #      الانجراف عبر stdout. قراءةُ stdout وحدَه تُنتج تشخيصًا كاذبًا:
-            #      «الكتالوج بائت» لعطبٍ سببُه مسارٌ مفقودٌ في targets.yaml مثلًا.
-            مخرَج = ((نتيجة.stdout or "") + (نتيجة.stderr or "")).strip().splitlines()
-            طزاجة = "بائت" if نتيجة.stdout.strip() else "تعذّر فحصُها"
-            errors.append(f"  ✗ فشل فحصُ طزاجة الكتالوج (rc={نتيجة.returncode}) — "
-                          f"gen_sir_opcodes_yaml.py --check")
-            for سطر in مخرَج[-6:]:
-                errors.append(f"      {سطر}")
-
     # ── ② التغطية ────────────────────────────────────────────────────────────
     rule_ids: list[str] = []
     for yf in sorted(GRAMMAR_DIR.glob("*.yaml")):
@@ -197,6 +178,34 @@ def main() -> int:
         print(f"❌ عطبُ آلة: {TARGETS.name} بلا هدفٍ واحد — لا معنى للبوّابة "
               "الثالثة. لم يُقَسْ شيء.")
         return 2
+
+    # (AR) 🔑 **والطزاجةُ تُقاسُ بعدَ مسالكِ الرمزِ ٢ كلِّها لا قبلَها.** كانت
+    #      أوّلَ ما يُقاس، فشكواها تُجمَعُ في `errors` ثمّ يعودُ الحارسُ بـ٢
+    #      لمرجعٍ مفقودٍ **فتُحذَفُ صامتة** ويُطبَعُ «لم يُقَسْ شيء» وقد قِيسَ
+    #      ووجدَ انجرافًا. (قِيسَ: انجرافُ كتالوجٍ مع `targets.yaml` مفقودٍ
+    #      يبتلعُ سطرَ الانجرافِ كلَّه.)
+    # ── ① طزاجةُ الكتالوج ────────────────────────────────────────────────────
+    # (AR) لا يكفي أن يوجد الملفّ: كتالوجٌ بائتٌ يمرّ أخضرَ هو نفسُ الانجراف الذي
+    #      بُنيت هذه الحزمةُ لسدّه. نستدعي المولّد بـ‎--check فيقارن المولَّدَ بالمصدر.
+    مولّد = Path(__file__).with_name("gen_sir_opcodes_yaml.py")
+    طزاجة = "غير مفحوصة"
+    if not مولّد.exists():
+        errors.append(f"  ✗ مفقود المولّد: {مولّد.name} — طزاجةُ الكتالوج غير قابلةٍ للفحص")
+    else:
+        نتيجة = subprocess.run([sys.executable, str(مولّد), "--check"],
+                               capture_output=True, text=True, encoding="utf-8", cwd=str(ROOT))
+        if نتيجة.returncode == 0:
+            طزاجة = "محدَّث"
+        else:
+            # (AR) المولّد يبثّ إخفاقاته الحرِجة عبر SystemExit ⇒ **stderr**، وبَياناتِ
+            #      الانجراف عبر stdout. قراءةُ stdout وحدَه تُنتج تشخيصًا كاذبًا:
+            #      «الكتالوج بائت» لعطبٍ سببُه مسارٌ مفقودٌ في targets.yaml مثلًا.
+            مخرَج = ((نتيجة.stdout or "") + (نتيجة.stderr or "")).strip().splitlines()
+            طزاجة = "بائت" if نتيجة.stdout.strip() else "تعذّر فحصُها"
+            errors.append(f"  ✗ فشل فحصُ طزاجة الكتالوج (rc={نتيجة.returncode}) — "
+                          f"gen_sir_opcodes_yaml.py --check")
+            for سطر in مخرَج[-6:]:
+                errors.append(f"      {سطر}")
 
     missing = [r for r in rule_ids if r not in rows]
     extra = [r for r in rows if r not in rule_ids]
@@ -351,22 +360,5 @@ def main() -> int:
     return 0 if gate_ok else 1
 
 
-def _رمز_الخروج(دالّة) -> int:
-    """(AR) 🔑 **شبكةٌ عليا: الانهيارُ غيرُ المتوقَّعِ عطبُ آلةٍ لا حكمُ محتوى.**
-    الأثرُ الرجعيُّ يخرجُ برمزِ ١ فيقرؤه `x.py` «وجدَ انجرافًا» — والعلاجانِ
-    مختلفانِ تمامًا. وقِيسَ حيًّا: مخطَّطُ YAML يتبدّلُ (صفٌّ مكانَ خريطة)
-    فينهارُ القارئُ بـ`AttributeError` ويخرجُ الحارسُ بـ١."""
-    try:
-        return دالّة()
-    except SystemExit:
-        raise
-    except BaseException as علّة:          # noqa: BLE001 — الشبكةُ تعمُّ عمدًا
-        import traceback
-        traceback.print_exc()
-        print("[حارس] ✗ عطبُ آلة: انهيارٌ غيرُ متوقَّعٍ (%s) — لم يُقَسْ شيء"
-              % علّة.__class__.__name__, file=sys.stderr)
-        return 2
-
-
 if __name__ == "__main__":
-    sys.exit(_رمز_الخروج(main))
+    sys.exit(رمز_الخروج(main))

@@ -233,6 +233,9 @@ _HARNESS = Harness(
     probes=PROBES,
     min_probes=MIN_PROBES,
     baseline=None,
+    # (AR) وملفّاتٌ يقرؤها الحارسُ في كلِّ تشغيلةٍ ولا يُطفِّرُها مجسّ
+    #      تبقى بلا بصمةٍ لولا هذا الإعلان — والدائرةُ تُغلَق.
+    depends=("scripts/codegen/_lib/guard_exit.py",),
     # (AR) لا أرضيّةَ في مخرَجِه — سقفُ الدَّينِ وحدَه، وهو **مشدودٌ** اليومَ
     #      (١٦ = ١٦) ونزولُه بالعملِ لا بالقلم.
     floors="none",

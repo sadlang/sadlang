@@ -7,17 +7,19 @@
 version: 3
 guard: scripts/codegen/check_builtin_arity_sot.py
 harness: scripts/codegen/calibrate_builtin_arity_sot.py
-guard_sha256: 8845ddfcb3c89c8761d17fa577488d3d2c8de23a8af629bf096948f8f825378a
-harness_sha256: aea49e03de5b71bb46a03992a384c4af3228d3b923eec1b4ba6c12dcb50b4111
+guard_sha256: 335f6d844f410c4b97fbbb0f52f352ffbaca5b21d8a8a386ff552622865fa51c
+harness_sha256: 9cf7384af608b8945bca80f01fb9b03e4c34a35f799c191cecbc2ccccfa26fa9
 calibrated_at: 2026-09-06
-probes_total: 17
-probes_passed: 17
-result: 17/17
+probes_total: 18
+probes_passed: 18
+result: 18/18
 targets_sha256:
   compiler/src/frontend/builders/builtins_math.cpp: edde9650f9bab98d49f10131b0de9bd123247f3ff0e21a5bc61bcb9c42e9aefa
   language-truth/builtins/assertions.yaml: e0e1f11de9580d9bc51b72f4517fcdcdaf4c034fa1343340ce6bba2205fd58bb
   language-truth/builtins/math.yaml: f017c85897fef73633625240b9ad580437bc6facba83e8bde54e31ebfe7cc270
+  language-truth/type_methods.yaml: 102f5eba3a42a4035634b5d9314e7063c2e5b83941cad7af071d4ff7fad1497d
   scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
+  scripts/codegen/_lib/guard_exit.py: cd19d6a1a3634f9f76e77440b3570a2627aa7bba120f3129db15469568fa133a
   scripts/codegen/builtin_arity_extract.py: 8e1b0e047b200bf4b2e40e07f2cba9605b012fe2c66f2bf78b431ba36dacc7b5
 probes:
   - name: "① رقمٌ حرفيٌّ في موضعِ فحصٍ يُحمِّر"
@@ -100,7 +102,12 @@ probes:
     expect_exit: 0
     expect_text: "✓ لا رقمَ حرفيًّا"
     role: "انحدار — يجبُ أن يبقى أخضر"
-  - name: "⑰ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+  - name: "⑰ مخطَّطُ طرائقِ الأنواعِ صفٌّ لا خريطةٌ — رمزُ آلةٍ ٢"
+    target: language-truth/type_methods.yaml
+    expect_exit: 2
+    expect_text: "انهيارٌ غيرُ متوقَّعٍ"
+    role: "عطبُ آلة"
+  - name: "⑱ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
     target: scripts/codegen/check_builtin_arity_sot.py
     expect_exit: 0
     expect_text: "بصمةٌ ثابتة"

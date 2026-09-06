@@ -7,8 +7,8 @@
 version: 3
 guard: scripts/codegen/check_token_catalog.py
 harness: scripts/codegen/calibrate_token_catalog.py
-guard_sha256: 54113b654a633d77aea30b5bf29d6eb0959d201d1607cd70ac4de8c7571f0966
-harness_sha256: 233a1f05b70521fcaab7c4211d408bf6b151cce58f1c78aa18103b2cff33175d
+guard_sha256: 64273c9be5471015ec1fc0284948fe6325209864ab89446a7a65ea782cf851ba
+harness_sha256: 7550b742c1dc3bc5d209a59ff858a1bb01c217bc1a0807e77a948934465d0783
 calibrated_at: 2026-09-06
 probes_total: 14
 probes_passed: 14
@@ -16,6 +16,7 @@ result: 14/14
 targets_sha256:
   language-truth/keywords.yaml: 9b8ac51bbd87e68fdd5a67b33c05977d1041f4c6ef918ec5cd9a8260ed36693f
   scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
+  scripts/codegen/_lib/guard_exit.py: cd19d6a1a3634f9f76e77440b3570a2627aa7bba120f3129db15469568fa133a
   shared/lexer/include/token.h: 8ad039b59bc710e6e90d5e55341d4be5ce19a3347f1e19be8d59db1a7bc775bf
 probes:
   - name: "① رمزٌ جديدٌ في التعدادِ بلا تسجيلٍ ولا إعلانِ دَينٍ يُحمِّر"

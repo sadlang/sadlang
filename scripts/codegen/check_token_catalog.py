@@ -36,6 +36,10 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# (AR) 🔑 **شبكةُ رمزِ الخروجِ قلبٌ واحدٌ** — انظر ترويسةَ الوحدة.
+from _lib.guard_exit import رمز_الخروج  # noqa: E402
+
 try:
     import yaml
 except ImportError:
@@ -267,22 +271,5 @@ def main() -> int:
     return run_check()
 
 
-def _رمز_الخروج(دالّة) -> int:
-    """(AR) 🔑 **شبكةٌ عليا: الانهيارُ غيرُ المتوقَّعِ عطبُ آلةٍ لا حكمُ محتوى.**
-    الأثرُ الرجعيُّ يخرجُ برمزِ ١ فيقرؤه `x.py` «وجدَ انجرافًا» — والعلاجانِ
-    مختلفانِ تمامًا. وقِيسَ حيًّا: مخطَّطُ YAML يتبدّلُ (صفٌّ مكانَ خريطة)
-    فينهارُ القارئُ بـ`AttributeError` ويخرجُ الحارسُ بـ١."""
-    try:
-        return دالّة()
-    except SystemExit:
-        raise
-    except BaseException as علّة:          # noqa: BLE001 — الشبكةُ تعمُّ عمدًا
-        import traceback
-        traceback.print_exc()
-        print("[حارس] ✗ عطبُ آلة: انهيارٌ غيرُ متوقَّعٍ (%s) — لم يُقَسْ شيء"
-              % علّة.__class__.__name__, file=sys.stderr)
-        return 2
-
-
 if __name__ == "__main__":
-    sys.exit(_رمز_الخروج(main))
+    sys.exit(رمز_الخروج(main))

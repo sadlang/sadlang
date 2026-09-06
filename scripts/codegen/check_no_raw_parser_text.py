@@ -24,6 +24,10 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# (AR) 🔑 **شبكةُ رمزِ الخروجِ قلبٌ واحدٌ** — انظر ترويسةَ الوحدة.
+from _lib.guard_exit import رمز_الخروج  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
 SCOPE = ROOT / "shared" / "parser" / "src"
 
@@ -37,7 +41,11 @@ SINKS = ("error", "errorAt", "warn", "warnAt", "errorWithFixIt")
 #      العلّةِ التي سُدَّت لـ`consume` وتُرِكَت لهما. (كشفَها العيارُ الذاتيُّ
 #      حينَ صارت لكلِّ مصرفٍ عيّنةٌ موجبة: أخفقَ على عيّنةِ `errorAt`.)
 #      ولا موضعَ نداءٍ لهما في النطاقِ اليومَ، فسدُّ البابِ لا يُنمّي خطَّ الأساس.
-SINKS_AT = ("errorAt", "warnAt")
+#      🔑 **والصفُّ يُشتَقُّ باللاحقةِ ولا يُهجّى**: نسخةٌ ثانيةٌ باليدِ تعني أنّ
+#         مصرفًا ثالثًا ينتهي بـ`At` يُضافُ غدًا إلى `SINKS` وحدَه فيمرُّ عيارُه
+#         **أخضرَ** (عيّنتُه المُشتقّةُ تضعُ النثرَ في الوسيطِ الأوّل) ونثرُه
+#         الحقيقيُّ لا يراه قارئٌ واحد. (قِيسَ بحقنِ `noteAt`.)
+SINKS_AT = tuple(name for name in SINKS if name.endswith("At"))
 
 # (AR) نداء مصرف يعقبه — بعد أقواس/فراغ/أسطر — سلسلةٌ حرفيّة (تُلتقط بمحتواها).
 _CALL = re.compile(
@@ -320,22 +328,5 @@ def main() -> int:
     return 0
 
 
-def _رمز_الخروج(دالّة) -> int:
-    """(AR) 🔑 **شبكةٌ عليا: الانهيارُ غيرُ المتوقَّعِ عطبُ آلةٍ لا حكمُ محتوى.**
-    الأثرُ الرجعيُّ يخرجُ برمزِ ١ فيقرؤه `x.py` «وجدَ انجرافًا» — والعلاجانِ
-    مختلفانِ تمامًا. وقِيسَ حيًّا: مخطَّطُ YAML يتبدّلُ (صفٌّ مكانَ خريطة)
-    فينهارُ القارئُ بـ`AttributeError` ويخرجُ الحارسُ بـ١."""
-    try:
-        return دالّة()
-    except SystemExit:
-        raise
-    except BaseException as علّة:          # noqa: BLE001 — الشبكةُ تعمُّ عمدًا
-        import traceback
-        traceback.print_exc()
-        print("[حارس] ✗ عطبُ آلة: انهيارٌ غيرُ متوقَّعٍ (%s) — لم يُقَسْ شيء"
-              % علّة.__class__.__name__, file=sys.stderr)
-        return 2
-
-
 if __name__ == "__main__":
-    sys.exit(_رمز_الخروج(main))
+    sys.exit(رمز_الخروج(main))

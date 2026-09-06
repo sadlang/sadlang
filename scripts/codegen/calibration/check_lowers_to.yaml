@@ -7,8 +7,8 @@
 version: 3
 guard: scripts/codegen/check_lowers_to.py
 harness: scripts/codegen/calibrate_lowers_to.py
-guard_sha256: 0e195c2eeea7af51b98679682036aafb550e5f784328dd821fd82c4962f2254a
-harness_sha256: 6065f85b76e755efa99bd2efc1c20f15a5cf6544dbcefd7b9c5b401c88d29987
+guard_sha256: 38908d00ee45c3819e1fdb68e27f4aaae51c009b6821148586e6be3201cc9354
+harness_sha256: c79f7fbab3293c86cd6c5ea9e6570854901572a678298bc2bf2b8005bfbe0387
 calibrated_at: 2026-09-06
 probes_total: 19
 probes_passed: 19
@@ -19,6 +19,7 @@ targets_sha256:
   language-truth/grammar/00_program.yaml: 83813e2ce194dc13fa250b3b4833f16fa389b3298102b4a72f32e6d046eed63b
   language-truth/grammar/lowers_to.yaml: 9629e559586d558cc4ebd5afdb52224838df3d73aafc92e11f619ddb23d45ff9
   scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
+  scripts/codegen/_lib/guard_exit.py: cd19d6a1a3634f9f76e77440b3570a2627aa7bba120f3129db15469568fa133a
   scripts/codegen/gen_sir_opcodes_yaml.py: 5ec37b6db06e6d5090a8701c329f7ca99a0435162547221df9b61e7ba1bd0f72
 probes:
   - name: "① قاعدةٌ جديدةٌ بلا مدخلٍ في lowers_to تُحمِّر"

@@ -27,6 +27,10 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# (AR) 🔑 **شبكةُ رمزِ الخروجِ قلبٌ واحدٌ** — انظر ترويسةَ الوحدة.
+from _lib.guard_exit import رمز_الخروج  # noqa: E402
+
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -321,4 +325,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(رمز_الخروج(main))
