@@ -5,10 +5,10 @@
 (AR) حارسُ **قرّاءِ وسومِ البذور** — العدّاءُ والحارسُ يقولانِ الشيءَ نفسَه.
 
      عقدُ البذرةِ يُكتَبُ وسمًا في تعليق (`@expected` · `@skip_compiler` ·
-     `@expect_error` وأخواتُها · `@rule`)، ويقرؤه في هذه الشجرةِ **قرّاءٌ
-     كثيرون مكتوبونَ باليد** في ملفّاتٍ شتّى — عدَدُهم في ② أدناه لا ههنا،
-     فعددٌ منثورٌ نسخةٌ ثانيةٌ من حقيقةٍ تُقاس. وليس فيها مَن يقيسُ اتّفاقَهم،
-     فينجرفُ أحدُهم عن الآخرِ صامتًا.
+     `@expect_error` وأخواتُها · `@rule`)، ويقرؤه في هذه الشجرةِ **أنماطٌ
+     مُصرَّفةٌ كثيرةٌ مكتوبةٌ باليد** في ملفّاتٍ شتّى — عدَدُها في ② أدناه لا
+     ههنا، فعددٌ منثورٌ نسخةٌ ثانيةٌ من حقيقةٍ تُقاس. وليس فيها مَن يقيسُ
+     اتّفاقَهم، فينجرفُ أحدُهم عن الآخرِ صامتًا.
 
      🔑 **والانجرافُ ههنا ليس نظريًّا.** سجلُّ دروسِ هذا المستودعِ يحملُ منه
         صورًا مقيسةً: ثلاثةُ قرّاءٍ أنتجوا ثلاثةَ أرقامٍ متناقضةٍ لعدَّادٍ واحد
@@ -17,7 +17,7 @@
         ونافذةُ ثلاثينَ سطرًا لم تكنْ عندَ الحارس. وكلُّها اكتُشِفَت **بعدَ**
         الإيداعِ لا قبلَه.
 
-     وثلاثةُ لامتغيِّرات:
+     وأربعةُ لامتغيِّرات:
 
        ① **خلافُ الحدّ**: يُستوردُ `tests/runner.py` — **مُنفِّذُ العقد** — ويُسألُ
           عن كلِّ بذرةٍ في الشجرة، ويُسألُ الحارسُ عنها، ويُقارَنُ الجوابان في
@@ -25,27 +25,38 @@
           **سقفُه صفرٌ** — لا هامشَ لخلافٍ بين مَن يحرسُ ومَن يُنفِّذ.
           ولا يُغيَّرُ العدّاءُ ولا يُربَطُ بشيء: الحارسُ يستوردُه، لا العكس.
 
-       ② **قرّاءٌ مكتوبونَ باليد**: كلُّ نمطٍ مُصرَّفٍ في الشجرةِ يذكرُ وسمَ
-          بذرة. سقفٌ **نازل**: يُهبَطُ به كلّما وُرِّثَ قارئٌ، ولا يُرفَع.
-          (وليس صفرًا لأنّ الصفرَ اليومَ كذبٌ يُسكَّنُ: العدّاءُ مكتبةٌ قياسيّةٌ
-          خالصةٌ يُستدعى اثنتَي عشرةَ مرّةً في CI، وربطُه بـ`scripts/codegen`
-          مخاطرةٌ لا سدّ — فالعددُ يُسمّى ويُخفَّضُ بالعمل.)
+       ② **أنماطٌ مُصرَّفةٌ مكتوبةٌ باليد**: كلُّ نداءِ `re.*` بنمطٍ حرفيٍّ يذكرُ
+          وسمَ بذرة. **سقفٌ نازلٌ وأرضيّةٌ مُعلَنة** — والحدُّ محدودٌ من طرفَيه:
+          الانكماشُ **يُحمِّرُ** ولا يُقرأُ تقدّمًا. (وقِيسَ لِمَ: توسيعُ قائمةِ
+          الاستثناءِ بكلمةٍ واحدةٍ أخفى أربعةَ أنماطٍ والبوّابةُ خضراء.)
+          ⚠️ **والدعوى «أنماطٌ مُصرَّفة» لا «قرّاء»**: صورُ القراءةِ الأخرى
+             (`startswith` · `in` · شظيّةٌ تُركَّبُ زمنَ التشغيل) تفلتُ منه —
+             ويحرسُها ① بالحاصلِ لا بالهجاء.
+          🔑 **وأرضيّتُه بنيويّة**: أكثرُ من نصفِ هذه الأنماطِ داخلَ العدّاءِ
+             نفسِه، وقيدُ التصميمِ («يُستوردُ ولا يُغيَّر») يمنعُ توريثَها.
+             فالنزولُ ممكنٌ إلى ما فوقَ ذلك لا إلى صفر، وقولُ غيرِ ذلك دَينٌ
+             غيرُ قابلٍ للسداد.
 
-       ③ **خلافُ قرّاءِ `@rule`**: لوسمٍ واحدٍ قرّاءُ عدّة. يُطبَّقُ كلُّ
-          **هجاءٍ متمايزٍ** منهم على المادّةِ نفسِها ويُقارَنُ ما استخرجَه.
-          **سقفُه صفر.** (وهجاءٌ واحدٌ اليومَ — والصفُّ في المخرَجِ يقولُه.)
+       ③ **خلافُ قرّاءِ `@rule`**: كلُّ قارئٍ يُطبَّقُ **برايتِه وشكلِه** — لا
+          بشكلٍ مُوحَّدٍ يُطبِّعُ الفروقَ — ويُقارَنُ ما استخرجَه بمرجعٍ واحد.
+          **سقفُه صفر.** وكان يُصرَّفُ الجميعُ بـ`re.M` مهما كانت راياتُهم،
+          وكان المفتاحُ **الهجاءَ** وحدَه فلا يُقارَنُ إلّا هجاءانِ مختلفان —
+          وقِيسَ: نزعُ `re.M` من حارسِ CI حيٍّ لم يُحرِّكْ ساكنًا.
 
-     🔑 **والمقيسُ حاصلُ القراءةِ لا هجاؤها.** ثلاثُ قواعدَ متتاليةٍ في هذا
-        المستودعِ حرسَت *صورةَ كتابةِ* القارئِ الثاني، والتُفَّ على ثلاثتِها
-        بصورةٍ أخرى ثمّ باسمٍ آخرَ ثمّ بدالّةٍ أخرى من `re`. فما يُقاسُ ههنا
-        هو **الجوابُ** الذي يُعطيه كلُّ قارئٍ على بذرةٍ بعينِها.
+       ④ **ملفّاتٌ لا تُحلَّلُ نحويًّا**: تُتخطّى في المسحِ — فتُعَدُّ ويُعلَنُ
+          عددُها بسقفٍ نازل. تخطٍّ صامتٌ يُنقِصُ ② بلا إشارة.
+
+     🔑 **والمقيسُ حاصلُ القراءةِ لا هجاؤها** حيثُ أمكن. ثلاثُ قواعدَ متتاليةٍ
+        في هذا المستودعِ حرسَت *صورةَ كتابةِ* القارئِ الثاني، والتُفَّ على
+        ثلاثتِها بصورةٍ أخرى ثمّ باسمٍ آخرَ ثمّ بدالّةٍ أخرى من `re`.
 
      ⚠️ **ورمزُ الخروج**: ٢ عطبُ آلةٍ (لم يُقَسْ شيء) · ١ حكمٌ · ٠ أخضر.
 
 (EN) Guard for seed-tag readers: the runner (the contract's executor) and the
      guards must give the same answer on every seed. Imports tests/runner.py
-     read-only and compares. Ceiling 0 on disagreement, descending ceiling on
-     the number of hand-written readers, ceiling 0 on @rule reader divergence.
+     read-only. Ceiling 0 on disagreement, a two-sided bound on the number of
+     hand-written compiled patterns, ceiling 0 on @rule reader divergence, and
+     a descending ceiling on files skipped as unparseable.
 ============================================================================
 """
 from __future__ import annotations
@@ -59,14 +70,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(ROOT / "tests"))
+# (AR) والثاني يُلحَقُ ولا يُقحَمُ في الصدر: `tests/` قد يحملُ اسمًا شائعًا،
+#      وإقحامُه أوّلًا يُظلِّلُ للجلسةِ كلِّها لا لهذا الحارسِ وحدَه.
+sys.path.append(str(ROOT / "tests"))
 
 # ═══ الحدودُ المُعلَنة ═══════════════════════════════════════════════════════
-# (AR) ① و③ صفرانِ: خلافٌ بين قارئَي وسمٍ واحدٍ عطبٌ لا دَين.
 CEILING_BOUNDARY = 0
 CEILING_RULE_SPLIT = 0
-# (AR) ② سقفٌ **نازلٌ لا يُرفَع** — يُهبَطُ به كلّما وُرِّثَ قارئ.
-CEILING_HANDWRITTEN = 28
+CEILING_UNPARSED = 1
+# (AR) 🔑 **الحدُّ محدودٌ من طرفَيه.** كان سقفًا وحدَه، فقِيسَ: توسيعُ قائمةِ
+#      الاستثناءِ بكلمةٍ واحدةٍ أخفى أربعةَ أنماطٍ (٢٨ ← ٢٤) والحارسُ أخضر —
+#      «انكماشُ المُعلَنِ يُقرأُ تقدّمًا». فالنزولُ يُعلَنُ ولا يُسرَق.
+CEILING_HANDWRITTEN = 30
+FLOOR_HANDWRITTEN = 30
 
 # (AR) 🔑 مفرداتُ الوسمِ **تُشتقُّ** من أنماطِ العدّاءِ والحارسَينِ لا تُهجّى
 #      ههنا: هجاءٌ رابعٌ ليدٍ رابعةٍ هو العطبُ الذي يحرسُه هذا الملفّ.
@@ -76,19 +92,83 @@ LEXICON_SOURCES = (
     ROOT / "scripts" / "codegen" / "check_anchor_integrity.py",
 )
 _TAG = re.compile(r"@[a-z_؀-ۿ]+")
+# (AR) والوسمُ كلمةٌ تامّةٌ لا شظيّة: `len(tags) < 5` كان أرضيّةً لا تحرسُ —
+#      قِيسَ أنّ تضييقَ `_TAG` يُنتِجُ معجمًا من شظايا (`@de` · `@e` · `@kno`)
+#      و② تنكمشُ سبعةً والحارسُ أخضر.
+_WHOLE_TAG = re.compile(r"@(?:[a-z_]{3,}|[؀-ۿ_]{3,})\Z")
+FLOOR_LEXICON = 20
 
-SKIP_PARTS = ("_archive", "build", ".venv", "__pycache__", "node_modules",
-              ".git", "dist", "out")
+# (AR) 🔑 **استثناءُ الأرشيفِ يُورَثُ** كما في الشقيقتَين، ولا يُكتَبُ نسخةً
+#      رابعة. وما دونَه (نواتجُ بناءٍ وبيئاتٌ) **ليس استثناءَ بذورٍ** فيُسمّى
+#      باسمِه ولا يُخلَطُ به.
+from check_seed_contract import SKIP_PARTS  # noqa: E402
+
+BUILD_PARTS = ("build", ".venv", "__pycache__", "node_modules", ".git",
+               "dist", "out")
+
+RE_CALLS = ("compile", "search", "match", "fullmatch", "findall", "finditer",
+            "sub", "subn", "split")
 
 
-def _pattern_literals(node) -> list[str]:
-    """(AR) سلاسلُ النمطِ في نداءِ `re.*` — ولو رُكِّبَ بالجمعِ أو سُمّيَ وسيطُه."""
+def _re_aliases(tree) -> set[str]:
+    """(AR) أسماءُ وحدةِ `re` في هذا الملفِّ — و`from re import compile` كذلك."""
+    names: set[str] = set()
+    bare = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                # (AR) و`regex` بديلٌ حرفيٌّ لـ`re` في بايثون — قارئٌ مكتوبٌ
+                #      به قارئٌ كسائرِه، فلا يُستثنى بالاسم.
+                if alias.name in ("re", "regex"):
+                    names.add(alias.asname or alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module == "re":
+            for alias in node.names:
+                if alias.name in RE_CALLS:
+                    bare = True
+    if bare:
+        names.add("")          # نداءٌ مجرَّدٌ مستوردٌ من `re`
+    return names
+
+
+def _string_constants(tree) -> dict:
+    """(AR) ثوابتُ الهجاءِ على مستوى الوحدةِ — يُتبَعُ إسنادُها إلى النمط."""
+    out = {}
+    for node in tree.body:
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            value = node.value
+            if not (isinstance(value, ast.Constant) and isinstance(value.value, str)):
+                continue
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                if isinstance(target, ast.Name):
+                    out[target.id] = value.value
+    return out
+
+
+def _pattern_literals(node, aliases=None, constants=None) -> list:
+    """(AR) سلاسلُ النمطِ في نداءِ `re.*` — ولو رُكِّبَ بالجمعِ أو سُمّيَ وسيطُه
+    أو أُسنِدَ إلى ثابتٍ على مستوى الوحدة.
+
+    🔑 ويُشترَطُ أن يكونَ المُنادى **وحدةَ `re` بعينِها**: كان `func.attr`
+       وحدَه، فـ`s.split("@expected")` — نصٌّ لا يقرأُ عقدًا — كان يُوقِفُ
+       البوّابةَ (رفضٌ كاذبٌ مقيس)، و`compile()` المدمجةُ كذلك.
+    """
     if not isinstance(node, ast.Call):
         return []
     func = node.func
-    if not isinstance(func, ast.Attribute) or func.attr not in (
-            "compile", "search", "match", "fullmatch", "findall", "finditer",
-            "sub", "subn", "split"):
+    if isinstance(func, ast.Attribute):
+        if func.attr not in RE_CALLS:
+            return []
+        owner = func.value
+        if aliases is not None:
+            if not (isinstance(owner, ast.Name) and owner.id in aliases):
+                return []
+    elif isinstance(func, ast.Name):
+        if func.id not in RE_CALLS:
+            return []
+        if aliases is not None and "" not in aliases:
+            return []
+    else:
         return []
     source = node.args[0] if node.args else None
     for keyword in node.keywords:
@@ -96,69 +176,111 @@ def _pattern_literals(node) -> list[str]:
             source = keyword.value
     if source is None:
         return []
-    return [child.value for child in ast.walk(source)
-            if isinstance(child, ast.Constant) and isinstance(child.value, str)]
+    found = [child.value for child in ast.walk(source)
+             if isinstance(child, ast.Constant) and isinstance(child.value, str)]
+    if constants:
+        found += [constants[child.id] for child in ast.walk(source)
+                  if isinstance(child, ast.Name) and child.id in constants]
+    return found
 
 
-def _lexicon() -> tuple[str, ...]:
+def _multiline(node) -> bool:
+    """(AR) أفي النداءِ رايةُ `re.M`؟ — الرايةُ من موضعِ النداءِ لا تُفترَض."""
+    args = list(node.args[1:]) + [k.value for k in node.keywords if k.arg == "flags"]
+    for arg in args:
+        for child in ast.walk(arg):
+            if isinstance(child, ast.Attribute) and child.attr in ("M", "MULTILINE"):
+                return True
+    return False
+
+
+def _lexicon() -> tuple:
     """(AR) الوسومُ المعروفةُ — من أنماطِ مَن يقرؤها، لا من صفٍّ يدويّ."""
-    tags: set[str] = set()
+    tags = set()
     for path in LEXICON_SOURCES:
         if not path.is_file():
             raise AssertionError("مصدرُ معجمٍ مفقود: %s" % path)
         tree = ast.parse(path.read_text(encoding="utf-8"))
+        aliases, constants = _re_aliases(tree), _string_constants(tree)
         for node in ast.walk(tree):
-            for text in _pattern_literals(node):
+            for text in _pattern_literals(node, aliases, constants):
                 tags.update(_TAG.findall(text))
-        for node in tree.body:
-            if isinstance(node, (ast.Assign, ast.AnnAssign)):
-                value = node.value
-                if isinstance(value, ast.Constant) and isinstance(value.value, str):
-                    tags.update(_TAG.findall(value.value))
-    if len(tags) < 5:
-        raise AssertionError("معجمٌ أصغرُ من أن يكونَ صحيحًا: %r" % sorted(tags))
+        for value in constants.values():
+            tags.update(_TAG.findall(value))
+    # (AR) ⚠️ و`@expect` وسمٌ زائفٌ أنتجَه وقوفُ `_TAG` عندَ `(` في
+    #      `@expect(?:_compile)?_error`. ويبقى: إسقاطُ كلِّ سابقةٍ صارمةٍ
+    #      **أوسعُ من العطب** — قِيسَ أنّه يُسقِطُ معه `@expect_error` وهو وسمٌ
+    #      حقيقيٌّ (سابقةُ `@expect_error_compiled`)، فينكمشُ المعجمُ ٢٠ ← ١٨.
+    #      وأثرُ بقائِه توسيعُ المطابقةِ لا تضييقُها، فلا يُنقِصُ عدَّادًا.
+    tags = {tag for tag in tags if _WHOLE_TAG.match(tag)}
+    if len(tags) < FLOOR_LEXICON:
+        raise AssertionError(
+            "انكمشَ المعجمُ: %d < %d — قارئُ الوسمِ أعمى، فلا يُعلَنُ نجاح: %r"
+            % (len(tags), FLOOR_LEXICON, sorted(tags)))
     return tuple(sorted(tags))
 
 
-def _handwritten(lexicon) -> list[tuple[str, int, str]]:
-    """(AR) كلُّ نمطٍ مُصرَّفٍ في الشجرةِ يذكرُ وسمَ بذرة."""
-    # (AR) وتحذيراتُ الهروبِ من ملفّاتٍ لا نملكُها تُكتَمُ: مخرَجُ حارسٍ يُقرأُ
-    #      في CI لا يُلوَّثُ بضجيجٍ عن ملفٍّ لا يقيسُه.
-    warnings.simplefilter("ignore", SyntaxWarning)
-    found: list[tuple[str, int, str]] = []
-    for path in sorted(ROOT.rglob("*.py")):
-        if any(part in SKIP_PARTS for part in path.parts):
-            continue
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except (SyntaxError, UnicodeDecodeError, ValueError):
-            # (AR) قوالبُ توليدٍ وملفّاتٌ غيرُ صالحةٍ نحويًّا — تُتخطّى ولا
-            #      تُوقِفُ القياس، فليست قرّاءَ يُنفَّذون.
-            continue
-        for node in ast.walk(tree):
-            for text in _pattern_literals(node):
-                hit = [tag for tag in lexicon if tag in text]
+def _scan_files() -> list:
+    return [path for path in sorted(ROOT.rglob("*.py"))
+            if not any(part in SKIP_PARTS or part in BUILD_PARTS
+                       for part in path.parts)]
+
+
+def _handwritten(lexicon):
+    """(AR) كلُّ نمطٍ مُصرَّفٍ يذكرُ وسمَ بذرة — والمتخطّى نحويًّا يُعَدُّ ويُسمّى."""
+    with warnings.catch_warnings():
+        # (AR) والكتمُ محصورٌ في هذا المسحِ ولا يُغيِّرُ حالةَ العمليّةِ كلِّها:
+        #      `simplefilter` العارية تكتمُ تحذيرًا مشروعًا في اختبارٍ آخر.
+        warnings.simplefilter("ignore", SyntaxWarning)
+        found, unparsed, rules = [], [], []
+        for path in _scan_files():
+            rel = path.relative_to(ROOT).as_posix()
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError, ValueError) as exc:
+                unparsed.append("%s (%s)" % (rel, exc.__class__.__name__))
+                continue
+            aliases, constants = _re_aliases(tree), _string_constants(tree)
+            for node in ast.walk(tree):
+                texts = _pattern_literals(node, aliases, constants)
+                if not texts:
+                    continue
+                joined = "".join(texts)
+                hit = [tag for tag in lexicon if tag in joined]
                 if hit:
-                    found.append((path.relative_to(ROOT).as_posix(),
-                                  node.lineno, "·".join(hit)))
-                    break
-    return found
+                    found.append((rel, node.lineno, "·".join(hit)))
+                    if "@rule" in joined:
+                        rules.append((rel, node.lineno, joined, _multiline(node)))
+    return found, unparsed, rules
 
 
-def _rule_readers(handwritten) -> list[str]:
-    """(AR) أنماطُ `@rule` الحرفيّةُ — كلُّ نسخةٍ على حدة."""
-    patterns: set[str] = set()
-    for rel, _line, _tags in handwritten:
-        path = ROOT / rel
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except (SyntaxError, UnicodeDecodeError, ValueError):
-            continue
-        for node in ast.walk(tree):
-            for text in _pattern_literals(node):
-                if "@rule" in text:
-                    patterns.add(text)
-    return sorted(patterns)
+# ═══ ③ كلُّ قارئٍ يُطبَّقُ برايتِه وشكلِه ═══════════════════════════════════
+# (AR) 🔑 **مرجعُ المقارنةِ طرازُ العدّاء**: مطابقةٌ سطرًا سطرًا بعدَ `strip()`
+#      داخلَ نافذةِ الوسوم — وهو ما يفعلُه `tests/runner.py` بالضبط. فيُقاسُ
+#      كلُّ قارئٍ عليه ولو كان في الشجرةِ قارئٌ واحد، ولا يبقى اللامتغيِّرُ
+#      رهنَ وجودِ هجاءَينِ مختلفَين (وكان كذلك: `len(patterns) > 1` كاذبٌ
+#      دائمًا وهجاءُ الخمسةِ واحد ⇒ الكتلةُ ميّتةٌ والعيارُ يُباركُها ١٢/١٢).
+def _rule_answer(pattern: str, multiline: bool, window_text: str):
+    if multiline:
+        found = re.compile(pattern, re.M).search(window_text)
+    else:
+        compiled = re.compile(pattern)
+        found = None
+        for line in window_text.split("\n"):
+            found = compiled.match(line.strip())
+            if found:
+                break
+    if not found:
+        return None
+    return found.group(1).strip() if found.groups() else ""
+
+
+def _reference_rule_reader(rules):
+    """(AR) المرجعُ: طرازُ العدّاءِ — مطابقةٌ سطرًا سطرًا بعدَ `strip()`."""
+    for entry in rules:
+        if not entry[3]:
+            return entry
+    return rules[0] if rules else None
 
 
 def main() -> int:
@@ -174,8 +296,9 @@ def main() -> int:
 
     try:
         lexicon = _lexicon()
-        handwritten = _handwritten(lexicon)
+        handwritten, unparsed, rules = _handwritten(lexicon)
         rows = guard._seeds()
+        window = guard._runner_window()
     except AssertionError as exc:
         print("  ✗ عطبُ آلة: %s" % exc)
         return 2
@@ -183,17 +306,19 @@ def main() -> int:
         print("  ✗ عطبُ آلة: لا بذرةَ مُسِحَت — لم يُقَسْ شيء")
         return 2
 
-    print("  معجمُ الوسومِ المُشتقّ: %d (%s)"
-          % (len(lexicon), " · ".join(lexicon)))
+    print("  معجمُ الوسومِ المُشتقّ: %d (%s)" % (len(lexicon), " · ".join(lexicon)))
 
     # ── ① خلافُ الحدّ ────────────────────────────────────────────────────
-    boundary: list[str] = []
+    boundary = []
     measured = 0
+    windows = {}
     for row in rows:
         path = ROOT / row["rel"]
         if not path.is_file():
             continue
         measured += 1
+        text = io.open(path, encoding="utf-8-sig").read()
+        windows[row["rel"]] = "\n".join(text.split("\n")[:window])
         meta = executor.parse_metadata(path)
         # (AR) والسالبُ **ثلاثةُ حقولٍ** عندَ العدّاءِ لا حقلٌ واحد — وقياسُه
         #      بحقلٍ واحدٍ يُلفِّقُ عشرَ حالاتِ خلافٍ لا وجودَ لها. (قِيسَ.)
@@ -211,67 +336,66 @@ def main() -> int:
         return 2
 
     # ── ③ خلافُ قرّاءِ `@rule` ───────────────────────────────────────────
-    rule_patterns = _rule_readers(handwritten)
-    rule_split: list[str] = []
-    if len(rule_patterns) > 1:
-        answers = []
-        for pattern in rule_patterns:
-            compiled = re.compile(pattern, re.M)
-            got = {}
-            for row in rows:
-                path = ROOT / row["rel"]
-                if not path.is_file():
-                    continue
-                text = io.open(path, encoding="utf-8-sig").read()
-                text = "\n".join(text.split("\n")[:guard._runner_window()])
-                found = compiled.search(text)
-                if found:
-                    got[row["rel"]] = (found.group(1).strip()
-                                       if found.groups() else "")
-            answers.append((pattern, got))
-        first_pattern, first = answers[0]
-        for pattern, got in answers[1:]:
-            keys = set(got) ^ set(first)
-            for key in sorted(keys)[:5]:
-                rule_split.append("%s ⇐ %r مقابل %r" % (key, pattern,
-                                                        first_pattern))
-            for key in sorted(set(got) & set(first)):
-                if got[key] != first[key]:
-                    rule_split.append("%s: %r مقابل %r"
-                                      % (key, got[key], first[key]))
+    rule_split = []
+    reference = _reference_rule_reader(rules)
+    if reference is None:
+        print("  ✗ عطبُ آلة: لا قارئَ لـ@rule في الشجرة — لم يُقَسْ شيء")
+        return 2
+    ref_rel, ref_line, ref_pattern, ref_multi = reference
+    ref_answer = {rel: _rule_answer(ref_pattern, ref_multi, text)
+                  for rel, text in windows.items()}
+    for rel, line, pattern, multiline in rules:
+        if (rel, line) == (ref_rel, ref_line):
+            continue
+        for seed, text in windows.items():
+            got = _rule_answer(pattern, multiline, text)
+            if got != ref_answer[seed]:
+                rule_split.append(
+                    "%s:%d مقابل %s:%d — %s: %r مقابل %r"
+                    % (rel, line, ref_rel, ref_line, seed, got, ref_answer[seed]))
+                break
 
     print("─" * 74)
     rows_out = (
         ("① خلافُ الحدّ (العدّاء ↔ الحارس)", len(boundary), CEILING_BOUNDARY,
          "لا سقفَ له"),
-        ("② قرّاءٌ مكتوبونَ باليد", len(handwritten), CEILING_HANDWRITTEN,
+        ("② أنماطٌ مُصرَّفةٌ مكتوبةٌ باليد", len(handwritten), CEILING_HANDWRITTEN,
          "نازل"),
         ("③ خلافُ قرّاءِ @rule", len(rule_split), CEILING_RULE_SPLIT,
          "لا سقفَ له"),
+        ("④ ملفّاتٌ لا تُحلَّلُ نحويًّا", len(unparsed), CEILING_UNPARSED,
+         "نازل"),
     )
     failures = []
     for title, value, ceiling, kind in rows_out:
         print("  %-38s %5d (السقف %d — %s)" % (title, value, ceiling, kind))
         if value > ceiling:
-            failures.append((title, value, ceiling))
-    print("  بذورٌ قِيسَت على الطرفَين: %d · قرّاءُ @rule: %d"
-          % (measured, len(rule_patterns)))
+            failures.append(("✗ %s" % title, "%d > %d" % (value, ceiling)))
+    shrunk = len(handwritten) < FLOOR_HANDWRITTEN
+    if shrunk:
+        failures.append(("✗ ② انكمشَ المُعلَن",
+                         "%d < %d" % (len(handwritten), FLOOR_HANDWRITTEN)))
+    print("  بذورٌ قِيسَت على الطرفَين: %d · قرّاءُ @rule: %d · المرجع: %s:%d"
+          % (measured, len(rules), ref_rel, ref_line))
 
     if failures:
         print("─" * 74)
-        for title, value, ceiling in failures:
-            print("  ✗ %s: %d > %d" % (title, value, ceiling))
-        for line in boundary[:10]:
+        for title, detail in failures:
+            print("  %s: %s" % (title, detail))
+        for line in boundary[:8]:
             print("      · %s" % line)
-        for line in rule_split[:10]:
+        for line in rule_split[:8]:
             print("      · %s" % line)
-        if len(handwritten) > CEILING_HANDWRITTEN:
-            for rel, line, tags in handwritten[:10]:
+        for line in unparsed[:8]:
+            print("      · %s" % line)
+        if len(handwritten) > CEILING_HANDWRITTEN or shrunk:
+            for rel, line, tags in handwritten[:8]:
                 print("      · %s:%d %s" % (rel, line, tags))
         print("  ⤷ قارئانِ لوسمٍ واحدٍ يختلفانِ = عدَّادٌ واحدٌ برقمَين.")
         return 1
 
-    print("  ✓ العدّاءُ والحارسُ متّفقانِ على كلِّ بذرة، ولم ينمُ عددُ القرّاء.")
+    print("  ✓ العدّاءُ والحارسُ متّفقانِ على كلِّ بذرة، وقرّاءُ @rule متّفقون،"
+          " ولم ينمُ عددُ الأنماطِ ولم ينكمش.")
     return 0
 
 

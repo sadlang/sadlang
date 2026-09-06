@@ -45,15 +45,34 @@ import check_calibration_fresh as meta  # noqa: E402
 #      في اتّجاهٍ واحد: مِحقنةٌ رابعةٌ تصلُ فتفلتُ من كلِّ لامتغيِّرٍ ههنا،
 #      والاختبارُ يبقى أخضرَ لأنّه لا يعرفُ بوجودِها. والمعيارُ **نحويٌّ
 #      وبنيويّ**: مِحقنةٌ لها `PROBES` و`MIN_PROBES` هي مِحقنةُ بوّابة.
+# (AR) مِحقناتٌ لا يبلغُها هذا القياسُ — سقفٌ **نازلٌ لا يُرفَع**. اليومَ
+#      `calibrate_seed_proofs.py` (شكلٌ آخرُ من المِحقنات، بلا `PROBES`)
+#      وما يكونُ قيدَ الإنشاءِ في الشجرة. ولم يُجعَلْ صفرًا لأنّ الصفرَ اليومَ
+#      كذبٌ يُسكَّن، ولا صفَّ أسماءٍ لأنّه قائمةُ إذنٍ تبلى في اتّجاهٍ واحد.
+CEILING_UNMEASURED_HARNESSES = 2
+
+
 def _gate_harnesses():
     import importlib
 
-    found = []
+    found, names = [], []
     for path in sorted(CODEGEN.glob("calibrate_*.py")):
         module = importlib.import_module(path.stem)
         if hasattr(module, "PROBES") and hasattr(module, "MIN_PROBES"):
             found.append(module)
+            names.append(path.name)
     assert found, "لا مِحقنةَ عيارٍ في الشجرة — الاختبارُ صارَ يحرسُ العدم"
+    # (AR) 🔑 **والمتمِّمُ يُسمّى ولا يُغفَل.** الاشتقاقُ البنيويُّ يُسقِطُ
+    #      `calibrate_seed_proofs.py` صامتًا (شكلٌ آخرُ من المِحقنات، بلا
+    #      `PROBES`) — فيبقى شقيقٌ بلا قياسٍ **وبلا تصريح**، وهو صورةٌ من
+    #      العطبِ الذي حلَّ الاشتقاقُ محلَّه. فيُعلَنُ صراحةً ويُحاكَمُ عددُه.
+    #      وسقفٌ **نازلٌ** لا صفُّ أسماء: صفُّ الأسماءِ قائمةُ إذنٍ تبلى،
+    #      وتُحمِّرُ على عملٍ جارٍ لجلسةٍ أخرى في الشجرةِ نفسِها لا صلةَ له.
+    outside = sorted(p.name for p in CODEGEN.glob("calibrate_*.py")
+                     if p.name not in names)
+    assert len(outside) <= CEILING_UNMEASURED_HARNESSES, (
+        "نما عددُ المِحقناتِ خارجَ القياس: %d > %d — %s"
+        % (len(outside), CEILING_UNMEASURED_HARNESSES, outside))
     return tuple(found)
 
 
@@ -150,7 +169,10 @@ def test_append_refuses_a_blind_mark(harness):
                          # (AR) والأسماءُ تُشتقُّ كالقائمة: صفٌّ يدويٌّ بثلاثةِ
                          #      أسماءٍ أوقفَ **جمعَ الملفِّ كلِّه** حينَ صارت
                          #      المِحقناتُ أربعًا (قِيسَ: `Interrupted`).
-                         ids=lambda m: m.__name__)
+                         #      ⚠️ والقيمُ ههنا **دوالُّ** لا وحدات، فاسمُها
+                         #         واحدٌ للجميعِ (`_sha_bytes0…3`) ولا يدلُّ
+                         #         على المِحقنة — تُؤخَذُ من الوحداتِ نفسِها.
+                         ids=tuple(m.__name__ for m in HARNESSES))
 def test_fingerprint_is_eol_invariant(sha):
     body = ("# -*- coding: utf-8 -*-" + chr(10) + "x = 1" + chr(10)).encode("utf-8")
     assert sha(body) == sha(body.replace(harness.LF_, harness.CRLF))
@@ -260,7 +282,7 @@ def _guard_tag_vocabulary():
     tree = _ast.parse(source)
     tags = set()
     for node in _ast.walk(tree):
-        for text in _pattern_literals(node, _ast):
+        for text in _pattern_literals(node, _ast, tree):
             tags.update(_re.findall(r"@[a-z_]+", text))
     # (AR) 🔑 **وثوابتُ الهجاءِ أيضًا، لا الأنماطُ المُصرَّفةُ وحدَها.** حينَ
     #      وُحِّدَ هجاءُ الوسمِ السالبِ في ثابتٍ نصّيٍّ (`NEGATIVE_TAG`)
@@ -283,27 +305,26 @@ def _guard_tag_vocabulary():
 #      ⚠️ **ويُشترَطُ `Attribute` من `re`**: `compile()` المدمجةُ في بايثون
 #         نداءٌ مشروعٌ تمامًا (`compile(src, "<x>", "exec")`)، وكان يُرفَضُ لو
 #         حملَ مصدرُه وسمًا — رفضٌ كاذبٌ كامن.
-RE_CALLS = ("compile", "search", "match", "fullmatch", "findall", "finditer",
-            "sub", "subn", "split")
+# (AR) 🔑 **ولا نسخةَ ثانيةً من المُستخرِج.** كان مكتوبًا ههنا وفي
+#      `check_seed_tag_readers.py` — والحارسُ هو مَن أنشأ الثانية. متطابقتانِ
+#      يومَها، ولا شيءَ يقيسُ اتّفاقَهما، ولا يراهما عدَّادُ الأنماطِ نفسُه
+#      (المُستخرِجُ ليس قارئَ وسم). انجرافُ إحداهما = «عدَّادٌ واحدٌ برقمَين» —
+#      عينُ العطبِ الذي وُجِدَ هذا الملفُّ ليمنعَه.
+from check_seed_tag_readers import RE_CALLS  # noqa: E402,F401
+from check_seed_tag_readers import _pattern_literals as _guard_literals  # noqa: E402
+from check_seed_tag_readers import _re_aliases, _string_constants  # noqa: E402
 
 
-def _pattern_literals(node, ast_mod):
-    """(AR) سلاسلُ النمطِ في نداءِ `re.*` — ولو رُكِّبَ النمطُ بالجمعِ أو
-    مُرِّرَ وسيطًا مُسمًّى."""
-    call = node
-    if not isinstance(call, ast_mod.Call):
-        return []
-    func = call.func
-    if not isinstance(func, ast_mod.Attribute) or func.attr not in RE_CALLS:
-        return []
-    source = call.args[0] if call.args else None
-    for keyword in call.keywords:
-        if keyword.arg == "pattern":
-            source = keyword.value
-    if source is None:
-        return []
-    return [child.value for child in ast_mod.walk(source)
-            if isinstance(child, ast_mod.Constant) and isinstance(child.value, str)]
+def _pattern_literals(node, ast_mod, tree=None):
+    """(AR) سلاسلُ النمطِ في نداءِ `re.*` — مُورَّثةٌ من الحارس.
+
+    وتُمرَّرُ الشجرةُ ليُشتقَّ منها اسمُ وحدةِ `re` وثوابتُ الهجاء، فلا
+    يُحسَبُ `s.split("@expected")` نمطًا (رفضٌ كاذبٌ مقيس)، ويُتبَعُ نمطٌ
+    أُسنِدَ إلى ثابتٍ على مستوى الوحدة.
+    """
+    if tree is None:
+        return _guard_literals(node)
+    return _guard_literals(node, _re_aliases(tree), _string_constants(tree))
 
 
 TAG_VOCABULARY = _guard_tag_vocabulary()
@@ -354,7 +375,7 @@ def test_no_consumer_compiles_its_own_tag_reader(consumer):
     tree = _ast.parse((CODEGEN / consumer).read_text(encoding="utf-8"))
     strayed = []
     for node in _ast.walk(tree):
-        for text in _pattern_literals(node, _ast):
+        for text in _pattern_literals(node, _ast, tree):
             hit = [tag for tag in TAG_VOCABULARY if tag in text]
             if hit:
                 strayed.append("%s:%d %s ⇐ %r" % (consumer, node.lineno,
@@ -373,10 +394,14 @@ def test_the_tag_rule_can_actually_redden():
     assert "@expected" in TAG_VOCABULARY and "@skip_compiler" in TAG_VOCABULARY, (
         "مفرداتُ الوسمِ لم تُشتَقَّ من الحارس: %r" % (TAG_VOCABULARY,))
 
-    def strays(source):
+    def strays(body):
+        # (AR) 🔑 **والقصاصةُ تستوردُ الوحدةَ.** المرساةُ صارت تسألُ عن اسمِ
+        #      وحدةِ `re` في الملفِّ (وإلّا حُسِبَ `s.split("@expected")` نمطًا
+        #      — رفضٌ كاذبٌ مقيس)، فقصاصةٌ بلا استيرادٍ لا يُعرَفُ فيها اسم.
+        source = "import re" + chr(10) + "import regex" + chr(10) + body
         tree = _ast.parse(source)
         return [text for node in _ast.walk(tree)
-                for text in _pattern_literals(node, _ast)
+                for text in _pattern_literals(node, _ast, tree)
                 if any(tag in text for tag in TAG_VOCABULARY)]
 
     # (AR) والصورُ الستُّ الأخيرةُ **أفلتَت فعلًا** من نسخةٍ سابقةٍ من هذه
@@ -385,6 +410,7 @@ def test_the_tag_rule_can_actually_redden():
                    '_T = re.compile("^#" + r"[ \\t]*@expected")',
                    'X = regex.compile(r"@expect_error")',
                    'def f():\n    return re.compile(r"@expected:?\\s+(.+)")',
+                   '_P = r"@skip_compiler"\n_T = re.compile(_P)',
                    'x = re.search(r"^#[ \\t]*@skip_compiler", text)',
                    'x = re.match(r"@expected", text)',
                    'x = re.findall(r"@expect_error", text)',
@@ -397,7 +423,8 @@ def test_the_tag_rule_can_actually_redden():
                    'lines.append(f"# @expected: {exp}")',
                    '_SKIP = "# @skip_compiler"',
                    'code = compile("# @expected 1", "<x>", "exec")',
-                   'text = "@expected".join(parts)'):
+                   'text = "@expected".join(parts)',
+                   'part = s.split("@expected")[0]'):
         assert not strays(source), "رفضٌ كاذبٌ على صورةٍ مشروعة: %r" % source
 
 

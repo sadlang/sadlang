@@ -7,69 +7,84 @@
 version: 2
 guard: scripts/codegen/check_seed_tag_readers.py
 harness: scripts/codegen/calibrate_seed_tag_readers.py
-guard_sha256: f2b7916bb97d44df514f82f42decc1d251fa3e8f4df9bc899752c4477b729f6b
-harness_sha256: 7bf0d6782b75b5464ff8b9640f4e3c64c82f8a94a33324574b79c94a9185c61a
+guard_sha256: 7de9742d015f630109e743b90223709ffd1893d50a7464d932aa8da14ae05e69
+harness_sha256: d40273a2a58936f75f2a949938ca905bde5d557ebdf7f647190b7c1e791bc924
 calibrated_at: 2026-09-06
-probes_total: 12
-probes_passed: 12
-result: 12/12
+probes_total: 15
+probes_passed: 15
+result: 15/15
 probes:
   - name: "① وسمٌ مُزاحٌ: العدّاءُ يراهُ والحارسُ لا"
     target: tests/behavior/rules_matrix/10_statements/zz_tag_probe.ص
     expect_exit: 1
-    expect_text: "① خلافُ الحدّ"
+    expect_text: "✗ ①"
     role: "يجبُ أن يحمرّ"
   - name: "② قارئُ التخطّي ينجرفُ عن العدّاء"
     target: scripts/codegen/check_seed_contract.py
     expect_exit: 1
-    expect_text: "① خلافُ الحدّ"
+    expect_text: "✗ ①"
     role: "يجبُ أن يحمرّ"
   - name: "③ قارئُ العقدِ يشترطُ النقطتَين"
     target: scripts/codegen/check_seed_contract.py
     expect_exit: 1
-    expect_text: "① خلافُ الحدّ"
+    expect_text: "✗ ①"
     role: "يجبُ أن يحمرّ"
   - name: "④ نافذةُ الحارسِ تُثبَّتُ ولا تتبعُ العدّاء"
     target: scripts/codegen/check_seed_contract.py
     expect_exit: 1
-    expect_text: "① خلافُ الحدّ"
+    expect_text: "✗ ①"
     role: "يجبُ أن يحمرّ"
   - name: "⑤ السالبُ يُقاسُ بحقلٍ واحدٍ من ثلاثة"
     target: scripts/codegen/check_seed_tag_readers.py
     expect_exit: 1
-    expect_text: "① خلافُ الحدّ"
+    expect_text: "✗ ①"
     role: "يجبُ أن يحمرّ"
-  - name: "⑥ قارئٌ جديدٌ مكتوبٌ باليد"
+  - name: "⑥ نمطٌ جديدٌ مكتوبٌ باليدِ يرفعُ السقف"
     target: scripts/codegen/zz_tag_reader_probe.py
     expect_exit: 1
-    expect_text: "② قرّاءٌ مكتوبونَ باليد"
+    expect_text: "✗ ②"
     role: "يجبُ أن يحمرّ"
-  - name: "⑦ هجاءٌ ثانٍ لـ@rule ينشقُّ عن الأوّل"
+  - name: "⑦ استثناءٌ أوسعُ يُخفي أنماطًا"
+    target: scripts/codegen/check_seed_tag_readers.py
+    expect_exit: 1
+    expect_text: "✗ ②"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑧ هجاءُ @rule ينشقُّ عن المرجع"
+    target: scripts/codegen/gen_rules_matrix.py
+    expect_exit: 1
+    expect_text: "✗ ③"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑨ ملفٌّ لا يُحلَّلُ نحويًّا يُعَدُّ ويُحمِّر"
     target: scripts/codegen/zz_tag_reader_probe.py
     expect_exit: 1
-    expect_text: "③ خلافُ قرّاءِ @rule"
+    expect_text: "✗ ④"
     role: "يجبُ أن يحمرّ"
-  - name: "⑧ مصدرُ معجمٍ مفقود — رمزُ آلةٍ ٢"
+  - name: "⑩ مصدرُ معجمٍ مفقود — رمزُ آلةٍ ٢"
     target: scripts/codegen/check_seed_tag_readers.py
     expect_exit: 2
     expect_text: "عطبُ آلة"
     role: "عطبُ آلة"
-  - name: "⑨ معجمٌ خاوٍ — رمزُ آلةٍ ٢"
+  - name: "⑪ تضييقٌ جزئيٌّ للمعجم — رمزُ آلةٍ ٢"
     target: scripts/codegen/check_seed_tag_readers.py
     expect_exit: 2
-    expect_text: "عطبُ آلة"
+    expect_text: "انكمشَ المعجم"
     role: "عطبُ آلة"
-  - name: "⑩ بذرةٌ متعاقَدةٌ جديدةٌ لا تُحمِّر"
+  - name: "⑫ بذرةٌ متعاقَدةٌ جديدةٌ لا تُحمِّر"
     target: tests/behavior/rules_matrix/10_statements/zz_tag_probe.ص
     expect_exit: 0
     expect_text: "متّفقانِ على كلِّ بذرة"
     role: "انحدار — يجبُ أن يبقى أخضر"
-  - name: "⑪ تضييقُ نافذةِ العدّاءِ يتبعُه الحارس"
+  - name: "⑬ تضييقُ نافذةِ العدّاءِ يتبعُه الحارس"
     target: tests/runner.py
     expect_exit: 0
     expect_text: "متّفقانِ على كلِّ بذرة"
     role: "انحدار — يجبُ أن يبقى أخضر"
-  - name: "⑫ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+  - name: "⑭ `str.split` على وسمٍ ليس قارئًا"
+    target: scripts/codegen/zz_tag_reader_probe.py
+    expect_exit: 0
+    expect_text: "متّفقانِ على كلِّ بذرة"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑮ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
     target: scripts/codegen/check_seed_tag_readers.py
     expect_exit: 0
     expect_text: "بصمةٌ ثابتة"
