@@ -1,0 +1,119 @@
+# ═══════════════════════════════════════════════════════════════════
+# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
+#    python scripts/codegen/calibrate_lowers_to.py --record --date=YYYY-MM-DD
+# ═══════════════════════════════════════════════════════════════════
+version: 3
+guard: scripts/codegen/check_lowers_to.py
+harness: scripts/codegen/calibrate_lowers_to.py
+guard_sha256: 38908d00ee45c3819e1fdb68e27f4aaae51c009b6821148586e6be3201cc9354
+harness_sha256: c79f7fbab3293c86cd6c5ea9e6570854901572a678298bc2bf2b8005bfbe0387
+calibrated_at: 2026-09-06
+probes_total: 19
+probes_passed: 19
+result: 19/19
+targets_sha256:
+  language-truth/backend/arm64/isel.yaml: d7b0830cea61409bf21f26966a47746293cc995e7e97e2f1f1965b60340d4e4e
+  language-truth/backend/targets.yaml: d5e031457d1a320f6662238b6c025bb26c1fb3a5b8d8c86989efd86f6dd4f524
+  language-truth/grammar/00_program.yaml: 83813e2ce194dc13fa250b3b4833f16fa389b3298102b4a72f32e6d046eed63b
+  language-truth/grammar/lowers_to.yaml: 9629e559586d558cc4ebd5afdb52224838df3d73aafc92e11f619ddb23d45ff9
+  scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
+  scripts/codegen/_lib/guard_exit.py: cd19d6a1a3634f9f76e77440b3570a2627aa7bba120f3129db15469568fa133a
+  scripts/codegen/gen_sir_opcodes_yaml.py: 5ec37b6db06e6d5090a8701c329f7ca99a0435162547221df9b61e7ba1bd0f72
+probes:
+  - name: "① قاعدةٌ جديدةٌ بلا مدخلٍ في lowers_to تُحمِّر"
+    target: language-truth/grammar/00_program.yaml
+    expect_exit: 1
+    expect_text: "قاعدة بلا مدخل في lowers_to.yaml"
+    role: "يجبُ أن يحمرّ"
+  - name: "② مدخلٌ في lowers_to لقاعدةٍ لا وجودَ لها يُحمِّر"
+    target: language-truth/grammar/lowers_to.yaml
+    expect_exit: 1
+    expect_text: "مدخلٌ لقاعدةٍ غير موجودة"
+    role: "يجبُ أن يحمرّ"
+  - name: "③ أوپكودٌ غيرُ معروفٍ في مدخلِ خفضٍ يُحمِّر"
+    target: language-truth/grammar/lowers_to.yaml
+    expect_exit: 1
+    expect_text: "أوپكودٌ غير معروفٍ في الكتالوج"
+    role: "يجبُ أن يحمرّ"
+  - name: "④ اسمٌ في isel خارجَ تعدادِ المترجّمِ يُحمِّر"
+    target: language-truth/backend/arm64/isel.yaml
+    expect_exit: 1
+    expect_text: "⇐ انجرافٌ غيرُ مُعلَن"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑤ بندُ دَينٍ بالٍ في قائمةِ الإذنِ يُحمِّر"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 1
+    expect_text: "بندُ دَينٍ بالٍ في DECLARED_ISEL_DEBT"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑥ قواعدُ غيرُ مقيسةٍ فوقَ سقفِها تُحمِّر"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 1
+    expect_text: "السقفُ ينحدرُ ولا يُرفَع"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑦ هدفٌ موسومٌ lowered بلا خفضٍ يُحمِّر"
+    target: language-truth/backend/targets.yaml
+    expect_exit: 1
+    expect_text: "ولا خفضَ أصليًّا له في المترجم"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑧ معماريّةٌ مخفوضةٌ خارجَ قائمةِ المستهدَفاتِ تُحمِّر"
+    target: language-truth/backend/targets.yaml
+    expect_exit: 1
+    expect_text: "معماريّةٌ مخفوضةٌ خارج قائمة المستهدَفات"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑨ كتالوجُ الأوپكوداتِ مفقودٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 2
+    expect_text: "شغّل gen_sir_opcodes_yaml.py"
+    role: "عطبُ آلة"
+  - name: "⑩ جدولُ الخفضِ مفقودٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 2
+    expect_text: "شغّل gen_grammar_lowers_to.py"
+    role: "عطبُ آلة"
+  - name: "⑪ قارئُ القواعدِ أعمى — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 2
+    expect_text: "قارئُ القواعدِ أعمى"
+    role: "عطبُ آلة"
+  - name: "⑫ كتالوجٌ بلا أوپكودٍ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 2
+    expect_text: "الكتالوجُ لم يُقرأ"
+    role: "عطبُ آلة"
+  - name: "⑬ لا ملفَّ isel في أيِّ خلفيّةٍ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 2
+    expect_text: "لا ملفَّ isel.yaml في أيِّ خلفيّة"
+    role: "عطبُ آلة"
+  - name: "⑭ قائمةُ المنصّاتِ مفقودةٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 2
+    expect_text: "قائمةُ المنصّات مصدرُ حقيقةٍ إلزاميّ"
+    role: "عطبُ آلة"
+  - name: "⑮ قائمةُ المنصّاتِ بلا هدفٍ — رمزُ آلةٍ ٢"
+    target: language-truth/backend/targets.yaml
+    expect_exit: 2
+    expect_text: "بلا هدفٍ واحد"
+    role: "عطبُ آلة"
+  - name: "⑯ فحصُ الطزاجةِ يُخفِقُ فيُحمِّر"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 1
+    expect_text: "فشل فحصُ طزاجة الكتالوج"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑰ مولِّدُ الكتالوجِ مفقودٌ فيُحمِّر"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 1
+    expect_text: "مفقود المولّد"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑱ قاعدةٌ في تعليقٍ لا تُحمِّر"
+    target: language-truth/grammar/00_program.yaml
+    expect_exit: 0
+    expect_text: "✅ الحارس سليم"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑲ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+    target: scripts/codegen/check_lowers_to.py
+    expect_exit: 0
+    expect_text: "بصمةٌ ثابتة"
+    role: "انحدار — يجبُ أن يبقى أخضر"

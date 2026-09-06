@@ -1,0 +1,119 @@
+# ═══════════════════════════════════════════════════════════════════
+# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
+#    python scripts/codegen/calibrate_grammar_terminal_refs.py --record --date=YYYY-MM-DD
+# ═══════════════════════════════════════════════════════════════════
+version: 3
+guard: scripts/codegen/check_grammar_terminal_refs.py
+harness: scripts/codegen/calibrate_grammar_terminal_refs.py
+guard_sha256: 481f029de83273327d6da79eead8751afc1e96bfc1c2e9c1f25d03f467fdb7c9
+harness_sha256: 0d66890b706396dcc4a3731a2900917715be9a74e48844d24a43eaf68c69cd8c
+calibrated_at: 2026-09-06
+probes_total: 19
+probes_passed: 19
+result: 19/19
+targets_sha256:
+  language-truth/grammar/60_advanced.yaml: 81434d1bd4f5587a1db539d5499c61fbf36161bb60058246da1ff9ca2cff3fec
+  language-truth/grammar/_notation.yaml: 7b6ca155f13f67458009ea74877150991fa1415c506e3c11d5fe170759861958
+  language-truth/keywords.yaml: 9b8ac51bbd87e68fdd5a67b33c05977d1041f4c6ef918ec5cd9a8260ed36693f
+  language-truth/operators.yaml: ce1f556bd699769ff2592457ef3de255310b5a5b48865a5cbf78a9c6d6b67f8a
+  scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
+  scripts/codegen/_lib/guard_exit.py: cd19d6a1a3634f9f76e77440b3570a2627aa7bba120f3129db15469568fa133a
+  shared/lexer/include/token.h: 8ad039b59bc710e6e90d5e55341d4be5ce19a3347f1e19be8d59db1a7bc775bf
+probes:
+  - name: "① إحالةٌ شبحيّةٌ في `ref` تُحمِّر"
+    target: language-truth/grammar/60_advanced.yaml
+    expect_exit: 1
+    expect_text: "⇐ الإحالةُ يجب أن تكون اسمَ رمزٍ"
+    role: "يجبُ أن يحمرّ"
+  - name: "② إحالةٌ شبحيّةٌ في `separator` تُحمِّر"
+    target: language-truth/grammar/60_advanced.yaml
+    expect_exit: 1
+    expect_text: "⇐ الإحالةُ يجب أن تكون اسمَ رمزٍ"
+    role: "يجبُ أن يحمرّ"
+  - name: "③ مصدرٌ مُعلَنٌ لا يُساهِمُ باسمٍ — رمزُ آلةٍ ٢"
+    target: language-truth/keywords.yaml
+    expect_exit: 2
+    expect_text: "القارئُ أعمى عنه"
+    role: "عطبُ آلة"
+  - name: "④ مصدرُ YAML مفقودٌ — رمزُ آلةٍ ٢"
+    target: language-truth/grammar/_notation.yaml
+    expect_exit: 2
+    expect_text: "ملفٌّ مفقود"
+    role: "عطبُ آلة"
+  - name: "⑤ ترويسةُ الرموزِ مفقودةٌ — رمزُ آلةٍ ٢"
+    target: language-truth/grammar/_notation.yaml
+    expect_exit: 2
+    expect_text: "ملفٌّ مفقود"
+    role: "عطبُ آلة"
+  - name: "⑥ إعلانُ المصادرِ غائبٌ — رمزُ آلةٍ ٢"
+    target: language-truth/grammar/_notation.yaml
+    expect_exit: 2
+    expect_text: "غائبٌ أو خالٍ في _notation.yaml"
+    role: "عطبُ آلة"
+  - name: "⑦ بندُ مصدرٍ بلا حقل `source` — رمزُ آلةٍ ٢"
+    target: language-truth/grammar/_notation.yaml
+    expect_exit: 2
+    expect_text: "بندُ مصدرٍ بلا حقل"
+    role: "عطبُ آلة"
+  - name: "⑧ وثيقةُ الاصطلاحِ لا تُحلَّلُ — رمزُ آلةٍ ٢"
+    target: language-truth/grammar/_notation.yaml
+    expect_exit: 2
+    expect_text: "لا يُحلَّلُ YAML"
+    role: "عطبُ آلة"
+  - name: "⑨ بنيةُ وثيقةِ الاصطلاحِ غيرُ متوقَّعةٍ — رمزُ آلةٍ ٢"
+    target: language-truth/grammar/_notation.yaml
+    expect_exit: 2
+    expect_text: "بنيةُ `_notation.yaml` غيرُ متوقَّعة"
+    role: "عطبُ آلة"
+  - name: "⑩ نمطُ الإحالاتِ أعمى — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_grammar_terminal_refs.py
+    expect_exit: 2
+    expect_text: "قارئُ الإحالاتِ أعمى"
+    role: "عطبُ آلة"
+  - name: "⑪ لا ملفَّ قواعدَ يُمسَحُ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_grammar_terminal_refs.py
+    expect_exit: 2
+    expect_text: "لم يُمسَحْ شيء"
+    role: "عطبُ آلة"
+  - name: "⑫ إحالةٌ شبحيّةٌ في تعليقٍ لا تُحمِّر"
+    target: language-truth/grammar/60_advanced.yaml
+    expect_exit: 0
+    expect_text: "✓ كلُّ إحالاتِ الرموزِ"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑬ إحالةٌ من معرّفاتِ المعجمِ وحدَها لا تُحمِّر"
+    target: language-truth/grammar/60_advanced.yaml
+    expect_exit: 0
+    expect_text: "✓ كلُّ إحالاتِ الرموزِ"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑭ قارئُ الفواصلِ لا يُبصِر — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_grammar_terminal_refs.py
+    expect_exit: 2
+    expect_text: "قارئٌ لا يُبصِر"
+    role: "عطبُ آلة"
+  - name: "⑮ نطاقُ مشيِ المعجمِ مكسورٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_grammar_terminal_refs.py
+    expect_exit: 2
+    expect_text: "القارئُ أعمى عنه"
+    role: "عطبُ آلة"
+  - name: "⑯ قارئٌ وُسِّعَ حتّى رأى سالبتَه — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_grammar_terminal_refs.py
+    expect_exit: 2
+    expect_text: "قارئٌ لا يُبصِر"
+    role: "عطبُ آلة"
+  - name: "⑰ `categories` صفٌّ لا خريطةٌ — رمزُ آلةٍ ٢ لا انهيارٌ برمزِ ١"
+    target: language-truth/keywords.yaml
+    expect_exit: 2
+    expect_text: "القارئُ أعمى عنه"
+    role: "عطبُ آلة"
+  - name: "⑲ مصدرٌ يُساهِمُ بأقلَّ من أرضيّتِه — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_grammar_terminal_refs.py
+    expect_exit: 2
+    expect_text: "القارئُ أعمى عنه"
+    role: "عطبُ آلة"
+  - name: "⑱ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+    target: scripts/codegen/check_grammar_terminal_refs.py
+    expect_exit: 0
+    expect_text: "بصمةٌ ثابتة"
+    role: "انحدار — يجبُ أن يبقى أخضر"

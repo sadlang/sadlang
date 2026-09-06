@@ -1,18 +1,26 @@
 # ═══════════════════════════════════════════════════════════════════
 # سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
-# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ ولم يُعَدِ العيارُ حمِرَ
-#    check_calibration_fresh.py. وإعادتُه:
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
 #    python scripts/codegen/calibrate_anchor_integrity.py --record --date=YYYY-MM-DD
 # ═══════════════════════════════════════════════════════════════════
-version: 2
+version: 3
 guard: scripts/codegen/check_anchor_integrity.py
 harness: scripts/codegen/calibrate_anchor_integrity.py
 guard_sha256: 5a632a5c36fb9d338ef733308ac2384b957ec6d180bace5f6a77fecd2bf0f601
-harness_sha256: ff7a47561fb3e2b4794adbdea4b005e0d08baaa6ee3587ab4a33afd998cc8156
+harness_sha256: ac3ba709b33df0f8d2a6de8a5d7600faa2de75248ca43d33860ca28866ec812e
 calibrated_at: 2026-09-06
 probes_total: 17
 probes_passed: 17
 result: 17/17
+targets_sha256:
+  language-truth/backend/sir_opcodes.yaml: bfcdfa8937a8d47503005c94537476c7f8710b94fb1edc98b7aa5b5e3215dbe6
+  language-truth/grammar/10_statements.yaml: ab729186becf859c211809c88cc0b36b5dc9135da48f7db7667d5e7967a9268c
+  language-truth/stdlib/functions.yaml: 21ad52bcd51dcf54ee405193eedfa784cc25f4f7d63793733e3c063f6d654174
+  scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
+  tests/_archive/zz_anchor_probe.ص: (معدوم)
+  tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص: e5e6bfb6921f698b140951249872e3b7431deab953b63f1314e49020adbe6c6a
+  tests/behavior/rules_matrix/_interactions/_generated/adv.ffi_extern_block__adv.ffi_linkage/001_ffi_block_linkage.ص: d29c497d1fedc36b499d33414fac35a3e529c741008db3e5adfda51680e49ca6
 probes:
   - name: "① مرساةٌ يتيمة — وسمٌ يُسمّي قاعدةً مخترَعة"
     target: tests/behavior/rules_matrix/10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص

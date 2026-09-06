@@ -51,6 +51,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# (AR) 🔑 **وهذه المِحقنةُ ليست `Harness`**: لا `PROBES` لها ولا سجلَّ عيارٍ —
+#      تقيسُ العدّادَ «و» بتطفيرِ بذورٍ حقيقيّةٍ وسجلُّها في `measurements/`.
+#      فما يُورَثُ منها هو المشترَكُ فعلًا (`is_date` · `git_dir`) لا الآليّةُ
+#      كلُّها. وباقي شبكتِها (`_journal_open` بتوقيعٍ آخرَ) دَينٌ مُسمًّى:
+#      يُوحَّدُ حين يُوحَّدُ توقيعُه، لا بقسرِه على شكلٍ لا يناسبُه.
+from _lib.calibration import git_dir as _git_dir, is_date as _is_date  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
 SEEDS = ROOT / "tests" / "behavior"
 RUNNER = ROOT / "tests" / "runner.py"
@@ -129,16 +137,6 @@ def _sha_sample(seeds: list[Path]) -> str:
 def _sha_file(path: Path) -> str:
     """(AR) بصمةُ الثنائيِّ — بلا تطبيعِ أسطرٍ فهو ثنائيٌّ لا نصّ."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def _is_date(stamp: str) -> bool:
-    if not stamp.isascii():
-        return False
-    try:
-        date.fromisoformat(stamp)
-    except ValueError:
-        return False
-    return True
 
 
 def _candidates() -> list[Path]:
@@ -232,28 +230,6 @@ def _drop_print(text: str) -> str | None:
 #      (لا يُشغِّلُه CI)، فبذرةٌ مُودَعةٌ تبقى مُفسَدةً بلا أن يقولَها أحد.
 #      وأخواتُ هذه الأداةِ تملكُ فحصًا قبليًّا وهي كانت لا تملكُه.
 RESIDUE_MARK = "ZZ_CONTRACT_CALIBRATION_MUST_FAIL"
-
-
-# (AR) 🔑 **سجلُّ طيران**: يُكتَبُ اسمُ البذرةِ وبصمتُها الأصليّةُ **قبلَ** الطفرة،
-#      ويُمحى بعدَ الاستعادةِ المُتحقَّقِ منها. فإن بقيَ فثمّةَ تشغيلةٌ لم تُنهَ
-#      **وبذرةٌ مُودَعةٌ قد تكونُ مُفسَدة**، ويُسمّيها السجلُّ بعينِها.
-#
-#      ⚠️ ولا يُبحَثُ عن **سِمةٍ**: من المُطفِّراتِ الثلاثةِ واحدٌ يتركُ سِمةً،
-#         و`_drop_print` يحذفُ سطرًا و`_mutate_number` يُبدِّلُ رقمًا — وكلاهما
-#         بلا أثرٍ يُميَّز. وقتلٌ قاسٍ أثناءَ طفرةٍ **مكافئةٍ** (وهي ٤١ من ١٣٣
-#         مقيسًا) يُودِعُ حرفيًّا مغلوطًا في بذرةٍ **تبقى خضراءَ إلى الأبد**.
-#      ⚠️ ولا يُقاسُ بـ`git status`: ذاك يرفضُ كلَّ تعديلٍ غيرِ مُودَعٍ ولو كان
-#         مشروعًا — **رفضٌ كاذبٌ** يمنعُ القياسَ على دفعةٍ تُصلِحُ بذرةً. (جُرِّبَ
-#         فرفضَ رقعةً صحيحةً في هذه الدفعةِ نفسِها.) والسجلُّ يُسمّي **أثرَ
-#         الأداةِ وحدَها**.
-def _git_dir() -> Path:
-    """(AR) 🔑 **مجلَّدُ git يُسأَلُ ولا يُخمَّن.** في شجرةٍ فرعيّةٍ (worktree)
-    يكونُ `.git` **ملفًّا** لا مجلَّدًا، فـ`mkdir` يرمي `FileExistsError` ⇒ رمزُ
-    ٢ عندَ أوّلِ طفرة: لا فسادَ لكن **لا قياسَ**، وسجلُّ الطيرانِ ميّتٌ في
-    البيئةِ التي يستعملُها المستودعُ لتوازي الوكلاء. وأسوأُ منه أنّ فحصَ الأثرِ
-    يقولُ «نظيف» هناك بلا تحذير."""
-    out = _git("rev-parse", "--absolute-git-dir")
-    return Path(out) if out else ROOT / ".git"
 
 
 # (AR) وخارجَ `build/`: ذاك يُمحى بـ`x.py clean` وبـ`git clean -xfd`، فكان قتلٌ

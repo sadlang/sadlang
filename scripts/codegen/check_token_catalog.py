@@ -36,6 +36,10 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# (AR) 🔑 **شبكةُ رمزِ الخروجِ قلبٌ واحدٌ** — انظر ترويسةَ الوحدة.
+from _lib.guard_exit import رمز_الخروج  # noqa: E402
+
 try:
     import yaml
 except ImportError:
@@ -66,13 +70,17 @@ _RE_LINE_COMMENT = re.compile(r"//[^\n]*")
 _RE_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 
 # ═══════════════════════════════════════════════════════════════════════════════════
-# (AR) قائمة السماح — «الدَّين الموروث» (مثبَّتة بتاريخ 2026-07-11، 18 رمزًا):
+# (AR) قائمة السماح — «الدَّين الموروث» (مثبَّتة بتاريخ 2026-07-11):
+#      🔑 **ولا يُنثَرُ عددُها ههنا.** كان مكتوبًا «١٨ رمزًا» والمقيسُ ١٦: خرجَ
+#      بندانِ (KEYWORD_ASM وKEYWORD_NORETURN) بتسجيلٍ لغويٍّ وبقيَ النثرُ كما هو —
+#      نسخةٌ ثانيةٌ لحقيقةٍ تحتَها مباشرةً لا حارسَ عليها. العددُ يُشتَقُّ من
+#      القائمةِ نفسِها، وسقفُه النازلُ في `CEILING_INHERITED_DEBT` وحدَه.
 #      رموز KEYWORD_* مُعرَّفة في token.h ولم تُسجَّل بعد في keywords.yaml. الحارس
 #      **لا** يضيف كلمات إلى الكتالوج (قرار لغويّ حصريّ لمالكي مصدر الحقيقة —
 #      «الأدوات لا توسّع SoT اللغة»)؛ هو يمنع اتّساع الفجوة فقط. عند تسجيل أيّ
 #      رمز أدناه في الكتالوج (أو حذفه من token.h) يجب حذف بنده هنا — قائمة تنكمش.
 #      كلّ بند: الرمز ⇒ سبب بقائه خارج الكتالوج الآن.
-# (EN) Shrink-only inherited-debt allowlist (pinned 2026-07-11, 18 symbols): the
+# (EN) Shrink-only inherited-debt allowlist (pinned 2026-07-11): the
 #      guard never adds catalog entries (a language decision, owners-only); it
 #      only blocks NEW gaps. Cataloging or deleting a symbol requires removing
 #      its entry here. Each entry: symbol ⇒ why it is currently uncataloged.
@@ -102,6 +110,17 @@ INHERITED_DEBT: dict = {
 }
 
 
+# (AR) 🔑 **سقفٌ نازلٌ على الدَّين — والقائمةُ «تنكمشُ فقط» دعوى حتّى تُقاس.**
+#      الترويسةُ تقولُ ذلك منذُ اليوم الأوّل، ولا شيءَ كان يمنعُ سطرًا جديدًا:
+#      رمزٌ غيرُ مُسجَّلٍ يُعلَنُ دَينًا فيخضرُّ الحارسُ في الحال. فالانكماشُ
+#      يُقاسُ ولا يُوعَدُ به — ورفعُ السقفِ قرارٌ صريحٌ يُرى في الفرق.
+CEILING_INHERITED_DEBT = 16
+
+
+class ToolFault(Exception):
+    """(AR) عطبُ آلةٍ: الحارسُ لم يقرأْ مرجعًا — لا حكمَ له على المحتوى (رمز ٢)."""
+
+
 def _utf8_console() -> None:
     os.environ.setdefault("PYTHONUTF8", "1")
     for stream in (sys.stdout, sys.stderr):
@@ -114,6 +133,8 @@ def _utf8_console() -> None:
 
 def extract_header_keywords(header: Path = TOKEN_HEADER) -> set:
     """(AR) عناصر KEYWORD_* المُعرَّفة فعليًّا في تعداد token.h (التعليقات مُسقَطة)."""
+    if not header.is_file():
+        raise ToolFault("ترويسةُ الرموزِ مفقودة: %s" % header)
     text = header.read_text(encoding="utf-8", errors="replace")
     text = _RE_BLOCK_COMMENT.sub("", text)
     text = _RE_LINE_COMMENT.sub("", text)
@@ -122,7 +143,13 @@ def extract_header_keywords(header: Path = TOKEN_HEADER) -> set:
 
 def extract_catalog_keywords(catalog: Path = KEYWORDS_CATALOG) -> set:
     """(AR) كلّ tokenType: KEYWORD_* مُسجَّل في keywords.yaml (مشي YAML لا regex)."""
-    data = yaml.safe_load(catalog.read_text(encoding="utf-8")) or {}
+    if not catalog.is_file():
+        raise ToolFault("كتالوجُ المفرداتِ مفقود: %s" % catalog)
+    try:
+        data = yaml.safe_load(catalog.read_text(encoding="utf-8")) or {}
+    except (yaml.YAMLError, UnicodeDecodeError) as exc:
+        raise ToolFault("كتالوجُ المفرداتِ لا يُحلَّلُ YAML: %s"
+                        % exc.__class__.__name__)
     found: set = set()
 
     def walk(node) -> None:
@@ -140,12 +167,41 @@ def extract_catalog_keywords(catalog: Path = KEYWORDS_CATALOG) -> set:
     return found
 
 
+def _tool_fault(message: str) -> int:
+    print("❌ [token_catalog] عطبُ آلة: %s — لم يُقَسْ شيء" % message,
+          file=sys.stderr)
+    return 2
+
+
 def run_check() -> int:
-    header_kws = extract_header_keywords()
-    catalog_kws = extract_catalog_keywords()
+    try:
+        header_kws = extract_header_keywords()
+        catalog_kws = extract_catalog_keywords()
+    except ToolFault as exc:
+        return _tool_fault(str(exc))
     debt = set(INHERITED_DEBT)
 
+    # (AR) 🔑 **والعمى يُقالُ أوّلًا وبرمزِ ٢.** كان الاستخراجُ الفارغُ يُلحَقُ
+    #      ببقيّةِ الشكاوى **بعدَها** فيخرجُ برمزِ ١ — و`x.py` يقرؤه حكمًا على
+    #      المحتوى. والأسوأُ أنّ تشخيصَه يغرقُ: ترويسةٌ لا تُقرأُ تجعلُ
+    #      `catalog - header` كلَّ الكتالوجِ فتُطبَعُ ثمانونَ سطرَ «رمزٌ شبح»
+    #      عن رموزٍ سليمة — رفضٌ كاذبٌ يوجّهُ المُصلِحَ إلى الملفِّ الخطأ.
+    if not header_kws:
+        return _tool_fault("لم يُستخرَجْ أيُّ %s* من %s — تغيّرَ شكلُ التعداد؟"
+                           % (KEYWORD_PREFIX, TOKEN_HEADER.name))
+    if not catalog_kws:
+        return _tool_fault("لم يُستخرَجْ أيُّ tokenType من %s — تغيّرَ المخطّط؟"
+                           % KEYWORDS_CATALOG.name)
+
     problems: list = []
+
+    # ⓪ (AR) الدَّينُ ينكمشُ ولا ينمو — والدعوى تُقاسُ بسقفٍ نازل.
+    if len(debt) > CEILING_INHERITED_DEBT:
+        problems.append(
+            f"الدَّينُ الموروثُ {len(debt)} فوقَ السقفِ {CEILING_INHERITED_DEBT} — "
+            "القائمةُ تنكمشُ فقط؛ سجِّلِ الرمزَ في الكتالوجِ بدلَ إعلانِه دَينًا، "
+            "أو ارفعِ السقفَ بقرارٍ صريحٍ يُرى في الفرق."
+        )
 
     # ① (AR) رموز جديدة غير مُسجَّلة وغير مُعلَنة دَينًا — الفشل الأساسيّ (اتّساع الفجوة).
     new_gap = sorted(header_kws - catalog_kws - debt)
@@ -174,14 +230,6 @@ def run_check() -> int:
             f"أضِف الرمز إلى التعداد."
         )
 
-    # (AR) عطل بنيويّ: استخراج فارغ = تغيّر شكل الملفّ لا خلوّ حقيقيّ.
-    if not header_kws:
-        problems.append(f"لم يُستخرَج أيّ {KEYWORD_PREFIX}* من {TOKEN_HEADER} — "
-                        "تغيّر شكل التعداد؟ حدّث الحارس.")
-    if not catalog_kws:
-        problems.append(f"لم يُستخرَج أيّ tokenType من {KEYWORDS_CATALOG} — "
-                        "تغيّر مخطّط الكتالوج؟ حدّث الحارس.")
-
     if problems:
         print("❌ [token_catalog --check] فجوة/انجراف بين token.h وكتالوج المفردات:",
               file=sys.stderr)
@@ -190,15 +238,18 @@ def run_check() -> int:
         return 1
 
     print(f"✓ [token_catalog] token.h: {len(header_kws)} {KEYWORD_PREFIX}* · "
-          f"الكتالوج: {len(catalog_kws)} · دَين موروث مُعلَن: {len(debt)} — "
-          "لا فجوة جديدة.")
+          f"الكتالوج: {len(catalog_kws)} · دَين موروث مُعلَن: {len(debt)} "
+          f"(السقف {CEILING_INHERITED_DEBT}) — لا فجوة جديدة.")
     return 0
 
 
 def list_gap() -> int:
     """(AR) يطبع الفجوة الحاليّة كاملة (للتقارير ولصيانة قائمة الدَّين)."""
-    header_kws = extract_header_keywords()
-    catalog_kws = extract_catalog_keywords()
+    try:
+        header_kws = extract_header_keywords()
+        catalog_kws = extract_catalog_keywords()
+    except ToolFault as exc:
+        return _tool_fault(str(exc))
     gap = sorted(header_kws - catalog_kws)
     print(f"token.h: {len(header_kws)} · الكتالوج: {len(catalog_kws)} · "
           f"الفجوة: {len(gap)}")
@@ -221,4 +272,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(رمز_الخروج(main))

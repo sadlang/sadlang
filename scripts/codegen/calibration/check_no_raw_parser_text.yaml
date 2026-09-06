@@ -1,0 +1,105 @@
+# ═══════════════════════════════════════════════════════════════════
+# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
+#    python scripts/codegen/calibrate_no_raw_parser_text.py --record --date=YYYY-MM-DD
+# ═══════════════════════════════════════════════════════════════════
+version: 3
+guard: scripts/codegen/check_no_raw_parser_text.py
+harness: scripts/codegen/calibrate_no_raw_parser_text.py
+guard_sha256: 4e9a1c4d770d5c5f5098ff4d79ce7aaa25813432a7877d33aa6d9b3b1c40219b
+harness_sha256: f79970889829c5dde0d75661ff940e589b54c07298a452d52022e98101b1804f
+calibrated_at: 2026-09-06
+probes_total: 17
+probes_passed: 17
+result: 17/17
+targets_sha256:
+  scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
+  scripts/codegen/_lib/guard_exit.py: cd19d6a1a3634f9f76e77440b3570a2627aa7bba120f3129db15469568fa133a
+  shared/parser/src/declarations/parser_oop.cpp: 4503932f9ac2b64b07af6300c9cb55ab2add7f51405f6e7000868b47c038ed25
+probes:
+  - name: "① نصٌّ عربيٌّ خامٌّ في مصرفِ `error` يُحمِّر"
+    target: shared/parser/src/declarations/parser_oop.cpp
+    expect_exit: 1
+    expect_text: "✗ انحدار"
+    role: "يجبُ أن يحمرّ"
+  - name: "② نصٌّ عربيٌّ مكتوبٌ بايتاتٍ سداسيّةً لا يُفلِت"
+    target: shared/parser/src/declarations/parser_oop.cpp
+    expect_exit: 1
+    expect_text: "✗ انحدار"
+    role: "يجبُ أن يحمرّ"
+  - name: "③ نثرٌ في الوسيطِ الثاني لـ`consume` لا يُفلِت"
+    target: shared/parser/src/declarations/parser_oop.cpp
+    expect_exit: 1
+    expect_text: "✗ انحدار"
+    role: "يجبُ أن يحمرّ"
+  - name: "④ لافتةُ `std::cerr` خامّةٌ تُحمِّر"
+    target: shared/parser/src/declarations/parser_oop.cpp
+    expect_exit: 1
+    expect_text: "✗ انحدار"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑤ رقمُ خطِّ أساسٍ أعلى من المقيسِ يُحمِّر"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 1
+    expect_text: "كُنِست مواضعُ ولم يُنقَص خطّ الأساس"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑥ خطُّ الأساسِ فوقَ سقفِه يُحمِّر"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 1
+    expect_text: "ينحدرُ ولا يُرفَع: ارفعِ"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑦ قارئُ `consume` أعمى — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 2
+    expect_text: "قارئٌ لا يُبصِر"
+    role: "عطبُ آلة"
+  - name: "⑧ قارئُ مصارفِ التشخيصِ أعمى — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 2
+    expect_text: "قارئٌ لا يُبصِر"
+    role: "عطبُ آلة"
+  - name: "⑨ قارئُ `std::cerr` أعمى — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 2
+    expect_text: "قارئٌ لا يُبصِر"
+    role: "عطبُ آلة"
+  - name: "⑩ قارئٌ وُسِّعَ حتّى رأى سالبتَه — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 2
+    expect_text: "قارئٌ لا يُبصِر"
+    role: "عطبُ آلة"
+  - name: "⑪ نداءاتُ `consume` دونَ أرضيّتِها — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 2
+    expect_text: "النطاقُ المقروءُ ليس محلّلًا نحويًّا"
+    role: "عطبُ آلة"
+  - name: "⑫ لا ملفَّ مصدرٍ في النطاقِ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 2
+    expect_text: "لا ملفَّ مصدرٍ في النطاقِ"
+    role: "عطبُ آلة"
+  - name: "⑬ نطاقُ المحلّلِ مفقودٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 2
+    expect_text: "المجلّد غير موجود"
+    role: "عطبُ آلة"
+  - name: "⑭ مثالٌ في تعليقٍ لا يُحمِّر"
+    target: shared/parser/src/declarations/parser_oop.cpp
+    expect_exit: 0
+    expect_text: "✓ لا انحدار"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑮ خرقٌ بعدَ `//` داخلَ سلسلةٍ لا يُفلِت"
+    target: shared/parser/src/declarations/parser_oop.cpp
+    expect_exit: 1
+    expect_text: "✗ انحدار"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑯ سلسلةٌ بلا حرفٍ هجائيٍّ ليست نثرًا"
+    target: shared/parser/src/declarations/parser_oop.cpp
+    expect_exit: 0
+    expect_text: "✓ لا انحدار"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑰ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+    target: scripts/codegen/check_no_raw_parser_text.py
+    expect_exit: 0
+    expect_text: "بصمةٌ ثابتة"
+    role: "انحدار — يجبُ أن يبقى أخضر"
