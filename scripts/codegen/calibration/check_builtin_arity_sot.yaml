@@ -1,0 +1,107 @@
+# ═══════════════════════════════════════════════════════════════════
+# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
+#    python scripts/codegen/calibrate_builtin_arity_sot.py --record --date=YYYY-MM-DD
+# ═══════════════════════════════════════════════════════════════════
+version: 3
+guard: scripts/codegen/check_builtin_arity_sot.py
+harness: scripts/codegen/calibrate_builtin_arity_sot.py
+guard_sha256: 8845ddfcb3c89c8761d17fa577488d3d2c8de23a8af629bf096948f8f825378a
+harness_sha256: aea49e03de5b71bb46a03992a384c4af3228d3b923eec1b4ba6c12dcb50b4111
+calibrated_at: 2026-09-06
+probes_total: 17
+probes_passed: 17
+result: 17/17
+targets_sha256:
+  compiler/src/frontend/builders/builtins_math.cpp: edde9650f9bab98d49f10131b0de9bd123247f3ff0e21a5bc61bcb9c42e9aefa
+  language-truth/builtins/assertions.yaml: e0e1f11de9580d9bc51b72f4517fcdcdaf4c034fa1343340ce6bba2205fd58bb
+  language-truth/builtins/math.yaml: f017c85897fef73633625240b9ad580437bc6facba83e8bde54e31ebfe7cc270
+  scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
+  scripts/codegen/builtin_arity_extract.py: 8e1b0e047b200bf4b2e40e07f2cba9605b012fe2c66f2bf78b431ba36dacc7b5
+probes:
+  - name: "① رقمٌ حرفيٌّ في موضعِ فحصٍ يُحمِّر"
+    target: compiler/src/frontend/builders/builtins_math.cpp
+    expect_exit: 1
+    expect_text: "أرقامًا حرفيّةً في مواضعِ الفحص"
+    role: "يجبُ أن يحمرّ"
+  - name: "② ذراعٌ تقيسُ بثابتِ مدمجٍ آخرَ تُحمِّر"
+    target: compiler/src/frontend/builders/builtins_math.cpp
+    expect_exit: 1
+    expect_text: "تقيسُ بثابتِ مدمجٍ آخر"
+    role: "يجبُ أن يحمرّ"
+  - name: "③ إعلانُ رتبةٍ لا تفرضُه ذراعٌ يُحمِّر"
+    target: language-truth/builtins/assertions.yaml
+    expect_exit: 1
+    expect_text: "لا تفرضُها ذراعٌ"
+    role: "يجبُ أن يحمرّ"
+  - name: "④ ذراعٌ تفرضُ رتبةً بلا إعلانٍ تُحمِّر"
+    target: compiler/src/frontend/builders/builtins_math.cpp
+    expect_exit: 1
+    expect_text: "بلا `arity` في مصدرِ الحقيقة"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑤ ذراعُ رفضٍ لا تسجّلُ خطأً تُحمِّر"
+    target: compiler/src/frontend/builders/builtins_math.cpp
+    expect_exit: 1
+    expect_text: "أذرعُ رفضٍ لا تسجّلُ خطأً"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑥ دَينُ «لا يفرضُها أحد» فوقَ سقفِه يُحمِّر"
+    target: scripts/codegen/check_builtin_arity_sot.py
+    expect_exit: 1
+    expect_text: "لا يفرضُ رتبتَها أحد"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑦ دَينُ الرقمِ في الشرطِ فوقَ سقفِه يُحمِّر"
+    target: scripts/codegen/check_builtin_arity_sot.py
+    expect_exit: 1
+    expect_text: "رتبٌ مفروضةٌ برقمٍ في الشرط"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑧ بابُ «لا يبلغُها المترجّم» فوقَ سقفِه يُحمِّر"
+    target: scripts/codegen/check_builtin_arity_sot.py
+    expect_exit: 1
+    expect_text: "عقودٌ لا يبلغُها المترجّم"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑨ جدولُ الرتبِ المُولَّدُ مفقودٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_builtin_arity_sot.py
+    expect_exit: 2
+    expect_text: "جدولُ الرتبِ المُولَّدُ مفقود"
+    role: "عطبُ آلة"
+  - name: "⑩ جدولُ الرتبِ بلا صفٍّ واحدٍ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_builtin_arity_sot.py
+    expect_exit: 2
+    expect_text: "بلا صفٍّ واحد"
+    role: "عطبُ آلة"
+  - name: "⑪ قارئُ `lookup` أعمى — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_builtin_arity_sot.py
+    expect_exit: 2
+    expect_text: "لا هدفَ تبلغُه أذرعُ الإرسال"
+    role: "عطبُ آلة"
+  - name: "⑫ طرائقُ الأنواعِ مفقودةٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_builtin_arity_sot.py
+    expect_exit: 2
+    expect_text: "طرائقُ الأنواعِ مفقودة"
+    role: "عطبُ آلة"
+  - name: "⑬ مصدرُ حقيقةِ المدمجاتِ فارغٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_builtin_arity_sot.py
+    expect_exit: 2
+    expect_text: "لا ملفَّ مدمجاتٍ"
+    role: "عطبُ آلة"
+  - name: "⑭ مستخرِجُ الأذرعِ أعمى — رمزُ آلةٍ ٢"
+    target: scripts/codegen/builtin_arity_extract.py
+    expect_exit: 2
+    expect_text: "مستخرِجُ الأذرعِ أعمى"
+    role: "عطبُ آلة"
+  - name: "⑮ إعلانُ رتبةٍ معطوبٌ في مصدرِ الحقيقةِ — رمزُ آلةٍ ٢"
+    target: language-truth/builtins/math.yaml
+    expect_exit: 2
+    expect_text: "إعلانُ رتبةٍ معطوبٌ"
+    role: "عطبُ آلة"
+  - name: "⑯ رقمٌ حرفيٌّ في تعليقٍ لا يُحمِّر"
+    target: compiler/src/frontend/builders/builtins_math.cpp
+    expect_exit: 0
+    expect_text: "✓ لا رقمَ حرفيًّا"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑰ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+    target: scripts/codegen/check_builtin_arity_sot.py
+    expect_exit: 0
+    expect_text: "بصمةٌ ثابتة"
+    role: "انحدار — يجبُ أن يبقى أخضر"

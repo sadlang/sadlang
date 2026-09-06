@@ -224,7 +224,8 @@ class Harness:
     def __init__(self, *, guard: Path, harness: Path, record: Path,
                  title: str, probes: tuple, min_probes: int,
                  baseline=None, floors: str = "none",
-                 has_bounds: bool = True, version: int = 3) -> None:
+                 has_bounds: bool = True, version: int = 3,
+                 depends: tuple = ()) -> None:
         self.guard = Path(guard)
         self.harness = Path(harness)
         self.record = Path(record)
@@ -252,6 +253,13 @@ class Harness:
         #      في مخرَجِه أخفقَ العيار، فلا يصيرُ الإعلانُ بابًا لتخطّي الشدّ.
         self.has_bounds = has_bounds
         self.version = version
+        # (AR) 🔑 **وملفٌّ يعتمدُ عليه الحارسُ ولا يُطفِّرُه مجسٌّ يبقى بلا بصمة.**
+        #      واللامتغيِّرُ قد يكونُ **مُفوَّضًا بالكامل** إلى أداةٍ أُخرى:
+        #      `check_lowers_to` يُفوِّضُ «طزاجةَ الكتالوج» إلى مولِّدِه، ومجسّاه
+        #      يرسوانِ على اسمِ المولِّدِ ورايتِه — فتغيُّرُ المولِّدِ يُبطِلُ
+        #      العيارَ ولا بصمةَ تلتقطُه. وهو الثقبُ الذي سُدَّ للقلبِ نفسِه من
+        #      بابٍ ثالث. فتُعلَنُ التبعيّةُ صراحةً وتُضَمُّ إلى بصماتِ الأهداف.
+        self.depends = tuple(depends)
         self.journal = Journal(self.harness.stem)
         # (AR) و`baseline=None` إعلانٌ يُقاسُ كذلك: نصُّ الانتظارِ **القابلُ
         #      للنداء** هو وحدَه ما يلزمُه مرجعٌ مقيسٌ قبلَ الطفرة، فوجودُه بلا
@@ -448,7 +456,8 @@ class Harness:
         #      **بلا أن يحمرَّ شيء**. وهو عينُ الثقبِ الذي سدَّته بصماتُ
         #      الأهدافِ الثالثة، يُعيدُه التعميمُ من بابٍ آخرَ إن أُغفِل.
         core_rel = Path(__file__).resolve().relative_to(ROOT).as_posix()
-        third = sorted(({entry[1] for entry in self.probes} | {core_rel})
+        third = sorted(({entry[1] for entry in self.probes} | {core_rel}
+                        | set(self.depends))
                        - {guard_rel, harness_rel})
         lines.append("targets_sha256:")
         for rel in third:

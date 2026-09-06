@@ -1,0 +1,90 @@
+# ═══════════════════════════════════════════════════════════════════
+# سجلُّ عيارٍ — مُشتَقٌّ آليًّا، لا يُحرَّرُ باليد.
+# ⚠️ إن تغيّرَ الحارسُ أو المِحقنةُ أو هدفُ مجسٍّ ولم يُعَدِ العيارُ
+#    حمِرَ check_calibration_fresh.py. وإعادتُه:
+#    python scripts/codegen/calibrate_token_catalog.py --record --date=YYYY-MM-DD
+# ═══════════════════════════════════════════════════════════════════
+version: 3
+guard: scripts/codegen/check_token_catalog.py
+harness: scripts/codegen/calibrate_token_catalog.py
+guard_sha256: 54113b654a633d77aea30b5bf29d6eb0959d201d1607cd70ac4de8c7571f0966
+harness_sha256: 233a1f05b70521fcaab7c4211d408bf6b151cce58f1c78aa18103b2cff33175d
+calibrated_at: 2026-09-06
+probes_total: 14
+probes_passed: 14
+result: 14/14
+targets_sha256:
+  language-truth/keywords.yaml: 9b8ac51bbd87e68fdd5a67b33c05977d1041f4c6ef918ec5cd9a8260ed36693f
+  scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
+  shared/lexer/include/token.h: 8ad039b59bc710e6e90d5e55341d4be5ce19a3347f1e19be8d59db1a7bc775bf
+probes:
+  - name: "① رمزٌ جديدٌ في التعدادِ بلا تسجيلٍ ولا إعلانِ دَينٍ يُحمِّر"
+    target: shared/lexer/include/token.h
+    expect_exit: 1
+    expect_text: "رمز جديد في token.h غير مُسجَّل"
+    role: "يجبُ أن يحمرّ"
+  - name: "② بندُ دَينٍ صارَ مُسجَّلًا في الكتالوجِ يُحمِّر"
+    target: language-truth/keywords.yaml
+    expect_exit: 1
+    expect_text: "أصبح مُسجَّلًا في الكتالوج"
+    role: "يجبُ أن يحمرّ"
+  - name: "③ بندُ دَينٍ زالَ من التعدادِ يُحمِّر"
+    target: shared/lexer/include/token.h
+    expect_exit: 1
+    expect_text: "لم يعُد مُعرَّفًا في token.h"
+    role: "يجبُ أن يحمرّ"
+  - name: "④ رمزٌ في الكتالوجِ لا وجودَ له في التعدادِ يُحمِّر"
+    target: language-truth/keywords.yaml
+    expect_exit: 1
+    expect_text: "رمز شبح في الكتالوج"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑤ الدَّينُ فوقَ سقفِه يُحمِّر"
+    target: scripts/codegen/check_token_catalog.py
+    expect_exit: 1
+    expect_text: "فوقَ السقفِ"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑥ قارئُ التعدادِ أعمى — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_token_catalog.py
+    expect_exit: 2
+    expect_text: "تغيّرَ شكلُ التعداد"
+    role: "عطبُ آلة"
+  - name: "⑦ قارئُ الكتالوجِ أعمى — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_token_catalog.py
+    expect_exit: 2
+    expect_text: "تغيّرَ المخطّط"
+    role: "عطبُ آلة"
+  - name: "⑧ ترويسةُ الرموزِ مفقودةٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_token_catalog.py
+    expect_exit: 2
+    expect_text: "ترويسةُ الرموزِ مفقودة"
+    role: "عطبُ آلة"
+  - name: "⑨ كتالوجُ المفرداتِ مفقودٌ — رمزُ آلةٍ ٢"
+    target: scripts/codegen/check_token_catalog.py
+    expect_exit: 2
+    expect_text: "كتالوجُ المفرداتِ مفقود"
+    role: "عطبُ آلة"
+  - name: "⑩ كتالوجُ المفرداتِ لا يُحلَّلُ — رمزُ آلةٍ ٢"
+    target: language-truth/keywords.yaml
+    expect_exit: 2
+    expect_text: "لا يُحلَّلُ YAML"
+    role: "عطبُ آلة"
+  - name: "⑪ رمزٌ في تعليقٍ سطريٍّ ليس عنصرَ تعدادٍ"
+    target: shared/lexer/include/token.h
+    expect_exit: 0
+    expect_text: "لا فجوة جديدة"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑫ رمزٌ في تعليقٍ كتليٍّ ليس عنصرَ تعدادٍ"
+    target: shared/lexer/include/token.h
+    expect_exit: 0
+    expect_text: "لا فجوة جديدة"
+    role: "انحدار — يجبُ أن يبقى أخضر"
+  - name: "⑬ عنصرٌ جديدٌ في الموضعِ الأخيرِ قبلَ `};` لا يُفلِتُ"
+    target: shared/lexer/include/token.h
+    expect_exit: 1
+    expect_text: "رمز جديد في token.h غير مُسجَّل"
+    role: "يجبُ أن يحمرّ"
+  - name: "⑭ البصمةُ لا تتغيّرُ بنهاياتِ الأسطرِ (LF)"
+    target: scripts/codegen/check_token_catalog.py
+    expect_exit: 0
+    expect_text: "بصمةٌ ثابتة"
+    role: "انحدار — يجبُ أن يبقى أخضر"
