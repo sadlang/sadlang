@@ -70,7 +70,29 @@ SOURCE_SUFFIXES = {".h", ".hpp", ".hh", ".cpp", ".cc", ".cxx", ".inc"}
 # (EN) The floor counts SCANNED FILES, not violations: if a root is renamed the
 #      guard would scan nothing and pass forever. A guard that sees nothing can
 #      never fire.
-MIN_SCANNED_FILES = 700
+#
+# (AR) 🔑 **نُزِّلَت ٧٠٠ ⇒ ٦٦٠ (٢٠٢٦-٠٩-٠٨) بحذفٍ مقيسٍ لا بانزياحِ مِرساة** —
+#      وهذا هو التمييزُ الذي وُجِدَت الأرضيّةُ لأجلِه. حُذِفَ **٤٣ ملفَّ مصدرٍ**
+#      من الجذورِ الممسوحةِ في إيداعٍ واحد (نظامُ الأنواعِ المزدوجُ وآلةُ
+#      استدلالٍ ميّتةٌ وثلاثةُ مولِّداتٍ بلا مُستهلِك)، فنزلَ المسحُ من ٧٤٢ إلى
+#      **٦٩٩** — تحتَ الأرضيّةِ بواحد.
+#      وأمرُ القياس:
+#        git show <الإيداع> --diff-filter=D --name-only #          | grep -E '^(shared|compiler|tools|apps|runtime)/.*\.(h|hpp|cpp|cc)$' | wc -l
+#      والهامشُ يبقى **٣٩** كما كان (٦٩٩ − ٦٦٠)، فلم تُرخَ الأرضيّةُ نسبةً إلى
+#      الشجرةِ بل نُقِلَت معها.
+#      ⚠️ **ولم تُرفَعْ لتُسكِتَ الحارس**: لو نزلَ المسحُ بلا حذفٍ يُبرِّرُه لكانَ
+#      ذلك انزياحَ مِرساةٍ وهو ما تحرسُه هذه الأرضيّةُ بعينِه — والفرقُ بينَ
+#      الحالَين **أمرُ قياسٍ يُعادُ تشغيلُه**، لا حسنُ ظنٍّ بمن أنزلَها.
+# (EN) Floor lowered 700 ⇒ 660 by a MEASURED DELETION, not an anchor drift — the
+#      very distinction this floor exists to make. 43 source files were removed
+#      from the scanned roots in one commit (the duplicate type system, a dead
+#      inference engine and three consumer-less generators), taking the scan from
+#      742 to 699 — one below the floor. The margin stays 39, so the floor moved
+#      with the tree rather than being relaxed against it. It was NOT raised to
+#      silence the guard: a drop with no deletion behind it is exactly the anchor
+#      drift this floor catches, and the difference between the two cases is a
+#      re-runnable measurement, not trust in whoever lowered it.
+MIN_SCANNED_FILES = 660
 
 # (AR) `namespace` تُعلِّق فتحًا وأوّلُ `{` بعدَها يفتحه — ولو بعدَ أسطر. و`;` أو
 #      `=` تُلغي التعليقَ فلا يُحسَب `using namespace X;` ولا الاسمُ البديلُ فتحًا.
