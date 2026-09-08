@@ -1,0 +1,46 @@
+# @rule: gr.expr.equality
+# @description: الوحدةُ تُقارَنُ بالحرفيّةِ «()» — بالصيغةِ التي يكتبُها القارئُ لا صيغةً أخرى
+# @priority: P0
+# @expected صحيح\nخطأ\nمساوٍ
+
+# ============================================================
+# (AR) 🔑 هذه البذرةُ وُلِدَت من **عطبٍ كشفتْه مراجعةٌ خصميّةٌ لا حارس**،
+#      ودرسُها في **البذرةِ التي سبقتْها** لا في العطب.
+#
+#      كانت `20_declarations/gr.decl.variable/basic/202_unit_is_singleton.ص`
+#      تحرسُ تفرُّدَ النوعِ وتخضَرّ، وهي تكتبُ `أ == ب` — متغيّرَين اثنَين.
+#      وكلاهما خانةُ `i8`، فتتّفقُ العروضُ وتنجحُ المقارنة.
+#      أمّا `أ == ()` — **وهي أوّلُ ما يكتبُه قارئُ تلك البذرةِ** — فكانت
+#      تُخرِجُ `icmp eq i8 …, i64 0` فيرفضُه مدقّقُ LLVM ⇒ `INT011` ولا
+#      ثنائيَّ يُسلَّم: المستعمِلُ يُتَّهَمُ بعلّةِ مترجّمٍ في برنامجٍ صحيح.
+#
+#   ⚠️ **فبذرةٌ تحرسُ معنًى بصيغةٍ واحدةٍ تحرسُ الصيغةَ لا المعنى.** والأخطرُ
+#      أنّ الصيغةَ الناجيةَ كانت الأبعدَ عن ذهنِ القارئ، والمكسورةَ هي
+#      الأقربُ — فالعدّادُ يقولُ «التفرُّدُ محروس» وأشهرُ صيغتِه تنهار.
+#
+#   🔑 والعلاجُ حَسْمٌ **بالنوعِ لا بالبتّات**: النوعُ مفردٌ فأيُّ وحدتَينِ
+#      متساويتانِ بالتعريف، ولا معلومةَ في الخانةِ أصلًا تُقارَن. ولذلك
+#      تقيسُ البذرةُ `==` و`!=` معًا: لو حُسِمَت إحداهما وتُركت الأخرى
+#      لَناقضَ البرنامجُ نفسَه.
+# (EN) Born from a defect found by adversarial review, not by a guard — and its
+#      lesson is about the EARLIER seed. The singleton seed compares two
+#      variables (`أ == ب`), two i8 slots that happen to agree, and stayed green.
+#      But `أ == ()` — the very first thing a reader of that seed writes — emitted
+#      `icmp eq i8 …, i64 0`, rejected by the LLVM verifier: INT011, no binary,
+#      the user accused of a compiler bug for a correct program. A seed that pins
+#      a meaning through one spelling pins the spelling, not the meaning — and
+#      here the surviving spelling was the less natural one. Fixed BY TYPE, not by
+#      bits: the type is a singleton, so any two units are equal by definition.
+#      Both == and != are measured; deciding one and leaving the other would let
+#      the program contradict itself.
+# ============================================================
+
+خالي أ = ()
+اطبع_سطر(نص(أ == ()))
+اطبع_سطر(نص(أ != ()))
+
+إذا (أ == ())
+    اطبع_سطر("مساوٍ")
+وإلا
+    اطبع_سطر("مختلف")
+نهاية

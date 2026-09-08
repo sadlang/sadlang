@@ -334,6 +334,41 @@ namespace Sad
                                             SadTypeKind::Null);
                                         break;
                                     }
+                                    // ═══════════════════════════════════════════════════
+                                    // (AR) 🔑 قيمةُ الوحدةِ الافتراضيّة — **والصفرُ الخامُّ
+                                    //      لا يكفي**، وهو موضعُ الالتباسِ كلِّه.
+                                    //
+                                    //      `memset(0)` يترك الخانةَ أصفارًا، وخانةُ الحقلِ
+                                    //      قد تكونُ `%SadDyn` = {وسمٌ، حمولة} — فالوسمُ
+                                    //      صفرٌ، والصفرُ في فضاءِ الأوسامِ **ليس الوحدةَ
+                                    //      بل الغياب**. ولذلك كان `نوع(ك.ح)` يُجيبُ
+                                    //      «عدم» ويطبعُ «لاشيء» لحقلٍ نوعُه `خالي`
+                                    //      (مقيسٌ 2026-09-07).
+                                    //
+                                    //   🔑 والكتابةُ ههنا ليست تزيينًا لخانةٍ صفريّة: هي
+                                    //      تمرُّ بـ`toDyn` فتضعُ وسمَ الوحدةِ (١٠) مكانَ
+                                    //      الصفر. **فالفرقُ بينَ «لم يُكتَبْ شيءٌ» و«كُتِبَت
+                                    //      الوحدةُ» هو الوسمُ لا البتّات**، وهو عينُ الفرقِ
+                                    //      الذي تقومُ عليه هذه الحملة.
+                                    // (EN) The unit's default value — and a raw zero is not
+                                    //      enough, which is the whole confusion. memset(0) leaves
+                                    //      the slot zeroed, and a field slot may be %SadDyn =
+                                    //      {tag, payload}: the tag is then zero, and zero in the
+                                    //      TAG space is not the unit but ABSENCE. Hence a `خالي`
+                                    //      field answered «عدم» and printed «لاشيء». Writing here
+                                    //      is not decorating an already-zero slot: it goes through
+                                    //      toDyn, which stamps the unit tag (10) over that zero.
+                                    //      The difference between "nothing was written" and "the
+                                    //      unit was written" is the TAG, not the bits — the very
+                                    //      distinction this campaign exists to preserve.
+                                    // ═══════════════════════════════════════════════════
+                                    case SadTypeKind::Unit:
+                                    {
+                                        storeDefault(llvm::ConstantInt::get(
+                                                         llvm::Type::getInt8Ty(*cg_.context_), 0),
+                                                     SadTypeKind::Unit);
+                                        break;
+                                    }
                                     default:
                                         break;
                                     }
@@ -565,6 +600,24 @@ namespace Sad
                 case SadTypeKind::Any:
                     allocType = getSadDynType(*cg_.context_);
                     break;
+                // (AR) 🔑 خانةُ نوعِ الوحدة «خالي» — `i8` حاملٌ لا معلومةَ فيه، قيمتُه
+                //      صفرٌ دائمًا. ونظيرُها للمتغيّرِ العامِّ في `classes_vtables_ops.cpp`،
+                //      و**افتراقُ المسارَين هو العطب**: كانت الخانةُ المحلّيّةُ تسقطُ إلى
+                //      `default` فتصير i64 تحملُ **مؤشّرَ صفٍّ في الكومة**، فيقارَنُ
+                //      عنوانانِ لا قيمتان — ومقيسٌ (2026-09-07) أنّ «خالي أ = ()» و
+                //      «خالي ب = ()» كانا **متساويَين في النطاقِ العامِّ ومختلفَين داخلَ
+                //      دالّة**. برنامجٌ واحدٌ بحكمَين، والفارقُ موضعُ التصريحِ وحدَه.
+                //      و`@حجم(خالي)` يبقى **صفرًا**: يُقرَأُ من `types.yaml ⇒ size_bytes`
+                //      لا من عرضِ خانةِ LLVM.
+                // (EN) Unit slot — `i8`, a carrier holding no information (always zero).
+                //      Mirrors the global path in classes_vtables_ops.cpp, and the split
+                //      between the two WAS the defect: a local unit slot fell through to
+                //      `default` (i64) and held a heap TUPLE POINTER, so two units
+                //      compared as addresses. Measured: equal at global scope, unequal
+                //      inside a function — one program, two verdicts.
+                case SadTypeKind::Unit:
+                    allocType = ::Sad::LLVM::unitCarrierType(*cg_.context_);
+                    break;
                 default:
                     allocType = cg_.getInt64Type();
                     break;
@@ -727,6 +780,21 @@ namespace Sad
                 default:
                     cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Unsupported"}});
                     return nullptr;
+                }
+
+                // (AR) 🔑 ونتيجةُ MOVE إن كانت وحدةً فحاملُها `i8` مهما كان عرضُ
+                //      الثابتِ المصدر: الواجهةُ الأماميّةُ تبني «()» بـ`ConstantI64(0)`
+                //      لأنّ SIR لا حرفيَّ وحدةٍ فيه، فيصلُ `i64` إلى خانةٍ `i8`.
+                //      والتضييقُ ههنا عندَ المنتِجِ لا عندَ التخزين: مَن يعرفُ النوعَ
+                //      يعرفُ عرضَه.
+                // (EN) A MOVE whose RESULT is Unit carries i8 regardless of the source
+                //      constant's width: the front end builds «()» as ConstantI64(0)
+                //      because SIR has no unit literal. Narrowed at the producer, where
+                //      the kind is known — not at the store.
+                if (inst->result->dataType == SadTypeKind::Unit && value != nullptr &&
+                    value->getType()->isIntegerTy())
+                {
+                    value = ::Sad::LLVM::unitCarrierValue(*cg_.context_);
                 }
             }
             // ================================================================

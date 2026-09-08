@@ -1,0 +1,49 @@
+# @rule: gr.stmt.if
+# @description: وحدةٌ في موضعِ شرطٍ تُرفَض — لا تسقطُ صامتةً إلى «خطأ»
+# @priority: P0
+# @expect_compile_error RUN033
+# @expect_error RUN033
+
+# ============================================================
+# (AR) 🔑 **الكاذبُ الصامتُ أخطرُ من الكاذبِ الصاخب.**
+#
+#      كان `اذا (())` يُترجَمُ ويأخذُ فرعَ `والا` **بلا تشخيصٍ البتّة** ورمزُ
+#      خروجٍ صفريّ (مقيسٌ 2026-09-07). فالوحدةُ كانت مُصنَّفةً مع `لاشيء` لا مع
+#      القيم — وهي نوعُ قيمةٍ لا غياب، **ولا معلومةَ فيها تُصدَّقُ أو تُكذَّب**.
+#      فالبرنامجُ لا يُخفِق، ولا يُنبَّهُ كاتبُه، ويأخذُ الفرعَ الخطأَ صامتًا.
+#
+#   ⚠️ **والحارسُ خارجَ `strictMode_` عمدًا، وذلك أهمُّ من الحارسِ نفسِه.**
+#      فوقَه بأسطرٍ حارسٌ يفحصُ «أهو منطقيّ؟» **معطَّلٌ خلفَ ذلك العَلَم**، وقد
+#      عاشَ العَلَمُ سنتَينِ بلا مُنادٍ. وهو الدرسُ المُدوَّنُ في CLAUDE.md حرفًا:
+#      **عَلَمٌ بلا مُنادٍ يبقى غيرَ مقيسٍ لا أخضر**. ولو وُضِعَ هذا الحكمُ خلفَه
+#      لَبقيَ الرفضُ نصًّا في الشفرةِ لا سلوكًا في المترجّم — وهو أسوأُ من ألّا
+#      يُكتَبَ أصلًا، إذ يُقرَأُ حراسةً فيُطمأَنُّ إليه.
+#
+#   🔑 **ولا يُوسَّعُ المقبولُ ولا المرفوض**: `اذا (5)` و`اذا ("ن")` تبقيانِ كما
+#      كانتا حرفًا بحرف. المرفوضُ نوعٌ واحدٌ **لأنّه وحدَه لا يحملُ شيئًا يُقرَأُ
+#      صدقًا أو كذبًا** — لا لأنّ الصرامةَ فضيلةٌ في ذاتِها. وتوسيعُها إلى سائرِ
+#      الأنواعِ قرارُ لغةٍ يُقاسُ وحدَه.
+#
+#   والحكمُ نفسُه في `بينما` — وهي بذرتُه المستقلّة، إذ الشرطانِ موضعانِ في
+#   الشفرةِ لا موضعٌ واحد، ورقعةُ أحدِهما لا تُثبِتُ الآخر.
+# (EN) A silent liar is more dangerous than a loud one. `if (())` compiled, took the
+#      else branch with NO diagnostic at all and exit code 0: the unit was
+#      classified with null rather than with values, though it is a value type that
+#      carries nothing to be true or false about. The program did not fail, its
+#      author was not warned, and it silently took the wrong branch.
+#      The guard deliberately sits OUTSIDE strictMode_, and that matters more than
+#      the guard: a few lines above, the "is it boolean?" check is disabled behind
+#      that flag, which lived two years without a caller — the documented lesson
+#      that a flag with no caller is unmeasured, not green. Putting this verdict
+#      behind it would have left the rejection as text in the source rather than
+#      behaviour in the compiler, which is worse than not writing it, because it
+#      reads as a guard and is trusted. Nothing is widened: `if (5)` and `if ("s")`
+#      are untouched. One kind is rejected because only it carries nothing to read
+#      as true or false — not because strictness is a virtue in itself.
+# ============================================================
+
+اذا (())
+    اطبع_سطر("ص")
+والا
+    اطبع_سطر("ك")
+نهاية

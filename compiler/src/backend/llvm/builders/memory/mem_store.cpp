@@ -718,7 +718,34 @@ namespace Sad
                 {
                     // (AR) محسوسٌ في خانة %SadDyn ⇒ تعليبٌ بنوع SIR الساكن
                     // (EN) A concrete value into a %SadDyn slot ⇒ pack by its static SIR type
-                    value = toDyn(cg_, value, valueOp.dataType);
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 و**ثابتُ الوحدةِ ليس قيمةَ وحدة**: `ConstantVoid()` هو
+                    //      افتراضيُّ الخانةِ المجرَّدةِ (`متغير ك` بلا تهيئة) — أي
+                    //      **غيابٌ**، ويحمل `dataType = Unit` لأنّه لا نوعَ في اللغةِ
+                    //      اسمُه «مفقود». فلو عُلِّب بوسمِ الوحدةِ لصارَ `اطبع_سطر(ك)`
+                    //      يطبعُ «()» و`نوع(ك)` «خالي» — أي **قيمةً حقيقيّةً في خانةٍ
+                    //      لم تُسنَدْ قطّ**، ولضاعَ الفرقُ بين «لم تُسنَد» و«أُسنِد إليها
+                    //      العدمُ عمدًا» الذي يقومُ عليه تشخيصُ الاستعمالِ قبل الإسناد.
+                    //      والتمييزُ **شكلُ المعامل** لا حدسٌ، وتعريفُه في
+                    //      `operandIsAbsenceConstant` بـ`sad_dyn_repr.h` — سلطةً واحدةً
+                    //      لهذا الموضعِ ولـ`valueIsDyn`. وكان مكتوبًا **مرّتَين**،
+                    //      وهذا السطرُ نفسُه كان يقولُ «والمِطلاقُ نفسُه مستعملٌ في
+                    //      sad_dyn_repr.cpp» — أي أنّ التكرارَ كان مُدوَّنًا لا مُوحَّدًا.
+                    //      🔑 ومقيسٌ (2026-09-07): بلا هذا التمييز احمرَّت `090` و`103`
+                    //      لحظةَ نالَ نوعُ الوحدةِ وسمَه الخاصّ — أي أنّ الوسمَ الصحيحَ
+                    //      وحدَه كان يُسرِّبُ «قيمةً» إلى موضعِ «لا قيمة».
+                    // (EN) The unit CONSTANT is not a unit VALUE: ConstantVoid() is the
+                    //      bare-slot default (an ABSENCE) and merely borrows dataType=Unit
+                    //      because the language has no «missing» type name. Boxing it with
+                    //      the unit tag would make a never-assigned slot print «()» and
+                    //      report «خالي» — a real value where there is none. The operand
+                    //      SHAPE decides: a real unit value always arrives in a REGISTER.
+                    // ════════════════════════════════════════════════════════
+                    const bool isAbsenceConstant =
+                        Sad::LLVM::operandIsAbsenceConstant(valueOp);
+                    value = isAbsenceConstant
+                                ? Sad::LLVM::packDyn(cg_, value, Sad::LLVM::DynKind::Missing)
+                                : toDyn(cg_, value, valueOp.dataType);
                 }
             }
 
@@ -953,6 +980,38 @@ namespace Sad
                              allocaInst->getAllocatedType()->isIntegerTy(64))
                     {
                         value = cg_.builder_->CreateZExt(value, cg_.getInt64Type(), "i1.to.i64.alloca");
+                    }
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 **تضييقٌ إلى خانةٍ أضيق — الذراعُ التي لم تكن.**
+                    //      الأذرعُ أعلاه تُعالجُ التوسيعَ (‏i1→i64) والتحويلَ
+                    //      (‏i64↔double) ولا ذراعَ فيها للتضييقِ العدديّ. وخانةُ
+                    //      الوحدةِ `i8` والقيمةُ تصلُها `i64` من أكثرَ من منتِج،
+                    //      فيُبَثُّ `store i64` في `alloca i8`: **ثمانيةُ بايتاتٍ
+                    //      في بايت** — سلوكٌ غيرُ معرَّفٍ يفسدُ الخانةَ المجاورة.
+                    //      ⚠️ **ومدقّقُ LLVM أخضرُ عنه** لأنّ المؤشّرَ مُبهَم، فلا
+                    //      شيءَ في التعليمةِ يُكذِّبُ الآخر — أي أنّ الأداةَ التي
+                    //      يُتّكَلُ عليها لكشفِ هذا الصنفِ لا تراه.
+                    //      وقد سُدَّ الجذرُ عندَ المنتِجَين (‏`MOVE` ونداءُ دالّةٍ
+                    //      بلا عائد)، وهذه **شبكةُ أمانٍ ثانيةٌ** تلتقطُ أيَّ
+                    //      منتِجٍ ثالثٍ يُكتَبُ لاحقًا: عطبٌ صامتُ الأداةِ لا
+                    //      يُتَّكَلُ في سدِّه على إحصاءِ منتِجيه.
+                    // (EN) Narrowing to a smaller slot — the arm that did not exist.
+                    //      The arms above widen (i1→i64) and convert (i64↔double); none
+                    //      narrows. The unit slot is i8 while the value arrived as i64
+                    //      from more than one producer, emitting `store i64` into
+                    //      `alloca i8`: eight bytes into one, undefined behaviour. The
+                    //      LLVM verifier is GREEN on it because the pointer is opaque.
+                    //      The producers are fixed at the root; this is the second net
+                    //      for any third producer written later — a defect this silent
+                    //      is not closed by counting its producers.
+                    // ════════════════════════════════════════════════════════
+                    else if (value->getType()->isIntegerTy() &&
+                             allocaInst->getAllocatedType()->isIntegerTy() &&
+                             value->getType()->getIntegerBitWidth() >
+                                 allocaInst->getAllocatedType()->getIntegerBitWidth())
+                    {
+                        value = cg_.builder_->CreateTrunc(
+                            value, allocaInst->getAllocatedType(), "narrow.to.slot");
                     }
                 }
             }

@@ -31,7 +31,7 @@ namespace Sad
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
-                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Void);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Unit);
                     // (AR) المعامل الأول: المصفوفة، الثاني: العنصر المُضاف. ننشر elementType
                     //      إلى معامل المصفوفة: مختلطةٌ قياسيّة (Any) ⇒ تُعلّب الخلفيّةُ العنصرَ
                     //      في %SadDyn، متّسقةً مع خاناتها المُعلَّبة (وإلّا خانةٌ خامٌ ⇒ فساد).
@@ -49,7 +49,7 @@ namespace Sad
                     {
                         b_.currentBlock_->instructions.push_back(inst);
                     }
-                    return BuildResult(resultReg, SadTypeKind::Void);
+                    return BuildResult(resultReg, SadTypeKind::Unit);
                 }
 
                 // (AR) الطول / size - إرجاع حجم المصفوفة أو طول النص

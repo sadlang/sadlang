@@ -20,7 +20,7 @@ set(PARSER_TEST_SOURCES tests/unit/parser/test_runner.cpp)
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/parser/test_lambda_simple.cpp")
     add_executable(parser_tests ${PARSER_TEST_SOURCES})
-    target_link_libraries(parser_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(parser_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(parser_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests/unit/parser)
     set_target_properties(parser_tests PROPERTIES
         OUTPUT_NAME "parser_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -38,7 +38,7 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/parser/test_comprehensions_antaj.cpp")
     add_executable(comprehension_antaj_tests tests/unit/parser/test_comprehensions_antaj.cpp)
-    target_link_libraries(comprehension_antaj_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(comprehension_antaj_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(comprehension_antaj_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/tests/framework
         ${CMAKE_SOURCE_DIR}/shared/parser/include
@@ -69,7 +69,7 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/parser/test_type_nodes.cpp")
     add_executable(test_type_nodes tests/unit/parser/test_type_nodes.cpp)
-    target_link_libraries(test_type_nodes PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(test_type_nodes PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(test_type_nodes PRIVATE
         ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/unit/parser)
     set_target_properties(test_type_nodes PROPERTIES
@@ -85,7 +85,7 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/modules/test_module_loader.cpp")
     add_executable(test_module_loader tests/modules/test_module_loader.cpp)
-    target_link_libraries(test_module_loader PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(test_module_loader PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(test_module_loader PRIVATE
         ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/modules)
     set_target_properties(test_module_loader PROPERTIES
@@ -101,7 +101,7 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/modules/test_symbol_resolver.cpp")
     add_executable(test_symbol_resolver tests/modules/test_symbol_resolver.cpp)
-    target_link_libraries(test_symbol_resolver PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(test_symbol_resolver PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(test_symbol_resolver PRIVATE
         ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/modules)
     set_target_properties(test_symbol_resolver PROPERTIES
@@ -117,7 +117,7 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/modules/test_module_validator.cpp")
     add_executable(test_module_validator tests/modules/test_module_validator.cpp)
-    target_link_libraries(test_module_validator PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(test_module_validator PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(test_module_validator PRIVATE ${CMAKE_SOURCE_DIR}/include)
     add_test(NAME ModuleValidatorTests COMMAND test_module_validator WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
     message(STATUS "✓ اختبارات محقق صحة الوحدات / Module validator tests enabled")
@@ -143,7 +143,7 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_builder.cpp")
     add_executable(sir_builder_tests tests/unit/sir/test_sir_builder.cpp)
-    target_link_libraries(sir_builder_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(sir_builder_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(sir_builder_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/compiler/frontend/include ${CMAKE_SOURCE_DIR}/parser/include)
     set_target_properties(sir_builder_tests PROPERTIES
@@ -157,7 +157,7 @@ endif()
 # SIR Integration Tests
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_integration.cpp")
     add_executable(sir_integration_tests tests/unit/sir/test_sir_integration.cpp)
-    target_link_libraries(sir_integration_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(sir_integration_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(sir_integration_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/compiler/frontend/include ${CMAKE_SOURCE_DIR}/parser/include)
     set_target_properties(sir_integration_tests PROPERTIES
@@ -171,7 +171,7 @@ endif()
 # SIR Edge Cases Tests
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_edge_cases.cpp")
     add_executable(sir_edge_cases_tests tests/unit/sir/test_sir_edge_cases.cpp)
-    target_link_libraries(sir_edge_cases_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(sir_edge_cases_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(sir_edge_cases_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/compiler/frontend/include ${CMAKE_SOURCE_DIR}/parser/include)
     set_target_properties(sir_edge_cases_tests PROPERTIES
@@ -186,7 +186,7 @@ endif()
 # اختبارات دوال الإدخال والإخراج / I/O Functions Tests
 # ──────────────────────────────────────────────────────────────────────
 add_executable(io_functions_tests tests/unit/stdlib/test_io_simple.cpp)
-target_link_libraries(io_functions_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+target_link_libraries(io_functions_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
 target_include_directories(io_functions_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
 set_target_properties(io_functions_tests PROPERTIES
     OUTPUT_NAME "io_functions_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -200,7 +200,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/tests/system/lsp/test_lsp_code_actions.cpp")
     # (AR) م4: اختبار LSP تحليلٌ ساكن ⇒ يربط sad_lsp_engine (يوفّر sad_shared+type_system
     #      عامًّا) بدل sad_core (المفسّر الكامل). لا رموز Sad::Interpreter:: في اختبارات LSP.
     # (EN) Phase-4: LSP test is static analysis ⇒ links sad_lsp_engine (PUBLIC sad_shared
-    #      + sad_type_system) instead of sad_core (the whole interpreter). No Sad::Interpreter:: symbols.
+    #      + sad_shared) instead of sad_core (the whole interpreter). No Sad::Interpreter:: symbols.
     target_link_libraries(lsp_code_actions_tests PRIVATE sad_lsp_engine)
     set_target_properties(lsp_code_actions_tests PROPERTIES
         OUTPUT_NAME "lsp_code_actions_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -277,7 +277,7 @@ endif()
 # DISABLED: uses old include path (parser/parser_core.h)
 if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/optimizer/advanced_optimizer_test.cpp")
     add_executable(optimizer_tests tests/optimizer/advanced_optimizer_test.cpp)
-    target_link_libraries(optimizer_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(optimizer_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(optimizer_tests PRIVATE ${CMAKE_SOURCE_DIR})
     set_target_properties(optimizer_tests PROPERTIES
         OUTPUT_NAME "optimizer_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -290,7 +290,7 @@ endif()
 # المحسن البسيط / Simple Optimizer Tests
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/optimizer/test_optimizer_simple.cpp")
     add_executable(optimizer_simple_tests tests/optimizer/test_optimizer_simple.cpp)
-    target_link_libraries(optimizer_simple_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(optimizer_simple_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(optimizer_simple_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
     set_target_properties(optimizer_simple_tests PROPERTIES
         OUTPUT_NAME "optimizer_simple_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -320,7 +320,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_types.cpp"
     add_executable(sir_types_tests
         tests/unit/sir/test_sir_types.cpp
         compiler/frontend/src/type_info.cpp)
-    target_link_libraries(sir_types_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(sir_types_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(sir_types_tests PRIVATE ${CMAKE_SOURCE_DIR}/compiler/frontend/include)
     set_target_properties(sir_types_tests PROPERTIES
         OUTPUT_NAME "sir_types_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -333,7 +333,7 @@ endif()
 # SIR Instruction Tests (updated to current API - February 2026)
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_instruction.cpp")
     add_executable(sir_instruction_tests tests/unit/sir/test_sir_instruction.cpp)
-    target_link_libraries(sir_instruction_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(sir_instruction_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(sir_instruction_tests PRIVATE ${CMAKE_SOURCE_DIR}/compiler/frontend/include)
     set_target_properties(sir_instruction_tests PROPERTIES
         OUTPUT_NAME "sir_instruction_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -360,7 +360,7 @@ message(STATUS "⊘ اختبارات نظام المؤشرات معطلة مؤق
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/low_level/test_bitwise.cpp")
     add_executable(bitwise_tests tests/unit/low_level/test_bitwise.cpp)
-    target_link_libraries(bitwise_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+    target_link_libraries(bitwise_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
     target_include_directories(bitwise_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
     set_target_properties(bitwise_tests PROPERTIES
         OUTPUT_NAME "bitwise_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -378,7 +378,7 @@ endif()
 if(GTest_FOUND)
     add_executable(filesystem_tests tests/unit/stdlib/test_filesystem_module.cpp)
     target_include_directories(filesystem_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(filesystem_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system GTest::gtest GTest::gtest_main)
+    target_link_libraries(filesystem_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared GTest::gtest GTest::gtest_main)
     set_target_properties(filesystem_tests PROPERTIES
         OUTPUT_NAME "filesystem_tests" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
     message(STATUS "✓ اختبارات نظام الملفات / Filesystem tests enabled")
@@ -386,7 +386,7 @@ if(GTest_FOUND)
     # اختبارات HTTP / HTTP Tests
     add_executable(http_tests tests/unit/stdlib/test_http_module.cpp)
     target_include_directories(http_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(http_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system GTest::gtest GTest::gtest_main)
+    target_link_libraries(http_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared GTest::gtest GTest::gtest_main)
     if(WIN32)
         target_link_libraries(http_tests PRIVATE ws2_32)
     endif()
@@ -397,7 +397,7 @@ if(GTest_FOUND)
     # اختبارات JSON/XML / JSON/XML Tests
     add_executable(json_xml_tests tests/unit/stdlib/test_json_module.cpp tests/unit/stdlib/test_xml_module.cpp)
     target_include_directories(json_xml_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(json_xml_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system GTest::gtest GTest::gtest_main)
+    target_link_libraries(json_xml_tests PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared GTest::gtest GTest::gtest_main)
     set_target_properties(json_xml_tests PROPERTIES
         OUTPUT_NAME "json_xml_tests" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
     message(STATUS "✓ اختبارات JSON/XML / JSON/XML tests enabled")

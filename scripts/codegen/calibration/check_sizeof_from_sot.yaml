@@ -9,12 +9,12 @@ guard: scripts/codegen/check_sizeof_from_sot.py
 harness: scripts/codegen/calibrate_sizeof_from_sot.py
 guard_sha256: 3e5c89310c020db95f44c918b97e4300399d7cf301888af5b20f4c45786d9990
 harness_sha256: 6834cf0a545d8db6ccdedc4e429f2873ff7c3c89dfd311185715c83505ac3607
-calibrated_at: 2026-09-06
+calibrated_at: 2026-09-07
 probes_total: 16
 probes_passed: 16
 result: 16/16
 targets_sha256:
-  compiler/src/frontend/builders/expression_lowlevel.cpp: 7059fb76c42a5e5cc5a9835f364295e575d4cdb808e96dc1ecd8e1af9fc02330
+  compiler/src/frontend/builders/expression_lowlevel.cpp: bc50c6cf6ab4bcacbfed7f29f6cc8193b6def463573716e8b690a5bbff71dba4
   scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
 probes:
   - name: "① سلسلةٌ عربيّةٌ في جسمِ الدالّة"

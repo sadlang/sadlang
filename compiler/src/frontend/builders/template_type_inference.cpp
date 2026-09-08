@@ -504,6 +504,31 @@ namespace Sad
                 if (!expr)
                     return SadTypeKind::Integer;
 
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 «()» قيمةُ وحدةٍ لا عددٌ صحيح. ولم تكن لها ذراعٌ هنا
+                //      أصلًا، فتسقطُ إلى الافتراضِ «صحيح» — وذلك يُعمي بوّابةَ
+                //      الخلافِ في `applyAgreedFreeParamTypes`:
+                //
+                //          دالة مرر(ق) ارجع ق نهاية
+                //          مرر(1)  و  مرر(())
+                //
+                //      الوسومُ المسجَّلةُ لـ`ق` تصيرُ {Integer, Integer} ⇒ حجمُها
+                //      واحدٌ ⇒ لا خلافَ ⇒ تبقى الخانةُ `i64`، فيُطبَعُ «رقم»
+                //      لقيمةِ الوحدةِ (مقيسٌ 2026-09-07). وهو عينُ ما شُخِّصَ
+                //      لـ`لاشيء` في الذراعِ أدناه: افتراضٌ يليه حرفًا يُخفي خلافًا.
+                //      والصفُّ غيرُ الفارغِ يبقى `Tuple` كما كان.
+                // (EN) «()» is the unit value, not an integer. It had no arm here at
+                //      all and fell to the Integer default, blinding the disagreement
+                //      gate in applyAgreedFreeParamTypes: a slot fed 1 at one site and
+                //      () at another recorded {Integer, Integer} — no disagreement — so
+                //      it stayed a static i64 and نوع() printed «رقم» for a unit value.
+                // ════════════════════════════════════════════════════════════
+                if (auto *tupleExpr = dynamic_cast<const Sad::AST::TupleExpr *>(expr))
+                {
+                    return tupleExpr->elements.empty() ? SadTypeKind::Unit
+                                                       : SadTypeKind::Tuple;
+                }
+
                 // (AR) قيمة حرفية — استنتاج النوع من نوع الرمز
                 // (EN) Literal — infer type from token type
                 if (auto *lit = dynamic_cast<const Sad::AST::LiteralExpr *>(expr))
@@ -877,12 +902,17 @@ namespace Sad
                 //      of the ADT-field arm below.
                 if (auto *idxExpr = dynamic_cast<const Sad::AST::IndexExpr *>(expr))
                 {
-                    // (AR) الدلالةُ في المعينِ الواحدِ `bracketReadResultKind` — هذا
-                    //      المسارُ لا يملك سجلَّ أنواعِ عناصرَ محلّيًّا فيمرّر «فراغ».
+                    // (AR) الدلالةُ في المعينِ الواحدِ `bracketReadResultKind` — وهذا
+                    //      المسارُ لا يملك سجلَّ أنواعِ عناصرَ محلّيًّا فيمرّرُ حارسَ
+                    //      «لا أعرف» وهو `Unknown` لا «خالي»: بعدَ هذه الحملةِ صارَ
+                    //      «خالي» نوعًا معلومًا، فتمريرُه حارسًا يجعلُ كلَّ فهرسةٍ
+                    //      مجهولةِ العنصرِ تُجيبُ «خالي» (مقيسٌ: بذرتانِ احمرّتا).
                     // (EN) Semantics live in the single source bracketReadResultKind;
-                    //      this path has no local element-type registry, so Void.
+                    //      this path owns no local element registry, so it passes the
+                    //      "don't know" sentinel — Unknown, not Unit, which is a KNOWN
+                    //      kind after this campaign (measured: two seeds reddened).
                     return bracketReadResultKind(inferExprType(idxExpr->object.get()),
-                                                 SadTypeKind::Void);
+                                                 SadTypeKind::Unknown);
                 }
 
                 // (AR) ISSUE-076/084 (ب″): وصولٌ مباشرٌ لحقل ADT (X.حقل حيث «حقل» اسمُ حقلٍ في

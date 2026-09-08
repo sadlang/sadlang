@@ -169,7 +169,7 @@ void testSleep() {
     // sleep() returns void
     {
         Value result = sleep({makeInt(10)});
-        TEST_ASSERT(result.getType() == ::Sad::Types::SadTypeKind::Void, 
+        TEST_ASSERT(result.getType() == ::Sad::Types::SadTypeKind::Unit, 
                    "sleep(): Returns void");
     }
     
@@ -248,7 +248,7 @@ void testAssert() {
             // Call assert() through namespace to avoid macro collision
             auto assertFunc = Sad::StdLib::Core::assert;
             Value result = assertFunc({makeBool(true)});
-            TEST_ASSERT(result.getType() == ::Sad::Types::SadTypeKind::Void, 
+            TEST_ASSERT(result.getType() == ::Sad::Types::SadTypeKind::Unit, 
                        "assert(true): Returns void");
         } catch (...) {
             TEST_ASSERT(false, "assert(true): Should not throw");

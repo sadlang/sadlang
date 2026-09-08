@@ -121,6 +121,10 @@ set(SAD_DRIVER_COMMON_INCLUDES
     ${CMAKE_SOURCE_DIR}/shared/null_safety/include   # (AR) NS-01: رأس محلّل أمان null
     ${CMAKE_SOURCE_DIR}/shared/program_rules/include # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018)
     ${CMAKE_SOURCE_DIR}/compiler/include/types
+    # (AR) نظامُ الأنواعِ الغنيّ نُقِلَ إلى shared/ (قلبُ اتّجاهِ التبعيّة)؛
+    #      وبقيَ compiler/include/types لِـc_types.h وatomic_types.h وحدَهما.
+    # (EN) The rich type system moved to shared/; compiler/include/types keeps
+    #      only c_types.h and atomic_types.h.
     ${CMAKE_BINARY_DIR}/generated
 )
 

@@ -54,6 +54,8 @@ add_library(sad_shared STATIC
     types/src/object_instance.cpp
     types/src/value.cpp
     types/src/sad_type_system.cpp
+    types/src/type_environment.cpp
+    types/src/trait_system.cpp
 
     # Errors
     errors/src/diagnostic.cpp
@@ -209,6 +211,21 @@ add_subdirectory(program_rules)
 # @phase Architecture Refactor: Security Layer Unification
 # ============================================================================
 add_subdirectory(security)
+
+# ============================================================================
+# (AR) 🔑 **وكان ههنا `add_subdirectory(type_system)`** يبني هدفًا ثانيًا
+#      اسمُه `sad_shared` فوقَ هرمِ أنواعٍ ثانٍ في نطاقٍ ثانٍ
+#      (`Sad::TypeSystem`) ومجلَّدٍ ثانٍ (`shared/type_system/`).
+#      وقد أُذيبَ الهرمُ الثاني في `Sad::Types`، فلم يبقَ من عشرةِ آلافِ سطرٍ
+#      إلّا صنفانِ لا نظيرَ لهما في الهرمِ الواحد (`TypeEnvironment` و
+#      `Trait/TraitRegistry`) — وهما اليومَ في `types/` مع بقيّةِ الأنواع،
+#      وهدفُهما هو `sad_shared` نفسُه. أمرُ القياس (⇒ صفر):
+#        grep -rn "TypeSystem::" --include=*.cpp --include=*.h .
+# (EN) add_subdirectory(type_system) built a SECOND target over a second type
+#      hierarchy in a second namespace and directory. The hierarchy was
+#      dissolved into Sad::Types; the two classes with no counterpart moved
+#      into types/ and into sad_shared. One namespace, one directory, one name.
+# ============================================================================
 
 # ============================================================================
 # (AR) مكتبة سياسة الذاكرة الموحَّدة — shared/memory_policy/

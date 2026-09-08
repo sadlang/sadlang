@@ -81,7 +81,7 @@ namespace Sad
                 if (funcName == Bn::CompilerHw::HW_2)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_2, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_WRITE_CONFIG);
                     inst.operands.push_back(argOperands[0]); // bus
                     inst.operands.push_back(argOperands[1]); // device
@@ -90,7 +90,7 @@ namespace Sad
                     inst.operands.push_back(argOperands[4]); // value
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_3)
                 {
@@ -119,23 +119,23 @@ namespace Sad
                 if (funcName == Bn::CompilerHw::HW_5)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_5, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_6)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_6, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_TRANSFER);
                     inst.operands.push_back(argOperands[0]); // source
                     inst.operands.push_back(argOperands[1]); // destination
                     inst.operands.push_back(argOperands[2]); // size
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_7)
                 {
@@ -165,7 +165,7 @@ namespace Sad
                 {
                     // (AR) الوسيط الثالث (عمق البكسل bpp) اختياريٌّ معلَن ⇒ المدى [2, 3].
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_9, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_INIT);
                     inst.operands.push_back(argOperands[0]); // width
                     inst.operands.push_back(argOperands[1]); // height
@@ -173,76 +173,76 @@ namespace Sad
                         inst.operands.push_back(argOperands[2]); // bpp
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_10)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_10, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_SET_PIXEL);
                     inst.operands.push_back(argOperands[0]); // x
                     inst.operands.push_back(argOperands[1]); // y
                     inst.operands.push_back(argOperands[2]); // color
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::UIPlatform::DRAW_RECT)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::UIPlatform::DRAW_RECT, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_DRAW_RECT);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_11)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_11, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_FILL_RECT);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::UIPlatform::DRAW_LINE)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::UIPlatform::DRAW_LINE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_DRAW_LINE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_12)
                 {
                     // (AR) توقيع زمن التشغيل sad_ll_fb_draw_string(x، y، نص) ثلاثيٌّ حصرًا.
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_12, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_DRAW_STRING);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_13)
                 {
                     // (AR) اللون اختياريٌّ معلَن (optional في تعليق الذراع) ⇒ المدى [0, 1].
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_13, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_CLEAR);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]); // color (optional)
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_14)
                 {
@@ -260,11 +260,11 @@ namespace Sad
                 if (funcName == Bn::CompilerHw::HW_15)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_15, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_16)
                 {
@@ -281,11 +281,11 @@ namespace Sad
                 if (funcName == Bn::CompilerHw::HW_17)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_17, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_SHUTDOWN);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_18)
                 {
@@ -314,22 +314,22 @@ namespace Sad
                 if (funcName == Bn::CompilerHw::HW_20)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_20, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SPINLOCK_LOCK);
                     inst.operands.push_back(argOperands[0]); // lock ptr
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_21)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_21, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SPINLOCK_UNLOCK);
                     inst.operands.push_back(argOperands[0]); // lock ptr
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_22)
                 {
@@ -345,22 +345,22 @@ namespace Sad
                 if (funcName == Bn::CompilerHw::HW_23)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_23, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_MUTEX_LOCK);
                     inst.operands.push_back(argOperands[0]); // mutex ptr
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_24)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_24, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_MUTEX_UNLOCK);
                     inst.operands.push_back(argOperands[0]); // mutex ptr
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerHw::HW_25)
                 {

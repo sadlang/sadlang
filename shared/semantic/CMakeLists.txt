@@ -33,7 +33,7 @@ target_include_directories(sad_semantic_shared
         ${CMAKE_CURRENT_SOURCE_DIR}/include/semantic
         ${CMAKE_CURRENT_SOURCE_DIR}/generated
         ${CMAKE_SOURCE_DIR}/shared/types/include
-        # (AR) الرأسُ المولَّدُ للأنواعِ لا يصلُ بالوراثةِ من `sad_type_system`،
+        # (AR) الرأسُ المولَّدُ للأنواعِ لا يصلُ بالوراثةِ من `sad_shared`،
         #      وهو مُضمَّنٌ صراحةً في كلِّ هدفٍ يحتاجُه (compiler · runtime · graphics).
         # (EN) The generated types header does not arrive by propagation; every
         #      target that needs it lists it explicitly.
@@ -50,6 +50,6 @@ target_compile_features(sad_semantic_shared PUBLIC cxx_std_17)
 # (AR) يعتمد على نظام الأنواع المشترك / (EN) Depends on shared type system
 # (AR) sad_null_safety: قاعدة SEM045 «الفراغ اليقيني» المشتركة (اتجاه الربط آمن —
 #      محلّل null لا يربط الطبقة الدلالية). / (EN) shared certainly-void rule; safe direction.
-target_link_libraries(sad_semantic_shared PUBLIC sad_shared sad_type_system sad_null_safety)
+target_link_libraries(sad_semantic_shared PUBLIC sad_shared sad_null_safety)
 
 message(STATUS "✓ مكتبة الفحص الدلالي المشتركة / Shared semantic: sad_semantic_shared")

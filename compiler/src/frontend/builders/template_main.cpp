@@ -564,7 +564,7 @@ namespace Sad
                 //      2) first type param — `return val:T` → T
                 //      Pragmatic fallback for templates without explicit return type.
                 // ================================================================
-                if (returnType == SadTypeKind::Void)
+                if (returnType == SadTypeKind::Unit)
                 {
                     if (!constParamNames.empty())
                     {
@@ -726,7 +726,7 @@ namespace Sad
                     const auto &lastInst = b_.currentBlock_->instructions.back();
                     if (lastInst.opcode != SIROpcode::RET && lastInst.opcode != SIROpcode::RET_VOID)
                     {
-                        if (returnType == SadTypeKind::Void)
+                        if (returnType == SadTypeKind::Unit)
                         {
                             SIRInstruction retInst;
                             retInst.opcode = SIROpcode::RET_VOID;
@@ -1424,8 +1424,10 @@ namespace Sad
                             //      sirFunction=nullptr marks "registered but not built" for the guard.
                             FunctionInfo funcInfo;
                             funcInfo.name = funcDecl->name;
-                            if ((funcDecl->returnType == Types::SadTypeKind::Unknown ||
-                                 funcDecl->returnType == Types::SadTypeKind::Void) &&
+                            // (AR) 🔑 و«خالي» تصريحٌ مُحترَمٌ لا غيابُ تصريح — انظر
+                            //      نظائرَه في `class_main.cpp`.
+                            // (EN) A declared Unit is honoured, not overridden.
+                            if (funcDecl->returnType == Types::SadTypeKind::Unknown &&
                                 funcDecl->body)
                             {
                                 funcInfo.returnType =
@@ -1434,7 +1436,7 @@ namespace Sad
                             else if (funcDecl->returnType == Types::SadTypeKind::Unknown &&
                                      !funcDecl->body)
                             {
-                                funcInfo.returnType = SadTypeKind::Void;
+                                funcInfo.returnType = SadTypeKind::Unit;
                             }
                             else
                             {
@@ -1511,7 +1513,7 @@ namespace Sad
                                     continue;
                                 SadTypeKind declared = b_.astTypeToSIRType(varDecl->type);
                                 SadTypeKind seeded = (declared != SadTypeKind::Integer &&
-                                                      declared != SadTypeKind::Void &&
+                                                      declared != SadTypeKind::Unit &&
                                                       declared != SadTypeKind::Unknown)
                                                          ? declared
                                                          : inferExprType(varDecl->initializer.get());

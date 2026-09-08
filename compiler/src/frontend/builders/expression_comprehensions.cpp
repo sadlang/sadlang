@@ -33,7 +33,7 @@ namespace Sad
                 {
                     // (AR) مصفوفة عاديّة: نوع العنصر من نتيجة المصدر (أو Integer إن مجهولًا). لا قيم.
                     // (EN) Plain array: element type from the source result (or Integer if unknown). No values.
-                    outKeyType = (iterResult.elementType != SadTypeKind::Void)
+                    outKeyType = (iterResult.elementType != SadTypeKind::Unknown)
                                      ? iterResult.elementType
                                      : SadTypeKind::Integer;
                     return;

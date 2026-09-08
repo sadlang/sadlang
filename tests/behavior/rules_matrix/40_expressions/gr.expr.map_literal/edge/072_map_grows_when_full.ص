@@ -1,8 +1,8 @@
-# @rule: gr.expr.map_literal
+﻿# @rule: gr.expr.map_literal
 # @description: [م-٠٠١] الخريطة تنمو عند امتلاء سعتها — ولا يُقرأ المفتاحُ الغائبُ من خانةٍ مصفَّرة
 # @priority: P0
 # @requires: اطبع_سطر, اطبع, نوع, خرائط
-# @expected: 8فراغ99خطأ919
+# @expected: 8مفقود99خطأ919
 استورد خرائط
 
 متغير خ = خريطة()

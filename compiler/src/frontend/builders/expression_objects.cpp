@@ -15,6 +15,7 @@
 #include <string>
 #include <cstdio>
 #include "sir_builder.h"
+#include "builders/template_builder.h" // (AR) fieldKindIsReadAsDeclared — قلبُ قائمةِ السماحِ الواحد
 #include "builders/expression_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -265,7 +266,7 @@ namespace Sad
                     {
                         SIRInstruction callInst;
                         callInst.opcode = SIROpcode::CALL;
-                        callInst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Void);
+                        callInst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Unit);
                         callInst.operands.push_back(SIROperand::Function(constructorName));
                         for (const auto &arg : args)
                         {
@@ -318,7 +319,7 @@ namespace Sad
                                     auto currentType = sirClass->fields_.find(fieldName);
                                     if (currentType != sirClass->fields_.end() &&
                                         currentType->second == SadTypeKind::Pointer &&
-                                        argType != SadTypeKind::Pointer && argType != SadTypeKind::Void)
+                                        argType != SadTypeKind::Pointer && argType != SadTypeKind::Unit)
                                     {
                                         sirClass->fields_[fieldName] = argType;
 #ifndef NDEBUG
@@ -381,7 +382,7 @@ namespace Sad
                                     auto currentFldType = parentSirClass->fields_.find(fieldName);
                                     if (currentFldType != parentSirClass->fields_.end() &&
                                         currentFldType->second == SadTypeKind::Pointer &&
-                                        inferredType != SadTypeKind::Pointer && inferredType != SadTypeKind::Void)
+                                        inferredType != SadTypeKind::Pointer && inferredType != SadTypeKind::Unit)
                                     {
                                         parentSirClass->fields_[fieldName] = inferredType;
                                         // (AR) التحديث أيضاً في الأبناء (الحقول الموروثة)
@@ -682,10 +683,39 @@ namespace Sad
                             // (EN) Load field with its actual type for value types, else it gets
                             //      truncated/misread (Float was truncated to int — ISSUE-037).
                             //      Object/pointer types stay I64.
-                            if (fieldIt->second == SadTypeKind::Array ||
-                                fieldIt->second == SadTypeKind::String ||
-                                fieldIt->second == SadTypeKind::Float ||
-                                fieldIt->second == SadTypeKind::Boolean)
+                            // (AR) 🔑 و`Unit` معها — **والتوأمُ هو الدرس**.
+                            //
+                            //      هذه القائمةُ نسخةٌ ثانيةٌ من قائمةٍ في
+                            //      `expression_members.cpp`، والتعليقُ فوقَها
+                            //      بأسطرٍ يقولُ صراحةً «الجدولُ نفسُه الذي يقرؤه
+                            //      التوأم … فلا يفترق البابان في جوابِ السؤالِ
+                            //      الواحد». **والجدولُ واحدٌ فعلًا، والقائمتانِ
+                            //      اثنتان** — فالبابانِ يفترقانِ متى زِيدَ نوعٌ
+                            //      في إحداهما دونَ الأخرى.
+                            //
+                            //   ⚠️ ومقيسٌ (2026-09-07) أنّ ذلك وقع: أُضيفَ
+                            //      `Unit` إلى التوأمِ أوّلًا فلم يتغيّرِ المخرَجُ
+                            //      حرفًا — لأنّ قارئَ `ك.ح` هو **هذا** الموضعُ لا
+                            //      ذاك. ورقعةٌ في أحدِ التوأمَينِ تبدو مُطبَّقةً
+                            //      وهي معطَّلة.
+                            //
+                            //   📌 والدَّينُ الأصليُّ مُسمًّى في التوأم: القائمةُ
+                            //      كلُّها ينبغي أن تصيرَ «اقرأِ المُسجَّلَ كما هو»،
+                            //      وذاك مشروعٌ يمسُّ كلَّ حقلٍ في اللغةِ فيُقاسُ
+                            //      وحدَه.
+                            // (EN) Unit joins the list — and the TWIN is the lesson.
+                            //      This allow-list is a second copy of one in
+                            //      expression_members.cpp, and the comment a few lines
+                            //      above states outright that both doors read "the same
+                            //      table … so they never differ on one question". The
+                            //      TABLE is indeed one; the two ALLOW-LISTS are two, so
+                            //      the doors diverge the moment a kind is added to one.
+                            //      Measured: Unit was added to the twin first and the
+                            //      output did not change by one character, because the
+                            //      reader of `k.f` is THIS site — a patch that looks
+                            //      applied and is inert.
+                            if (TemplateBuilder::fieldKindIsReadAsDeclared(
+                                    fieldIt->second, /*arrayReadsAsDeclared=*/true))
                             {
                                 memberType = fieldIt->second;
                             }

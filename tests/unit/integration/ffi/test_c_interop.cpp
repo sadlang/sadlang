@@ -730,7 +730,7 @@ TEST_F(FFIIntegrationTest, تحويل_من_C_إلى_ص) {
     EXPECT_EQ(typeMapper->cToSad("int64_t"), u8"ص64");
     EXPECT_EQ(typeMapper->cToSad("float"), u8"عش32");
     EXPECT_EQ(typeMapper->cToSad("double"), u8"عش64");
-    EXPECT_EQ(typeMapper->cToSad("void"), u8"فراغ");
+    EXPECT_EQ(typeMapper->cToSad("void"), u8"خالي");
     EXPECT_EQ(typeMapper->cToSad("char"), u8"حرف");
     EXPECT_EQ(typeMapper->cToSad("_Bool"), u8"منطقي");
 }

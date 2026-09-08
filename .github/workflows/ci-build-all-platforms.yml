@@ -147,16 +147,36 @@ jobs:
           -DENABLE_LLVM_BACKEND=OFF \
           -DBUILD_TESTS=OFF
     
+    # (AR) 🔑 **الهدفُ يوافقُ التهيئة.** كانت الخطوةُ تطلبُ `sad-build` والتهيئةُ
+    #      فوقَها تُطفئُ LLVM (`ENABLE_LLVM_BACKEND=OFF`)، و`sad-build` مُعرَّفٌ
+    #      **داخلَ** `if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)` في
+    #      `apps/CMakeLists.txt:220` — فكان `gmake` يقول
+    #      «No rule to make target 'sad-build'» ويسقطُ الشوطُ في ٣٢ ثانيةً بلا
+    #      أن يترجمَ سطرًا واحدًا. مقيسٌ أنّ الوظيفةَ حمراءُ منذ ٢٠٢٦-٠٩-٠٦
+    #      (‏`0ff291baa`) على `dev` و`sadlang` معًا.
+    #      والهدفُ الصحيحُ لهذه التهيئةِ هو **المترجّمُ النحيل** `sad-build-native`
+    #      — يُعرَّفُ خارجَ كتلةِ LLVM عمدًا (تعليقُ `apps/CMakeLists.txt:189`)
+    #      ويُبنى في كلِّ تهيئة.
+    #      ⚠️ **ووظيفةٌ تُخفقُ قبلَ أن تترجمَ ليست حارسًا بل ضجيجٌ يُعوِّدُ
+    #      القارئَ على الحمرة** — وهي أخطرُ من غيابِها.
+    # (EN) Target now matches the configuration. The step asked for `sad-build`
+    #      while the configure step above disables LLVM, and `sad-build` is
+    #      defined INSIDE if(ENABLE_LLVM_BACKEND AND LLVM_FOUND) — so gmake
+    #      failed with "No rule to make target" in 32s without compiling a line.
+    #      Measured red since 2026-09-06 on both dev and sadlang. The right
+    #      target for this configuration is the thin compiler sad-build-native,
+    #      deliberately defined outside the LLVM block. A job that fails before
+    #      compiling is not a guard — it is noise that trains readers to expect red.
     - name: 🔨 Build
       run: |
         export CCACHE_MAXSIZE=${{ env.CCACHE_MAXSIZE }}
-        cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-build -j$(nproc)
+        cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-build-native -j$(nproc)
         ccache -s
     
     - name: ✅ Test
       run: |
-        sad="build/bin/sad-build"
-        if [ ! -x "$sad" ]; then echo "❌ MISSING: sad-build not built"; exit 1; fi
+        sad="build/bin/sad-build-native"
+        if [ ! -x "$sad" ]; then echo "❌ MISSING: sad-build-native not built"; exit 1; fi
         chmod +x "$sad"
         "$sad" examples/01_مرحبا.ص -o /tmp/hello_ci && /tmp/hello_ci
 
@@ -165,7 +185,7 @@ jobs:
       timeout-minutes: 15
       with:
         name: sad-linux
-        path: build/bin/sad-build
+        path: build/bin/sad-build-native
 
   # ─────────────────────────────────────────────────────────────────────
   # (AR) أُزيلت وظيفة بناء macOS — المشروع لا يُبنى لـmacOS (لا هدف إصدار).

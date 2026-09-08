@@ -1454,7 +1454,24 @@ namespace sad
                     return false;
                 if (!patchBranchFwd(notS, 23, 5))
                     return false;
-                // غيرها (Null) ⇒ «عدم»
+                // (AR) 🔑 وذراعُ الوحدةِ لازمةٌ ههنا: الوسمُ **مُعرَّفٌ في هذا
+                //      الملفِّ نفسِه** (`kDynKindUnit`) ومُوصَلٌ في `remapArm`، ثمّ
+                //      يسقطُ عند الطباعةِ إلى ذراعِ «غيرها ⇒ لاشيء». فيطبعُ
+                //      البرنامجُ الواحدُ «()» بخلفيّةِ LLVM و«لاشيء» بالخلفيّةِ
+                //      الأصليّة — **خلفيّتانِ بحكمَين على قيمةٍ واحدة**، وهو
+                //      أخطرُ من فجوةٍ مُعلَنةٍ في إحداهما.
+                // (EN) The unit arm is required here: the tag is defined in this very
+                //      file and wired in remapArm, yet printing fell through to the
+                //      "otherwise ⇒ null" arm — one program, two backends, two answers.
+                size_t notU;
+                if (!movz(10, kDynKindUnit) || !cmp(kScratch0, 10) ||
+                    !emitBranchFwd(a64::mnem::kBne, "rel19", notU))
+                    return false;
+                if (!emitPrintString(kDynUnitText) || !branchEnd())
+                    return false;
+                if (!patchBranchFwd(notU, 23, 5))
+                    return false;
+                // غيرها (Null) ⇒ «لاشيء»
                 if (!emitPrintString(kDynNullText))
                     return false;
                 for (size_t w : endJmps)
@@ -3155,7 +3172,7 @@ namespace sad
                     if (!emitBranchFwd(a64::mnem::kBne, "rel19", hit))
                         return false;
                     // (AR) الغائب ⇒ x7=فراغ، x6=٠
-                    if (!movz(7, kDynKindVoid) || !movz(6, 0))
+                    if (!movz(7, kDynKindMissing) || !movz(6, 0))
                         return false;
                     size_t missBoxed;
                     if (!emitBranchFwd(a64::mnem::kB, "rel26", missBoxed))
@@ -3186,7 +3203,8 @@ namespace sad
                         !remapArm(Sad::Compiler::kMapValueTagFloat, kDynKindFloat) ||
                         !remapArm(Sad::Compiler::kMapValueTagBoolean, kDynKindBool) ||
                         !remapArm(Sad::Compiler::kMapValueTagNull, kDynKindNull) ||
-                        !remapArm(Sad::Compiler::kMapValueTagVoid, kDynKindVoid))
+                        !remapArm(Sad::Compiler::kMapValueTagVoid, kDynKindMissing) ||
+                        !remapArm(Sad::Compiler::kMapValueTagUnit, kDynKindUnit))
                         return false;
                     if (!movz(a64reg::kX0, kMapValueTagPanicCode) ||
                         !movz(a64reg::kX8, kSysExitArm64) || !emit(a64::mnem::kSvc, "", {}))
@@ -6517,7 +6535,7 @@ namespace sad
                         return false;
                     const types::SadTypeKind e0 = inst.operands[0].elementType;
                     const types::SadTypeKind e1 = inst.operands[1].elementType;
-                    const bool bothKnown = e0 != types::SadTypeKind::Void && e1 != types::SadTypeKind::Void;
+                    const bool bothKnown = e0 != types::SadTypeKind::Unit && e1 != types::SadTypeKind::Unit;
                     if (e0 == types::SadTypeKind::Any || e1 == types::SadTypeKind::Any ||
                         (bothKnown && e0 != e1))
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayConcatBoxed);

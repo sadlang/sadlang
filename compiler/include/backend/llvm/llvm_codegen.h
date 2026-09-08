@@ -1926,25 +1926,6 @@ namespace Sad
             // Type Conversion / تحويل الأنواع
             // ========================================================================
 
-            /**
-             * تحويل نوع Sad إلى نوع LLVM
-             * Convert Sad type to LLVM type
-             *
-             * @param sadType نوع Sad / Sad type
-             * @return نوع LLVM / LLVM type
-             */
-            // ====================================================================
-            // (AR) Phase 9: تحويل الأنواع — مفوّض إلى TypesCodeGen
-            // (EN) Phase 9: Type conversions — delegated to TypesCodeGen
-            // ====================================================================
-            llvm::Type *convertType(std::shared_ptr<Type> sadType) { return types_->convertType(sadType); }
-
-            llvm::FunctionType *convertFunctionType(std::shared_ptr<Type> returnType,
-                                                    const std::vector<std::shared_ptr<Type>> &paramTypes,
-                                                    bool isVarArg = false)
-            {
-                return types_->convertFunctionType(returnType, paramTypes, isVarArg);
-            }
 
             /**
              * الحصول على الأنواع الأساسية / Get primitive types (Phase 9 → TypesCodeGen)

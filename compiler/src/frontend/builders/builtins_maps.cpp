@@ -156,7 +156,7 @@ namespace Sad
                         receiver.type == SadTypeKind::Float ||
                         receiver.type == SadTypeKind::Boolean ||
                         receiver.type == SadTypeKind::String ||
-                        receiver.type == SadTypeKind::Void;
+                        receiver.type == SadTypeKind::Unit;
                     if (literalNonMap || shapedNonMap)
                     {
                         b_.errors_.push_back(
@@ -230,7 +230,7 @@ namespace Sad
 
                     SIROperand copyOperand = emitMapCopy();
                     SIRInstruction inst(SIROpcode::CALL);
-                    inst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Void);
+                    inst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Unit);
                     inst.operands.push_back(SIROperand::ConstantString(kRuntimeMapDelete));
                     inst.operands.push_back(copyOperand);
                     inst.operands.push_back(argOperands[kArgKey]);
@@ -239,7 +239,7 @@ namespace Sad
                         b_.currentBlock_->addInstruction(inst);
 
                     BuildResult result(copyOperand.name, SadTypeKind::Map);
-                    result.elementType = SadTypeKind::Void;
+                    result.elementType = SadTypeKind::Unknown;
                     return result;
                 }
 
@@ -381,7 +381,7 @@ namespace Sad
 
                     SIROperand copyOperand = emitMapCopy();
                     SIRInstruction inst(SIROpcode::CALL);
-                    inst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Void);
+                    inst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Unit);
                     inst.operands.push_back(SIROperand::ConstantString(kRuntimeMapSetTyped));
                     inst.operands.push_back(copyOperand);
                     inst.operands.push_back(argOperands[kArgKey]);
@@ -392,7 +392,7 @@ namespace Sad
                         b_.currentBlock_->addInstruction(inst);
 
                     BuildResult result(copyOperand.name, SadTypeKind::Map);
-                    result.elementType = SadTypeKind::Void;
+                    result.elementType = SadTypeKind::Unknown;
                     return result;
                 }
 

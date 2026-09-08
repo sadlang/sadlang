@@ -122,7 +122,7 @@ namespace Sad
             //      from, never spelled out here: two spellings would drift in silence.
             const std::pair<uint8_t, std::string> raising[] = {
                 {Sad::LLVM::DynKind::Null, Sad::Data::Value::makeNull().getTypeName()},
-                {Sad::LLVM::DynKind::Void, Sad::Data::Value().getTypeName()},
+                {Sad::LLVM::DynKind::Missing, Sad::Data::Value().getTypeName()},
                 {Sad::LLVM::DynKind::Int, Sad::Data::Value(static_cast<int64_t>(0)).getTypeName()},
                 {Sad::LLVM::DynKind::Float, Sad::Data::Value(0.0).getTypeName()},
                 {Sad::LLVM::DynKind::Bool, Sad::Data::Value(false).getTypeName()},
@@ -1537,7 +1537,7 @@ namespace Sad
             //      unknown-element sides don't need it (null static path).
             SadTypeKind e0 = inst->operands[0].elementType;
             SadTypeKind e1 = inst->operands[1].elementType;
-            bool bothKnown = (e0 != SadTypeKind::Void && e1 != SadTypeKind::Void);
+            bool bothKnown = (e0 != SadTypeKind::Unit && e1 != SadTypeKind::Unit);
             if (op0Any || op1Any || (bothKnown && e0 != e1))
             {
                 auto *i8Ty = cg_.getInt8Type();

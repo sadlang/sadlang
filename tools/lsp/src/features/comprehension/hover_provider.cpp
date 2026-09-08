@@ -43,7 +43,7 @@ namespace lsp {
 //  (EN) Return-type names hidden in hover, sourced from the SoT (no magic literal).
 // ══════════════════════════════════════════════════════════════════════════════
 static const std::string HOVER_RET_VOID =
-    Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Void); // فراغ
+    Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Unit); // خالي
 static const std::string HOVER_RET_UNRESOLVED =
     "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf"; // غير_محدد
 

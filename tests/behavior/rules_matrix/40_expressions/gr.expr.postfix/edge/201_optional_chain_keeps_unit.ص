@@ -1,0 +1,49 @@
+# @rule: gr.expr.postfix
+# @description: الوصولُ الآمنُ «؟.» يحفظُ نوعَ الوحدةِ كما يحفظُه الخامّ
+# @priority: P0
+# @expected خالي\nخالي\nنص\nنص
+
+# ============================================================
+# (AR) 🔑 **النسخةُ الرابعةُ من قائمةِ سماحٍ واحدة — ولم تكن مُسمّاةً في تعليق.**
+#
+#      الثلاثُ المعروفةُ حينَها: قارئانِ للحقلِ وكاتبٌ له. وهذه رابعةٌ في مسارٍ
+#      مختلفٍ كلَّ الاختلاف — `buildExprOptionalChain` — فمَن أحصى القوائمَ
+#      بالبحثِ عن كلمةِ «حقل» لم يجدْها. والدرس: **عدُّ نسخِ الحقيقةِ بالبحثِ عن
+#      لفظِها يُحصي ما يُشبِهُها لا ما يفعلُ فعلَها.**
+#
+#   ⚠️ **والاتّجاهُ هو أسوأُ ما فيها**: `ك.ح` كان يُجيبُ «خالي» و`ك؟.ح` يُجيبُ
+#      «رقم» (مقيسٌ 2026-09-07) — أي أنّ الصيغةَ **الآمنةَ تُتلِفُ ما تُصيبُه
+#      الخامّة**. والكاتبُ يختارُ `؟.` حرصًا على العدم، فيُعاقَبُ على حرصِه
+#      بنوعٍ كاذب. وعطبٌ يُصيبُ الحذِرَ دونَ المتهاونِ أخبثُ من عطبٍ يُصيبُهما.
+#
+#   📌 و«مصفوفة» تُخطئُ في هذا المسارِ كذلك (مقيس) ولم تُضَفْ: التعليقُ في الشفرةِ
+#      يُصرِّحُ أنّ الأعضاءَ الكائنيّةَ والمصفوفيّةَ تبقى على مسارِ `i64` **عمدًا**،
+#      فتوسيعُه قرارُ تمثيلٍ يُقاسُ وحدَه. دَينٌ مُسمًّى لا مطويّ.
+#
+#   والسطرانِ الأخيرانِ ضابطٌ: نوعٌ كان يعملُ قبلَ الرقعةِ وبعدَها في المسارَين
+#   معًا — فلو رُدَّ كلُّ عضوٍ إلى «خالي» لَبقيَ النصفُ الأوّلُ أخضرَ وحدَه.
+# (EN) The FOURTH copy of one allow-list, named in no comment: the three known ones
+#      were two field readers and a field writer, while this lives on a wholly
+#      different path (optional chaining), so whoever enumerated the copies by
+#      searching for the word "field" never found it. Counting copies of a fact by
+#      searching for its NAME counts what resembles it, not what does its job.
+#      The direction is the worst part: `k.f` answered «خالي» while `k?.f` answered
+#      «رقم» — the SAFE form corrupted what the raw form got right, so an author who
+#      reaches for `?.` out of caution is punished for the caution. A defect that
+#      strikes the careful and spares the careless is nastier than one that strikes
+#      both. Array is wrong on this path too and is deliberately NOT included: the
+#      code states that object/array members stay on the i64 path on purpose.
+#      The last two lines are a control: a kind that worked on both paths before and
+#      after, so a blanket "every member is a unit" cannot pass this seed.
+# ============================================================
+
+بنية ب
+    متغير خالي ح
+    متغير نص ن = "س"
+نهاية
+
+متغير ك = ب()
+اطبع_سطر(نوع(ك؟.ح))
+اطبع_سطر(نوع(ك.ح))
+اطبع_سطر(نوع(ك؟.ن))
+اطبع_سطر(نوع(ك.ن))

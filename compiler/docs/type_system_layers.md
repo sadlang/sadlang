@@ -1,8 +1,39 @@
 # نظام الأنواع في لغة ص — الطبقات والتقسيم
 
-> **الغرض:** توضيح **لماذا** يوجد نظامان منفصلان للأنواع في لغة ص: نظام التشغيل (`shared/types/`) ونظام الترجمة الثابت (`compiler/src/types/`)، وكيف يتفاعلان دون تكرار.
+> ⛔ **هذه الوثيقةُ نُقِضَت بالقياس — ٨ أيلول ٢٠٢٦. وما يلي سِجلٌّ لا وصفُ حال.**
 >
-> **القاعدة الذهبية:** هذا **ليس تكراراً** — كل نظام يحل مشكلة مختلفة جذرياً. لا تدمجهما.
+> كانت تُصدَّرُ بسطرَين: «يوجد **نظامان منفصلان** للأنواع» و«**لا تدمجهما**».
+> والمقيسُ اليومَ أنّ النظامَ الثانيَ (`namespace Sad::TypeSystem` في
+> `shared/type_system/`) **أُذيبَ في الأوّل ولم يعُدْ في الشجرة**. أوامرُ
+> القياس، وكلُّها تُخرِجُ صفرًا:
+>
+> ```
+> grep -rn "TypeSystem::"      --include=*.cpp --include=*.h .
+> grep -rn "namespace TypeSystem" --include=*.cpp --include=*.h .
+> ls shared/type_system
+> ```
+>
+> **ولم تكن الحجّةُ في هذه الوثيقةِ كاذبةً يومَ كُتِبَت، بل صارت كاذبة**: علّةُ
+> الفصلِ المكتوبةُ في §2 هي «مرحلةُ ترجمةٍ ومرحلةُ تشغيل»، وكانتا محرّكَين.
+> فلمّا حُذِفَ المفسّرُ وصارَ المحرّكُ واحدًا سقطَ حدُّ التقسيمِ نفسُه، وبقيَ
+> النصُّ ينهى عن الدمجِ بحجّةٍ لم يعُدْ لها موضوع. ⚠️ **ودرسُه أنّ نهيًا
+> مكتوبًا يُعمَّرُ أطولَ من سببِه** — فالسببُ يُقاسُ ويزول، والنهيُ يبقى نصًّا
+> يُقرَأُ قاعدةً.
+>
+> **وأصدقُ ما كشفَه القياسُ أنّ أكثرَ «النظامِ الثاني» لم يكن يعملُ أصلًا.**
+> من **١٠٬٨٧٠** سطرًا فيه بقيَ **١٬١٧٩** لهما مُنادٍ من الإنتاج
+> (`TypeEnvironment` و`Trait/TraitRegistry`)، ونُقِلا إلى `shared/types/`.
+> والباقي **٩٬٦٩١** سطرًا حُذِفَ لأنّه بلا مُنادٍ واحد: آلةُ الاستدلالِ كلُّها
+> (`TypeInferencer` · `ConstraintSolver` · `Unifier` · `Substitution` ·
+> `TypeVariable` · `generics`)، وسجلُّ البنى (`StructRegistry` — **لا مُعبِّئَ
+> له في المستودعِ كلِّه**، فكلُّ حارسٍ عليه كان كاذبًا أبدًا)، وسجلُّ التعدادات
+> (لا يحملُ إلّا اسمَي `اختياري`/`نتيجة` اللذَين يسجّلُهما مُنشِئُه).
+> فالوثيقةُ كانت تصفُ «فحصَ أنواعٍ بـHindley‑Milner» **لشفرةٍ لا تُنادى**.
+>
+> وما تحتَ هذا السطرِ يُحفَظُ كما هو — **سندُ القرارِ لا يُمحى** — ويُقرَأُ
+> تاريخًا: أسماءُ الملفّاتِ والمسارات فيه لم تعُدْ في الشجرة.
+
+---
 
 ---
 
@@ -16,8 +47,8 @@
 │   │  مرحلة الترجمة (Compile-Time)    │   نظام أنواع ثابت            │
 │   │  ────────────────────────────    │                               │
 │   │  - Type Checking                 │   namespace Sad::TypeSystem  │
-│   │  - Type Inference (Hindley-Milner)│   📁 compiler/src/types/    │
-│   │  - Generic Instantiation         │   📁 compiler/include/types/ │
+│   │  - Type Inference (Hindley-Milner)│   📁 shared/type_system/src/│
+│   │  - Generic Instantiation         │   📁 .../include/types/      │
 │   │  - Trait Resolution              │                               │
 │   │  - Constraint Solving            │   ⏰ يعمل قبل توليد الكود     │
 │   └──────────────────────────────────┘                               │
@@ -74,13 +105,13 @@
 
 ---
 
-## 3. نظام الترجمة (`compiler/src/types/` + `compiler/include/types/`)
+## 3. نظام الترجمة (`shared/type_system/src/` + `shared/type_system/include/types/`)
 
 ### الموقع والـ Namespace
 
 - **مساحة الاسم:** `Sad::TypeSystem`
-- **مكان الكود:** [compiler/src/types/](../src/types/) — 18 ملف `.cpp`
-- **مكان الرؤوس:** [compiler/include/types/](../include/types/) — 19 ملف `.h`
+- **مكان الكود:** [shared/type_system/src/](../../shared/type_system/src/) — 17 ملف `.cpp`
+- **مكان الرؤوس:** [shared/type_system/include/types/](../../shared/type_system/include/types/) — 18 ملف `.h`
 - **يُجمَّع في:** `sad_type_system` (مكتبة ساكنة، تُستخدم من `sadc` و`sad`)
 
 ### الخريطة المعمارية
@@ -117,7 +148,7 @@
 | الملف | الصنف الرئيسي | الدور |
 |---|---|---|
 | [type.cpp](../src/types/type.cpp) | `Type` (base) | جذر هرمية الأنواع |
-| [primitive_type.cpp](../src/types/primitive_type.cpp) | `PrimitiveType` | `رقم`, `نص`, `منطقي`, `عشري`, `فراغ` |
+| [primitive_type.cpp](../src/types/primitive_type.cpp) | `PrimitiveType` | `رقم`, `نص`, `منطقي`, `عشري`, `خالي` |
 | [struct_types.cpp](../src/types/struct_types.cpp) | `StructType` | البنى (`بنية`) |
 | [enum_types.cpp](../src/types/enum_types.cpp) | `EnumType` | التعدادات (`تعداد`) |
 | [union_types.cpp](../src/types/union_types.cpp) + [union_type.cpp](../src/types/union_type.cpp) | `UnionType` | الاتحادات |
@@ -333,11 +364,11 @@ typedef struct CPointerType { /* ... */ };
 > **هذه القواعد تمنع تكرار مشكلة "المحسن المكرر" في نظام الأنواع.**
 
 1. **CW-02 (Layered):** `Sad::TypeSystem` لا يستورد أبداً من `Sad::Data` (واتجاه واحد فقط: عبر `TypeBridge`).
-2. **CW-19 (DRY):** أي نوع جديد يُضاف **مرة واحدة فقط**. حدد أولاً إن كان compile-time (`compiler/src/types/`) أم runtime (`shared/types/`):
+2. **CW-19 (DRY):** أي نوع جديد يُضاف **مرة واحدة فقط**. حدد أولاً إن كان compile-time (`shared/type_system/src/`) أم runtime (`shared/types/`):
    - هل يحتاج `unify()`, `substitute()`, `infer()`؟ ⇒ compile-time
    - هل يُحفظ كقيمة في متغير وقت التشغيل؟ ⇒ runtime
    - كلاهما؟ ⇒ نوع compile-time + entry في `TypeBridge`
-3. **لا runtime types في compiler/:** يُمنع وضع `ObjectInstance`-like في `compiler/src/types/`.
+3. **لا runtime types في طبقة الترجمة:** يُمنع وضع `ObjectInstance`-like في `shared/type_system/src/`.
 4. **لا compile-time inference في shared/:** يُمنع وضع `TypeInferencer`-like في `shared/types/`.
 5. **TypeBridge هي البوابة الوحيدة:** أي تحويل بين النظامين يمر عبره. لا تستورد رؤوس النظام الآخر مباشرةً.
 6. **`c_types.h` و`atomic_types.h` استثناءات موثقة:** ليست نظام أنواع — هي helpers لـ codegen. لا تنقلهما لـ shared.
@@ -377,5 +408,31 @@ s-programming-language/
 - خريطة المشروع: [/memories/repo/project_full_map.md](/memories/repo/project_full_map.md)
 - نظام الأنواع الموحد (تاريخي): [/memories/repo/unified_type_system.md](/memories/repo/unified_type_system.md)
 - جسر النوعين: [shared/types/src/type_bridge.cpp](../../shared/types/src/type_bridge.cpp)
-- نقطة دخول الاستنتاج: [compiler/src/types/type_inferencer.cpp](../src/types/type_inferencer.cpp)
+- نقطة دخول الاستنتاج: [shared/type_system/src/type_inferencer.cpp](../../shared/type_system/src/type_inferencer.cpp)
 - نقطة دخول القيم: [shared/types/include/value.h](../../shared/types/include/value.h)
+
+---
+
+## ٧ · تصويبٌ مُدوَّن — ٨ أيلول ٢٠٢٦
+
+> ⚠️ **الوثيقةُ كانت تصفُ ثلاثةَ أنظمةٍ وتسمّي اثنَين.** كان في الشجرةِ صنفٌ
+> ثالثٌ اسمُه «نوع»: `Sad::Data::Type` في `shared/types/include/type.h` —
+> قاعدةُ `ClassType`، وحقلٌ في `ClassField`/`ClassMethod`/`ClassProperty`.
+> **حُذف** بعدَ قياسٍ: صفرُ موضعٍ يُنشئُه في شفرةِ الإنتاج، وقارئُه الوحيدُ
+> `printDebugInfo` كان **يُسقِطُ مؤشِّرًا عدميًّا** لأنّ الحقلَ nullptr دائمًا،
+> و`ClassType` كانت تخزّنُ الاسمَ مرّتَين.
+>
+> ⚠️ **وطبقةُ الترجمةِ نُقلت من `compiler/` إلى `shared/type_system/`.**
+> كانت `shared/semantic` — وهي «مشترَكة» — تربطُ هدفًا يملكُه المترجّمُ
+> وتُضمِّنُ ترويساتِه في **٢١** سطرَ تضمين، فلم يكن المشترَكُ يُبنى بلا
+> المترجّم. صارَ اتّجاهُ التبعيّة `compiler ← shared`.
+>
+> ⚠️ **و`type_bridge.cpp` المذكورُ في §٥ غيرُ موجودٍ في الشجرة** (حُذف مع
+> `toValueType`/`fromArabicName`)؛ ما بقيَ هو `SadType::fromValueType` في
+> `shared/types/src/sad_type_system.cpp`. والصفُّ يبقى مكتوبًا ليُقرأَ سببُ
+> الرَّوَث لا ليُقرأَ حالًا.
+>
+> أمرُ القياسِ لكلِّ ما سبق:
+> ```
+> python scripts/codegen/measure_type_layer_bridges.py --انقلاب 0 --جسور 10 --مخمِّنة 4 --ثالث 0
+> ```

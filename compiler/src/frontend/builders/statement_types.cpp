@@ -462,6 +462,83 @@ namespace Sad
                         case Sad::Types::SadTypeKind::UInt64:
                             fieldType = SadTypeKind::UInt64;
                             break;
+                        // ════════════════════════════════════════════════════
+                        // (AR) 🔑 `خالي` — والنسخةُ **الثالثةُ** من قائمةِ سماحٍ
+                        //      واحدة، وهذا هو الدرسُ لا الذراع.
+                        //
+                        //      قائمةُ الأنواعِ المسموحِ بها للحقولِ مكتوبةٌ في
+                        //      ثلاثةِ مواضعَ لا يعرفُ بعضُها بعضًا:
+                        //        · `expression_members.cpp` — قارئٌ
+                        //        · `expression_objects.cpp` — قارئٌ توأمُه
+                        //        · وهذا الموضع — **الكاتبُ** لحقولِ البنية
+                        //      وثلاثتُها تبدأ `Integer` ثمّ تستثني أنواعًا
+                        //      مُسمّاةً واحدًا واحدًا.
+                        //
+                        //   ⚠️ ومقيسٌ (2026-09-07) أنّ رقعةَ نوعِ الوحدةِ
+                        //      طُبِّقت على القارئَينِ **فلم يتغيّرِ المخرَجُ حرفًا
+                        //      واحدًا في الحالتَين**: القارئُ لا يقرأُ إلّا ما
+                        //      كُتِب، والكاتبُ كان يكتبُ `Integer`. أي أنّ رقعتَينِ
+                        //      متتاليتَينِ بَدَتا مُطبَّقتَينِ وهما معطَّلتان،
+                        //      ولم يكشفْ ذلك إلّا **مخرَجُ LLVM**: بنيةُ الصنفِ
+                        //      `{ ptr, i64 }` وخانةُ الوحدةِ فيها `i64`.
+                        //
+                        //   🔑 والدرسُ: **حين تُصلِحُ قارئًا فلا يتغيّرُ شيءٌ،
+                        //      فالكاتبُ هو المتّهم** — لا رقعتُك. والبحثُ عن
+                        //      «النوعِ الغائبِ في قائمةٍ» ينتهي عندَ أوّلِ قائمةٍ
+                        //      يجدُها الباحثُ، والقوائمُ ثلاثٌ.
+                        //
+                        //   📌 دَينٌ مُسمًّى: توحيدُ الثلاثةِ في قراءةٍ واحدةٍ
+                        //      للمُسجَّلِ هو الصواب، ويمسُّ كلَّ حقلٍ في اللغةِ
+                        //      فيُقاسُ وحدَه.
+                        // (EN) Unit — and this is the THIRD copy of one allow-list.
+                        //      The set of field kinds is written in three places that
+                        //      do not know about each other: two readers
+                        //      (expression_members.cpp, expression_objects.cpp) and
+                        //      THIS one, the WRITER for struct fields. All three start
+                        //      at Integer and then except named kinds one by one.
+                        //      Measured: the unit patch was applied to both readers and
+                        //      the output did not change by a single character either
+                        //      time — a reader can only read what was written, and the
+                        //      writer was writing Integer. Two consecutive patches
+                        //      looked applied and were inert; only the LLVM output
+                        //      exposed it (`%class = type { ptr, i64 }`). The lesson:
+                        //      when fixing a reader changes nothing, suspect the WRITER,
+                        //      not your patch — and a search for "the kind missing from
+                        //      a list" stops at the first list found, while there are
+                        //      three.
+                        // ════════════════════════════════════════════════════
+                        case Sad::Types::SadTypeKind::Unit:
+                            fieldType = SadTypeKind::Unit;
+                            break;
+                        // (AR) 🔑 و`خريطة` و`عدم` معهما — وليستا من نوعِ الوحدةِ
+                        //      في شيء، بل **جارتانِ في القائمةِ نفسِها**.
+                        //      قِيسَ (2026-09-07) أنّ `متغير خريطة ح` و
+                        //      `متغير عدم ح` في بنيةٍ يُجيبانِ «رقم» ويطبعانِ
+                        //      `0`، وضابطُهما في موضعِ متغيّرٍ محلّيٍّ يُجيبُ
+                        //      «خريطة» و«عدم» صحيحًا.
+                        //   🔑 والدرس: **قائمةُ سماحٍ لا تُعطِبُ النوعَ الذي
+                        //      نُسيَ وحدَه، بل كلَّ نوعٍ لم يُذكَرْ فيها.** فمَن
+                        //      أصلحَ نوعَه وحدَه ترك القائمةَ تُعطِبُ الباقين،
+                        //      وهم لا حارسَ لهم لأنّ لا بذرةَ تمسُّهم: مسحُ
+                        //      `tests/behavior` كلِّه أعطى **صفرَ** حقلٍ من
+                        //      هذين النوعَين — وذلك سببُ بقاءِ العطبِ لا عذرُه.
+                        // (EN) Map and Null join too — not because they have anything to
+                        //      do with the unit type, but because they are NEIGHBOURS in
+                        //      the same list. Measured: a خريطة or عدم field in a struct
+                        //      answered «رقم» and printed 0, while the same types in a
+                        //      local-variable position answered correctly. The lesson: an
+                        //      allow-list does not corrupt only the kind that was
+                        //      forgotten, it corrupts every kind not named in it — and
+                        //      fixing one's own kind leaves the rest broken, unguarded,
+                        //      because no seed touches them: a scan of all of
+                        //      tests/behavior found ZERO fields of either type. That is
+                        //      why the defect survived, not an excuse for it.
+                        case Sad::Types::SadTypeKind::Map:
+                            fieldType = SadTypeKind::Map;
+                            break;
+                        case Sad::Types::SadTypeKind::Null:
+                            fieldType = SadTypeKind::Null;
+                            break;
                         default:
                             fieldType = SadTypeKind::Integer;
                             break;
@@ -570,6 +647,47 @@ namespace Sad
                             //      while the class path already registered "". Fixing only
                             //      the interpreter created the divergence.
                             sirClass->fieldDefaultValues_[field.name] = {std::string(), fieldType};
+                        }
+                        // ════════════════════════════════════════════════════
+                        // (AR) 🔑 حقلُ وحدةٍ بلا مُهيّئ — وقيمتُه الافتراضيّةُ
+                        //      **معلومةٌ يقينًا**: للنوعِ قيمةٌ واحدةٌ لا غير.
+                        //
+                        //      وبلا هذا السطرِ يتركه `memset(0)` خانةً صفريّةً بلا
+                        //      قيمةٍ مُسجَّلة، فيُقرَأُ **«عدم»** ويطبعُ «لاشيء»
+                        //      (مقيسٌ 2026-09-07) — أي يُقرَأُ **غيابًا**، وهو
+                        //      عينُ الخلطِ الذي قامت الحملةُ كلُّها على فصلِه.
+                        //
+                        //   🔑 والوحدةُ أوضحُ أنواعِ اللغةِ في هذا الباب: «نص» له
+                        //      قيمةٌ افتراضيّةٌ **مختارة** (الفارغُ لا العدم)،
+                        //      و«منطقي» كذلك؛ أمّا الوحدةُ فقيمتُها الافتراضيّةُ
+                        //      **مفروضةٌ بتعريفِ النوع** — إذ لا ثانيةَ لها
+                        //      تُختارُ من بينهما. فتركُها بلا قيمةٍ ليس تحفّظًا،
+                        //      بل إثباتُ غيابٍ حيث لا غيابَ ممكن.
+                        // (EN) A unit field with no initializer — its default value is
+                        //      known with certainty, because the type has exactly one
+                        //      value. Without this, memset(0) leaves a zeroed slot with no
+                        //      registered value and it reads back as «عدم», printing
+                        //      «لاشيء» — i.e. as an ABSENCE, the very conflation this whole
+                        //      campaign exists to separate. Unit is the clearest case in
+                        //      the language: نص and منطقي have CHOSEN defaults (empty, not
+                        //      null), while the unit's default is FORCED by the type's
+                        //      definition — there is no second value to choose between. To
+                        //      leave it unset is not caution; it asserts an absence where
+                        //      none is possible.
+                        // ════════════════════════════════════════════════════
+                        else if (fieldType == SadTypeKind::Unit)
+                        {
+                            // (AR) 🔑 وحمولةُ حاملِ الوحدةِ صفرٌ **بحكمِ التمثيلِ لا
+                            //      بعددٍ يُكتَبُ ههنا**: قيمةُ الوحدةِ الوحيدةُ لا
+                            //      حمولةَ لها، وحاملُها في الخلفيّةِ خانةٌ لا تُقرَأ
+                            //      (`unitCarrierValue`). والعددُ المكتوبُ حرفيًّا كان
+                            //      يجعلُ تغييرَ التمثيلِ يومًا يتركُ هذا الحقلَ وحدَه
+                            //      بلا حارسٍ يُنبِّه.
+                            // (EN) The unit carrier's payload is zero by REPRESENTATION,
+                            //      not by a number written here: the unit's single value
+                            //      has no payload and its backend slot is never read.
+                            sirClass->fieldDefaultValues_[field.name] = {
+                                std::to_string(Sad::Compiler::kUnitCarrierPayload), fieldType};
                         }
                     }
 
@@ -842,7 +960,7 @@ namespace Sad
                             }
                         }
 
-                        auto ctorFunc = std::make_shared<SIRFunction>(ctorName, SadTypeKind::Void);
+                        auto ctorFunc = std::make_shared<SIRFunction>(ctorName, SadTypeKind::Unit);
                         // (AR) الرايةُ عقدٌ دلاليٌّ — «هذه الدالّةُ بانٍ» — لا اختصارٌ لعلّةٍ
                         //      بعينِها. فترفَعُ عندَ كلِّ موضعٍ يُنشئُ بانيًا، لا عندَ الموضعِ
                         //      الذي انكشفَ منه العطبُ وحدَه، وإلّا صارَ صمتُها ثغرةً تنتظر.
@@ -1013,7 +1131,7 @@ namespace Sad
                     // (AR) بناء دالة هادم خاصة: __destructor_<className>
                     // (EN) Build special destructor function: __destructor_<className>
                     std::string dtorName = "__destructor";
-                    auto dtorFunc = std::make_shared<SIRFunction>(dtorName, SadTypeKind::Void);
+                    auto dtorFunc = std::make_shared<SIRFunction>(dtorName, SadTypeKind::Unit);
 
                     // (AR) إضافة معامل المُستقبِل — بالاسمِ المحميِّ نفسِه الذي
                     //      يستعملُه الباني والطرائق (ISSUE-119): `this` تهجئةٌ

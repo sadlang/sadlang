@@ -25,7 +25,6 @@
 #include "statements.h"
 #include "expressions.h"
 #include "declarations.h"
-#include "type.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -38,7 +37,12 @@ namespace Sad
         // Forward declarations and type aliases
         using Expr = Expression;
         using Stmt = Statement;
-        using Type = Data::Type;
+        // (AR) 🔑 وكان ههنا `using Type = Data::Type;` — كنيةٌ **صفرُ**
+        //      مستعمِلٍ لها في المستودعِ كلِّه (`grep AST::Type` = ٠)، وهي
+        //      وحدَها ما جرَّ `shared/types/include/type.h` إلى كلِّ مُضمِّنٍ
+        //      لهذا الرأس. حُذفت مع الصنفِ الذي تُكنّيه.
+        // (EN) `using Type = Data::Type;` stood here with zero users; it was
+        //      the sole reason this header pulled in the third Type class.
 
         // ======================================================================
         // تعدادات وهياكل مساعدة / Enums and Helper Structures

@@ -221,7 +221,7 @@ target_include_directories(test_ui_phase1 PRIVATE
 # (EN) Verifies SIRBuilder lowers UIDeclarationNode -> ClassDecl (Phase 0):
 #      a SIR class with @state fields + methods + يرث inheritance.
 add_comprehensive_test(test_ui_sir_lowering test_ui_sir_lowering.cpp)
-target_link_libraries(test_ui_sir_lowering PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_type_system)
+target_link_libraries(test_ui_sir_lowering PRIVATE sad_shared sad_frontend sad_builtins sad_lowlevel sad_shared)
 target_include_directories(test_ui_sir_lowering PRIVATE
     ${CMAKE_SOURCE_DIR}/compiler/include/frontend
     ${CMAKE_SOURCE_DIR}/compiler/include)

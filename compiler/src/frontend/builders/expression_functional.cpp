@@ -197,6 +197,45 @@ namespace Sad
                 {
                     retType = b_.inferReturnTypeFromBody(lambdaExpr->blockBody.get());
                 }
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 لامدا بجسمٍ **تعبيريّ** (`لامدا() => …`) لا `blockBody`
+                //      لها، فكان عائدُها يبقى `Integer` الافتراضيَّ **دائمًا**.
+                //      فـ`لامدا() => ()` يُجيبُ `نوع(ل())` بـ«رقم» ويطبعُ النداءُ
+                //      `0` (مقيسٌ 2026-09-07).
+                //
+                //   ⚠️ والذراعُ مقصورةٌ على **الصفِّ الفارغِ** عمدًا، ولها سبب:
+                //      الافتراضُ `Integer` يعمُّ كلَّ لامدا تعبيريّةٍ في الشجرة
+                //      (‏`=> "نصّ"` و`=> 1.5` سواءً)، فاستنتاجُ التعبيرِ عامّةً
+                //      **يُبدِّلُ عائدَ كلِّ لامدا في اللغة** — دَينٌ أوسعُ يُقاسُ
+                //      وحدَه بشوطٍ كامل، لا سطرٌ يُدَسُّ في رقعةِ نوعِ الوحدة.
+                //      📌 وهو مُسمًّى ههنا كي لا يُقرأَ سكوتُ هذه الذراعِ تغطيةً.
+                //
+                //   🔑 والوحدةُ تُفصَلُ عن سائرِها بحقٍّ لا بمحاباة: القيمُ الأخرى
+                //      **تُحمَلُ** في الخانةِ فيُقرأُ عرضُها ولو أخطأَ وسمُها،
+                //      والوحدةُ لا حمولةَ لها أصلًا — فوسمُها هو كلُّ ما فيها،
+                //      وضياعُه ضياعُ القيمةِ كاملةً.
+                // (EN) An EXPRESSION-bodied lambda (`lambda() => …`) has no blockBody,
+                //      so its return type stayed at the Integer default unconditionally;
+                //      `lambda() => ()` reported «رقم» and the call printed 0. The arm is
+                //      deliberately limited to the EMPTY TUPLE: the Integer default covers
+                //      every expression-bodied lambda in the tree (`=> "s"` and `=> 1.5`
+                //      alike), so inferring expression bodies in general would change the
+                //      return type of every lambda in the language — a wider debt to be
+                //      measured on its own, named here so this arm's silence is not read
+                //      as coverage. Unit is separated from the rest on merit: other values
+                //      still CARRY their payload, so a wrong tag mis-labels a readable
+                //      width; the unit has no payload at all, so its tag is the whole
+                //      value and losing it loses everything.
+                // ═══════════════════════════════════════════════════════════════
+                else if (lambdaExpr->body)
+                {
+                    if (const auto *tup =
+                            dynamic_cast<const Sad::AST::TupleExpr *>(lambdaExpr->body.get());
+                        tup && tup->elements.empty())
+                    {
+                        retType = SadTypeKind::Unit;
+                    }
+                }
 
                 // (AR) إنشاء دالة SIR للـ lambda
                 // (EN) Create SIR function for lambda
@@ -333,7 +372,33 @@ namespace Sad
                     //      e.g.: lambda (x) => x > 10 → bodyResult.type = Boolean
                     //      Without this: retType stays Integer (default) and Boolean info is lost
                     // ================================================================
-                    if (bodyResult.type != SadTypeKind::Void && bodyResult.type != SadTypeKind::Unknown)
+                    // (AR) 🔑 و`Unit` ههنا حارسُ «لا معلومة» **للمرّةِ الرابعة**
+                    //      في هذه الحملة، والقناةُ رابعةٌ كذلك: بعدَ قناةِ القيمةِ
+                    //      وقناةِ العنصرِ وقناةِ عائدِ الدالّة، **قناةُ جسمِ
+                    //      اللامدا التعبيريّ**.
+                    //
+                    //      `لامدا() => "أ"` تُجيبُ «نص» صحيحًا لأنّ `String` ليست
+                    //      في الشرط؛ و`لامدا() => ()` تسقطُ فيبقى `Integer`
+                    //      الافتراضيُّ، فيطبعُ النداءُ `0` (مقيسٌ 2026-09-07).
+                    //
+                    //      والتمييزُ بينَ «وحدةٍ قيمةً» و«لا معلومة» **بشكلِ
+                    //      النتيجةِ لا بنوعِها**: القيمةُ الحقيقيّةُ لها سِجِلٌّ
+                    //      أو هي ثابت، و«لا معلومة» لا سِجِلَّ لها. وهو المِعيارُ
+                    //      نفسُه المستعمَلُ في `mem_store.cpp` للتمييزِ بينَ ثابتِ
+                    //      الغيابِ وسِجِلِّ وحدةٍ حقيقيّ — فلا يُخترَعُ مِعيارٌ
+                    //      ثانٍ لسؤالٍ واحد.
+                    // (EN) Unit as the "no information" sentinel for the FOURTH time in
+                    //      this campaign, in a fourth channel: after the value tag, the
+                    //      element type and the function return type, the EXPRESSION-BODY
+                    //      of a lambda. `=> "s"` answers correctly because String is not
+                    //      in the guard; `=> ()` falls through and the Integer default
+                    //      stands, so the call prints 0. A real unit is told from "no
+                    //      information" by the RESULT'S SHAPE, not its kind: a real value
+                    //      has a register or is a constant. That is the same criterion
+                    //      mem_store.cpp already uses to separate the absence constant
+                    //      from a real unit register — one question, one criterion.
+                    const bool bodyIsAbsent = bodyResult.isAbsentValue();
+                    if (!bodyIsAbsent && bodyResult.type != SadTypeKind::Unknown)
                     {
                         retType = bodyResult.type;
                         lambdaFunc->returnType = retType;
@@ -342,7 +407,25 @@ namespace Sad
 
                     SIRInstruction retInst;
                     retInst.opcode = SIROpcode::RET;
-                    retInst.operands.push_back(SIROperand::Register(bodyResult.registerName, bodyResult.type));
+                    // (AR) 🔑 والحارسُ كان يقرّرُ **النوعَ** ولا يقرّرُ **البثّ**:
+                    //      «لامدا() => اطبع("أ")» جسمُها لا يُنتِجُ قيمة، فيبقى
+                    //      `returnType` عددًا افتراضيًّا ويُبَثُّ `RET` مسمّيًا
+                    //      سجلًّا **فارغًا** — سجلٌّ غيرُ معرَّفٍ في التوليد، أي
+                    //      «يُرجى الإبلاغ» عن برنامجٍ شرعيّ. فالغيابُ يُبَثُّ
+                    //      عائدًا فارغًا ويُصرَّحُ عقدُه `خالي`.
+                    // (EN) The guard decided the TYPE but not the EMISSION: a value-less
+                    //      expression body left returnType at the Integer default and
+                    //      still emitted a RET naming an EMPTY register — an undefined
+                    //      register in codegen, i.e. "please report" for a legal program.
+                    if (bodyIsAbsent)
+                    {
+                        retType = SadTypeKind::Unit;
+                        lambdaFunc->returnType = SadTypeKind::Unit;
+                    }
+                    else
+                    {
+                        retInst.operands.push_back(SIROperand::Register(bodyResult.registerName, bodyResult.type));
+                    }
                     if (b_.currentBlock_)
                     {
                         b_.currentBlock_->addInstruction(retInst);
@@ -375,7 +458,7 @@ namespace Sad
                                 if (inst.opcode == SIROpcode::RET && !inst.operands.empty())
                                 {
                                     SadTypeKind actualRetType = inst.operands[0].dataType;
-                                    if (actualRetType != SadTypeKind::Void &&
+                                    if (actualRetType != SadTypeKind::Unit &&
                                         actualRetType != SadTypeKind::Unknown &&
                                         actualRetType != SadTypeKind::Integer &&
                                         retType == SadTypeKind::Integer)

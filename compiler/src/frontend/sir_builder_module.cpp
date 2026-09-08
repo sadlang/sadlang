@@ -62,10 +62,26 @@ namespace Sad
             //      their type is only known once built, and guessing here would propagate
             //      a falsehood into every function that reads the global.
             // ════════════════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) 🔑 حارسُ «لا أعرف» ههنا `Unknown` لا `Unit` — بُدِّل 2026-09-07.
+            //      وكانت الدالّتانِ تستعملانِ **نوعَ الوحدةِ** ثمانيَ مرّاتٍ بمعنى
+            //      «عنصرٌ لم أستطعْ تصنيفَه»، وهو صحيحٌ يومَ كان اللفظُ «فراغ»
+            //      ومعناه غيابُ نوع. فلمّا صارَ «خالي» **نوعًا حقيقيًّا** صارَ
+            //      المعنيانِ يتصادمان في القيمةِ نفسِها: مصفوفةٌ عناصرُها وحداتٌ
+            //      تُقرَأُ «لا أعرف»، ومصفوفةٌ لا أعرفُ عناصرَها تُقرَأُ «وحدات».
+            //      ومقيسٌ (2026-09-07) أنّ `م = [()، ()]` ثمّ `نوع(م[0])` كان
+            //      يُجيبُ **«رقم»** — لا «خالي» ولا حتّى «مجهول».
+            // (EN) The "don't know" sentinel here is Unknown, not Unit — changed on
+            //      2026-09-07. Both functions used the UNIT KIND eight times to mean
+            //      "element I could not classify", correct while the word meant the
+            //      ABSENCE of a type. Once unit became a real type the two meanings
+            //      collided in one value. Measured: `[(), ()]` then typeof(m[0])
+            //      answered «رقم» — neither «خالي» nor even «unknown».
+            // ════════════════════════════════════════════════════════════════════
             static SadTypeKind classifyLiteralElementKind(const Sad::AST::Expression *element)
             {
                 if (!element)
-                    return SadTypeKind::Void;
+                    return SadTypeKind::Unknown;
 
                 if (auto *literal = dynamic_cast<const Sad::AST::LiteralExpr *>(element))
                 {
@@ -81,7 +97,7 @@ namespace Sad
                     case Lexer::TokenType::LITERAL_FALSE:
                         return SadTypeKind::Boolean;
                     default:
-                        return SadTypeKind::Void;
+                        return SadTypeKind::Unknown;
                     }
                 }
                 if (dynamic_cast<const Sad::AST::ArrayExpr *>(element))
@@ -89,7 +105,7 @@ namespace Sad
                 if (dynamic_cast<const Sad::AST::MapExpr *>(element))
                     return SadTypeKind::Map;
 
-                return SadTypeKind::Void;
+                return SadTypeKind::Unknown;
             }
 
             // ════════════════════════════════════════════════════════════════════
@@ -108,7 +124,7 @@ namespace Sad
             static SadTypeKind inferArrayLiteralElementKind(const Sad::AST::ArrayExpr &arrayExpr)
             {
                 if (arrayExpr.elements.empty())
-                    return SadTypeKind::Void;
+                    return SadTypeKind::Unknown;
 
                 // (AR) القابلُ للتعليب: يُخزَّن في خانةِ ثمانيةِ بايتاتٍ ويحمل وسمَه — نصٌّ
                 //      ومصفوفةٌ وخريطةٌ مؤشّراتٌ، والباقي قيمٌ. نظيرُ isBoxableScalar هناك.
@@ -120,15 +136,15 @@ namespace Sad
                            kind == SadTypeKind::Array || kind == SadTypeKind::Map;
                 };
 
-                SadTypeKind firstKind = SadTypeKind::Void;
+                SadTypeKind firstKind = SadTypeKind::Unknown;
                 bool homogeneous = true;
                 bool allBoxable = true;
 
                 for (size_t index = 0; index < arrayExpr.elements.size(); ++index)
                 {
                     const SadTypeKind kind = classifyLiteralElementKind(arrayExpr.elements[index].get());
-                    if (kind == SadTypeKind::Void)
-                        return SadTypeKind::Void; // (AR) عنصرٌ مجهولٌ ⇒ لا دعوى
+                    if (kind == SadTypeKind::Unknown)
+                        return SadTypeKind::Unknown; // (AR) عنصرٌ مجهولٌ ⇒ لا دعوى
                     if (index == 0)
                         firstKind = kind;
                     else if (kind != firstKind)
@@ -139,7 +155,7 @@ namespace Sad
 
                 if (homogeneous)
                     return firstKind;
-                return allBoxable ? SadTypeKind::Any : SadTypeKind::Void;
+                return allBoxable ? SadTypeKind::Any : SadTypeKind::Unknown;
             }
 
             // ============================================================================
@@ -679,8 +695,17 @@ namespace Sad
                         //      method may fall to the numeric default — still strictly better
                         //      than the value-dropping Void; the real build's update corrects
                         //      call sites built after it.
-                        if (methodDecl->returnType == Sad::Types::SadTypeKind::Unknown ||
-                            methodDecl->returnType == Sad::Types::SadTypeKind::Void)
+                        // (AR) 🔑 و«خالي» **تصريحٌ مُحترَم** لا غيابُ تصريح: بعدَ أن
+                        //      صارَ المحلِّلُ يفرّقُ بينهما (`Unknown` لِما لم يُذكَرْ)،
+                        //      بقاءُ `|| Unit` ههنا يجعلُ استنتاجَ الجسمِ **يدوسُ**
+                        //      تصريحًا صريحًا — وهو العطبُ نفسُه الذي أُصلِحَ للدوالِّ
+                        //      الحرّةِ وبقيَ حيًّا في ستّةِ مواضع.
+                        // (EN) A declared Unit is an HONOURED declaration, not its
+                        //      absence: with the parser now separating the two, keeping
+                        //      `|| Unit` let body inference override an explicit
+                        //      declaration — the defect fixed for free functions and
+                        //      left live at six sites.
+                        if (methodDecl->returnType == Sad::Types::SadTypeKind::Unknown)
                         {
                             auto savedClassName = currentClassName_;
                             currentClassName_ = classDecl->name;
@@ -766,7 +791,7 @@ namespace Sad
 
                         FunctionInfo ctorInfo;
                         ctorInfo.name = fullCtorName;
-                        ctorInfo.returnType = SadTypeKind::Void;
+                        ctorInfo.returnType = SadTypeKind::Unit;
 
                         // (AR) المعامل الأول دائماً self
                         // (EN) First parameter is always self
@@ -866,7 +891,8 @@ namespace Sad
                         //      path had it, allocated an i64 global while declaring its kind
                         //      Any ⇒ internal compiler error on the two-line program.
                         varType = resolveBareSlotStorageKind(
-                            varDecl->type, varDecl->initializer != nullptr, varType);
+                            varDecl->type, varDecl->initializer != nullptr, varType,
+                            initializerYieldsValueSyntactically(varDecl->initializer.get(), varType));
 
                         VariableInfo globalVarInfo;
                         globalVarInfo.name = varDecl->name;
@@ -1257,11 +1283,11 @@ namespace Sad
                                                     // (AR) متغير — نبحث عن نوعه في الجدول
                                                     // (EN) Variable — look up its type
                                                     auto *varInfo = lookupVariable(varExpr->name);
-                                                    if (varInfo && varInfo->type != SadTypeKind::Void)
+                                                    if (varInfo && varInfo->type != SadTypeKind::Unit)
                                                         argType = varInfo->type;
                                                 }
 
-                                                if (argType != SadTypeKind::Pointer && argType != SadTypeKind::Void)
+                                                if (argType != SadTypeKind::Pointer && argType != SadTypeKind::Unit)
                                                 {
                                                     sirClass->fields_[fieldName] = argType;
                                                 }
@@ -1576,7 +1602,7 @@ namespace Sad
                                                     argType = SadTypeKind::Array;
                                                 }
 
-                                                if (argType != SadTypeKind::Pointer && argType != SadTypeKind::Void)
+                                                if (argType != SadTypeKind::Pointer && argType != SadTypeKind::Unit)
                                                 {
                                                     sirClass->fields_[fieldName] = argType;
                                                     // (AR) تحديث أيضاً functionTable_ للباني
@@ -1650,7 +1676,7 @@ namespace Sad
                                                 auto mIt = argClass->fields_.find(mName);
                                                 if (mIt != argClass->fields_.end() &&
                                                     mIt->second != SadTypeKind::Pointer &&
-                                                    mIt->second != SadTypeKind::Void)
+                                                    mIt->second != SadTypeKind::Unit)
                                                 {
                                                     callSirClass->fields_[fName] = mIt->second;
                                                 }
@@ -1689,10 +1715,10 @@ namespace Sad
                                                     else if (auto *varArg = dynamic_cast<const Sad::AST::VariableExpr *>(cArg.get()))
                                                     {
                                                         auto *varInfo = lookupVariable(varArg->name);
-                                                        if (varInfo && varInfo->type != SadTypeKind::Void)
+                                                        if (varInfo && varInfo->type != SadTypeKind::Unit)
                                                             cArgType = varInfo->type;
                                                     }
-                                                    if (cArgType != SadTypeKind::Pointer && cArgType != SadTypeKind::Void)
+                                                    if (cArgType != SadTypeKind::Pointer && cArgType != SadTypeKind::Unit)
                                                     {
                                                         callSirClass->fields_[cfName] = cArgType;
                                                     }
@@ -2112,7 +2138,7 @@ namespace Sad
                 if (!topLevelStatements.empty() && globalsFromTopLevel)
                 {
                     auto initFunc = std::make_shared<SIRFunction>("__sad_main",
-                                                                  SadTypeKind::Void);
+                                                                  SadTypeKind::Unit);
                     auto prevFunction = currentFunction_;
                     auto prevBlock = currentBlock_;
                     currentFunction_ = initFunc;
@@ -2150,7 +2176,7 @@ namespace Sad
                     {
                         FunctionInfo funcInfo;
                         funcInfo.name = "__sad_main";
-                        funcInfo.returnType = SadTypeKind::Void;
+                        funcInfo.returnType = SadTypeKind::Unit;
                         funcInfo.sirFunction = initFunc;
                         functionTable_["__sad_main"] = funcInfo;
                     }
@@ -2192,7 +2218,7 @@ namespace Sad
 
                     // (AR) إنشاء دالة __sad_main من نوع void بدون معاملات
                     // (EN) Create __sad_main function: void __sad_main()
-                    auto sadMainFunc = std::make_shared<SIRFunction>("__sad_main", SadTypeKind::Void);
+                    auto sadMainFunc = std::make_shared<SIRFunction>("__sad_main", SadTypeKind::Unit);
 
                     // (AR) حفظ الحالة الحالية
                     // (EN) Save current state
@@ -2253,7 +2279,7 @@ namespace Sad
                     {
                         FunctionInfo funcInfo;
                         funcInfo.name = "__sad_main";
-                        funcInfo.returnType = SadTypeKind::Void;
+                        funcInfo.returnType = SadTypeKind::Unit;
                         funcInfo.sirFunction = sadMainFunc;
                         functionTable_["__sad_main"] = funcInfo;
                     }
@@ -2477,7 +2503,7 @@ namespace Sad
                         //      نظير الدوال المتداخلة (statement_main.cpp:159-167) كي لا تبقى
                         //      دوالُّ المستوى الأعلى Void فتُهمَل قيمتها عند تمريرها وسيطًا.
                         if ((funcDecl->returnType == Types::SadTypeKind::Unknown ||
-                             funcDecl->returnType == Types::SadTypeKind::Void) &&
+                             funcDecl->returnType == Types::SadTypeKind::Unit) &&
                             funcDecl->body)
                         {
                             funcInfo.returnType =
@@ -2496,7 +2522,7 @@ namespace Sad
                             //      returned Integer, splitting functionTable_ (i64)
                             //      from SIRFunction (Void) and emitting call i64 on a
                             //      declare void (UB if the value is consumed).
-                            funcInfo.returnType = SadTypeKind::Void;
+                            funcInfo.returnType = SadTypeKind::Unit;
                         }
                         else
                         {

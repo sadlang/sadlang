@@ -3,6 +3,7 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Value.h>
+#include <llvm/IR/Constants.h> // (AR) ConstantInt — سلطةُ حاملِ الوحدة
 #include "sir_instruction.h"
 #include "sad_type_system.h" // (AR) لـSad::Types::repr (حارسُ انجرافِ DynKind من مصدرِ الحقيقة الموحَّد)
 
@@ -51,16 +52,28 @@ namespace Sad
             inline constexpr uint8_t Map = 6;   // (AR) خريطة / (EN) map
             inline constexpr uint8_t Obj = 7;   // (AR) كائن / (EN) object
             inline constexpr uint8_t Adt = 8;   // (AR) تعداد جبريّ / (EN) ADT
-            // (AR) [م-٠٠١] فراغ — «لا قيمةَ هنا» تمييزًا عن «عدم» التي قيمةٌ صريحة.
-            //      الفرقُ مقيسٌ لا نظريّ: قراءةُ مفتاحٍ غائبٍ من خريطةٍ تُرجع في المفسّرِ
-            //      قيمةَ Void فـ`نوع()` تقولُ «فراغ»، بينما `نوع(لاشيء)` تقولُ «عدم».
-            //      وكلتاهما تُطبَعان «لاشيء». وسمٌ خاصٌّ بـLLVM كـMap/Obj/Adt.
-            // (EN) [card م-٠٠١] Void — "no value here", as distinct from Null which is an
-            //      explicit value. The difference is measured, not theoretical: reading an
-            //      absent map key yields a Void value in the interpreter, so نوع() says
-            //      «فراغ», whereas نوع(لاشيء) says «عدم». Both print «لاشيء».
-            //      An LLVM-only tag, like Map/Obj/Adt.
-            inline constexpr uint8_t Void = 9;
+            // (AR) [م-٠٠١] مفقود — «لا قيمةَ هنا» تمييزًا عن «عدم» التي قيمةٌ صريحة.
+            //      الفرقُ مقيسٌ لا نظريّ: قراءةُ مفتاحٍ غائبٍ من خريطةٍ تُرجع هذا الوسمَ
+            //      فـ`نوع()` تقولُ «مفقود»، بينما `نوع(لاشيء)` تقولُ «عدم». وكلتاهما
+            //      تُطبَعان «لاشيء». وسمٌ خاصٌّ بـLLVM كـMap/Obj/Adt.
+            // (AR) 🔑 وكان اسمُه `Void` ونصُّه «فراغ» حتّى 2026-09-07، فحُذف اللفظُ
+            //      لا السلوك: «فراغ» زالَ من اللغةِ وحلَّ محلَّه «خالي» — نوعُ الوحدة
+            //      وهو **قيمةٌ حقيقيّة**؛ وهذا الوسمُ **شيءٌ آخر**: غيابُ مفتاحٍ لا
+            //      قيمةُ وحدة. وبقاءُ الاسمَين واحدًا كان يخلطُ معنيَين في لفظ.
+            // (EN) [card م-٠٠١] Missing — "no value here", distinct from Null which is an
+            //      explicit value. Reading an absent map key yields this tag, so نوع()
+            //      says «مفقود» while نوع(لاشيء) says «عدم». Both print «لاشيء».
+            //      Renamed from `Void` on 2026-09-07: the word went, the behaviour
+            //      stayed. Unit («خالي») is a real value; this tag is an absence.
+            inline constexpr uint8_t Missing = 9;
+            // (AR) 🔑 وسمُ قيمةِ الوحدة «خالي» — وسمٌ مستقلٌّ لا استعارةَ فيه.
+            //      وكان `Unit` يُوسَمُ بـ`Missing` بدَينٍ مُدوَّنٍ في `sad_dyn_repr.cpp`،
+            //      فكان **مفتاحُ خريطةٍ غائبٌ** و**قيمةُ وحدةٍ حقيقيّة** يتشاركان وسمًا
+            //      واحدًا: `نوع()` يقولُ «خالي» للغياب. والفرقُ ليس تجميليًّا — الأوّلُ
+            //      لا‑قيمةَ والثاني قيمةٌ كاملة، والخلطُ يجعلُ الحارسَ الزمنيَّ يكذب.
+            // (EN) Unit's own tag. It used to borrow `Missing`, so an absent map key
+            //      and a real unit value were indistinguishable at runtime.
+            inline constexpr uint8_t Unit = 10;
         } // namespace DynKind
 
         // (AR) حارسُ انجرافٍ زمنَ الترجمة: الوسومُ المشترَكةُ (٠–٥) يجب أن تطابق مصدرَ الحقيقة
@@ -73,7 +86,70 @@ namespace Sad
         static_assert(DynKind::Str == ::Sad::Types::repr::kDynKindStr, "DynKind drift: Str");
         static_assert(DynKind::Bool == ::Sad::Types::repr::kDynKindBool, "DynKind drift: Bool");
         static_assert(DynKind::Array == ::Sad::Types::repr::kDynKindArray, "DynKind drift: Array");
-        static_assert(DynKind::Void == ::Sad::Types::repr::kDynKindVoid, "DynKind drift: Void");
+        static_assert(DynKind::Missing == ::Sad::Types::repr::kDynKindMissing, "DynKind drift: Missing");
+        static_assert(DynKind::Unit == ::Sad::Types::repr::kDynKindUnit, "DynKind drift: Unit");
+
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 مِطلاقُ «ثابتِ الغياب» — سلطةٌ واحدةٌ لا نسختان.
+        //      `ConstantVoid()` هو افتراضيُّ الخانةِ المجرَّدةِ (`متغير ك` بلا
+        //      تهيئة): **غيابٌ** يستعيرُ `dataType = Unit` لأنّ اللغةَ لا اسمَ
+        //      فيها لـ«مفقود». وقيمةُ الوحدةِ الحقيقيّةُ تصلُ دائمًا في **سجلّ**
+        //      يبنيه `expression_collections`، وهذا **ثابت** — فالفرقُ شكلُ
+        //      المعاملِ لا حدسٌ. ويُقصَرُ على `CONSTANT` عمدًا: معاملُ `LABEL`
+        //      يحملُ `dataType = Unit` وليس قيمةً.
+        //
+        //      ⚠️ وكان هذا الشرطُ مكتوبًا **مرّتَين** (`sad_dyn_repr.cpp` في
+        //      `valueIsDyn`، و`mem_store.cpp` عند التعليب)، وتعليقُ الثاني
+        //      يقولُ حرفيًّا «والمِطلاقُ نفسُه مستعملٌ في sad_dyn_repr.cpp» —
+        //      أي أنّ التكرارَ كان **معلومًا ومُدوَّنًا** ولم يُوحَّد. ونسختانِ
+        //      تنجرفانِ ولو بُدِئتا متطابقتَين: تقرِّرانِ وسمَ القيمةِ نفسِها،
+        //      فانجرافُ إحداهما يجعلُ الكاتبَ يعلِّبُ ما لا يقرؤه القارئ.
+        // (EN) One authority for the "absence constant" predicate. ConstantVoid()
+        //      is the bare-slot default (an ABSENCE) and merely borrows
+        //      dataType=Unit because the language has no «missing» type name; a
+        //      real unit value always arrives in a REGISTER. Restricted to
+        //      CONSTANT on purpose: LABEL operands carry dataType=Unit without
+        //      being values. This test was written twice — and the second copy's
+        //      own comment said so — for one decision: how a value is tagged.
+        // ════════════════════════════════════════════════════════════════════
+        inline bool operandIsAbsenceConstant(const ::Sad::Compiler::SIR::SIROperand &op)
+        {
+            return op.dataType == ::Sad::Types::SadTypeKind::Unit &&
+                   op.type == ::Sad::Compiler::SIR::SIROperandType::CONSTANT;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 **حاملُ قيمةِ الوحدةِ — عرضٌ واحدٌ لا عرضان.**
+        //      الخانةُ تُخصَّصُ `i8` (محلّيّةً وعامّة)، وكانت القيمةُ تصلُ إليها
+        //      `i64` من منتِجَين: نداءُ دالّةٍ بلا عائد، وحرفيُّ «()» في الواجهةِ
+        //      الأماميّة. و`emitStore` لا يملكُ ذراعَ تضييقٍ عدديّ، فيُبَثُّ
+        //      `store i64` في `alloca i8` — **ثمانيةُ بايتاتٍ في بايت**، سلوكٌ
+        //      غيرُ معرَّفٍ يفسدُ الخانةَ المجاورة.
+        //      ⚠️ **ومدقّقُ LLVM أخضرُ عنه** لأنّ المؤشّرَ مُبهَمٌ (opaque) فلا
+        //      نوعَ في التعليمةِ يُكذِّبُ الآخر — أي أنّ الأداةَ التي يُتّكَلُ
+        //      عليها في كشفِ هذا الصنفِ بعينِه **لا تراه**.
+        //      وأصلُ الافتراقِ أنّ نداءَ الإغلاقِ كان يربطُ `i8` ونداءَ الدالّةِ
+        //      المسمّاةِ `i64`: حاملانِ لقيمةٍ واحدةٍ بلا سلطةٍ تحدّدُهما. فصارت
+        //      ههنا سلطةٌ واحدةٌ يُشتقُّ منها التخصيصُ والقيمةُ معًا.
+        // (EN) One width for the unit carrier. The slot is allocated i8 while the
+        //      value arrived as i64 from two producers, and emitStore has no integer
+        //      narrowing arm — so `store i64` into `alloca i8` was emitted: eight
+        //      bytes into one, undefined behaviour corrupting the neighbouring slot.
+        //      LLVM's verifier is GREEN on it because the pointer is opaque, so the
+        //      very tool relied upon for this class of defect cannot see it.
+        // ════════════════════════════════════════════════════════════════════
+
+        /// (AR) نوعُ حاملِ الوحدة / (EN) The unit carrier's LLVM type
+        inline llvm::Type *unitCarrierType(llvm::LLVMContext &ctx)
+        {
+            return llvm::Type::getInt8Ty(ctx);
+        }
+
+        /// (AR) قيمةُ الوحدةِ الوحيدةُ بحاملِها / (EN) The unit's single value, in its carrier
+        inline llvm::Constant *unitCarrierValue(llvm::LLVMContext &ctx)
+        {
+            return llvm::ConstantInt::get(unitCarrierType(ctx), 0);
+        }
 
         /// (AR) نوع المقارنة لموزِّع dynCompare / (EN) comparison kind for dynCompare
         enum class DynCmp
@@ -296,7 +372,7 @@ namespace Sad
 
         /**
          * (AR) SEM045 (RFC عقد الغياب — أ٢): الحارس الزمنيّ قبل STORE — قيمةٌ
-         *      ديناميّةٌ وسمُها «فراغ» (DynKind::Void) تُكتَب في خانةٍ مصنَّفة.
+         *      ديناميّةٌ وسمُها «مفقود» (DynKind::Missing) تُكتَب في خانةٍ مصنَّفة.
          *      `fatal=true` (نظير --إنتاج): تشخيصٌ ثم إيقافٌ موضعيّ (exit(1)
          *      مستضافًا، __sad_panic(kSadPanicDynTypeMismatch) حرًّا)؛
          *      `fatal=false` (نظير --تعلم): تحذيرٌ ثم يستمرّ التنفيذ.

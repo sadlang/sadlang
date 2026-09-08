@@ -1,0 +1,60 @@
+# @rule: gr.decl.function
+# @description: مصفوفةُ وحداتٍ تعبرُ حدَّ الإرجاعِ فتبقى وحداتٍ
+# @priority: P0
+# @expected خالي\n()\nنص\nأ\nرقم\n1
+
+# ============================================================
+# (AR) 🔑 **الحارسُ نفسُه في خانةٍ اسمُها آخر.**
+#
+#      نُقِلَ حارسُ «لا أعرفُ نوعَ العنصر» من `خالي` إلى `Unknown` في ٢٨ موضعًا
+#      من قناةِ `elementType`. وبقيت خانةٌ واحدةٌ خارجَ ذلك النقلِ اسمُها
+#      `returnElementType` — **والبحثُ عن اسمٍ لا يجدُ نظيرَه باسمٍ آخر.**
+#
+#      فكان الحرفيُّ المباشرُ `متغير م = [()، ()]` يُجيبُ «خالي» صحيحًا، وما
+#      يعبرُ حدَّ الإرجاعِ يُجيبُ **«رقم»** ويطبعُ **`0`** (مقيسٌ 2026-09-07):
+#      المعنى واحدٌ والفرقُ **مرورٌ بخانةٍ** لا اختلافٌ في الدلالة.
+#
+#   ⚠️ **ولذلك تحرسُ البذرةُ الحدَّ لا النوع**: البرنامجُ يُرجِعُ مصفوفةً من
+#      دالّةٍ ثمّ يقرأُ عنصرَها، ولو قِيسَ الحرفيُّ وحدَه لَبقيَ أخضرَ طولَ عمرِ
+#      العطب. **وبذرةٌ تقيسُ الطرفَ السهلَ من قناةٍ تشهدُ للقناةِ كلِّها زورًا.**
+#
+#   والنصُّ والعددُ ضابطانِ في القناةِ نفسِها: كانا يعملانِ قبلَ الرقعةِ وبعدَها،
+#   فلو صارَ كلُّ عنصرٍ مُرجَعٍ وحدةً لَاحمرَّ نصفُ البذرةِ فورًا.
+# (EN) The same sentinel in a slot under another name. The "element type unknown"
+#      sentinel was moved from خالي to Unknown across 28 sites of the elementType
+#      channel; one slot stayed outside that move because it is called
+#      returnElementType — and a search for one name does not find its twin under
+#      another. So a direct literal `[(), ()]` answered «خالي» while the same array
+#      crossing a RETURN boundary answered «رقم» and printed 0: identical meaning,
+#      differing only by passing through a slot. Hence this seed guards the
+#      BOUNDARY, not the type: it returns the array from a function and then reads
+#      an element. Measuring the literal alone would have stayed green for the whole
+#      life of the defect — a seed that measures the easy end of a channel testifies
+#      falsely for the whole channel. The text and number cases are controls on the
+#      very same channel: both worked before and after, so a blanket "every returned
+#      element is a unit" reddens half this seed at once.
+# ============================================================
+
+دالة وحدات()
+    ارجع [()، ()]
+نهاية
+
+دالة نصوص()
+    ارجع ["أ"، "ب"]
+نهاية
+
+دالة أعداد()
+    ارجع [1، 2]
+نهاية
+
+متغير و = وحدات()
+اطبع_سطر(نوع(و[0]))
+اطبع_سطر(و[0])
+
+متغير ن = نصوص()
+اطبع_سطر(نوع(ن[0]))
+اطبع_سطر(ن[0])
+
+متغير ع = أعداد()
+اطبع_سطر(نوع(ع[0]))
+اطبع_سطر(ع[0])

@@ -29,6 +29,7 @@
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
 #include "sad_debug_log.h"
+#include "value_repr_generated.h" // (AR) kUnitDisplay — عرضُ «()» من مصدرِ الحقيقة
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -67,6 +68,43 @@ namespace Sad
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Core::LENGTH, argResults.size()))
                         return BuildResult();
+
+                    // (AR) 🔑 طول(خالي) ⇒ صفرٌ ثابت. و«خالي» **هو الصفُّ الفارغُ نفسُه**
+                    //      بقرارِ مصدرِ الحقيقة (types.yaml ⇒ type.unit)، وطولُ الصفِّ
+                    //      الفارغِ صفرٌ بالتعريفِ لا بالحساب — فلا عنصرَ يُعَدّ.
+                    //      ⚠️ ولا يُوزَّعُ على ARRAY_LEN: لا خانةَ طولٍ تُقرَأ، والقراءةُ
+                    //      من قيمةٍ لا ترويسةَ لها تقرأُ ذاكرةً ليست لها. وكان يسقطُ
+                    //      إلى STRING_LEN فيُرفَض زمنيًّا بـRUN033 «النوع NULL غير مدعوم»
+                    //      — مقيسٌ على `073_tuples.ص` (2026-09-07)، وهي بذرةٌ خضراءُ
+                    //      قائمةٌ تُثبِّتُ «فارغ:0» منذ أن كان «()» صفًّا في الكومة.
+                    //      فالسلوكُ المرئيُّ محفوظٌ والتمثيلُ وحدَه تغيَّر.
+                    // (EN) طول(unit) ⇒ constant 0. Unit IS the empty tuple (types.yaml),
+                    //      so its length is 0 by definition, not by counting. It must NOT
+                    //      dispatch to ARRAY_LEN — there is no length field to read, and
+                    //      reading one from a header-less value reads foreign memory. It
+                    //      used to fall through to STRING_LEN and be rejected at runtime
+                    //      with RUN033. Measured on 073_tuples.ص, a green seed asserting
+                    //      «فارغ:0». Observable behaviour preserved; only the representation
+                    //      changed.
+                    if (argResults[0].type == SadTypeKind::Unit)
+                    {
+                        // (AR) 🔑 والحارسُ يشملُ **الإرجاعَ** لا البثَّ وحدَه: كان
+                        //      البثُّ مشروطًا بالكتلةِ والإرجاعُ بلا شرط، فتُبتَلَعُ
+                        //      التعليمةُ ويُسلَّمُ اسمُ سِجِلٍّ **لا مُعرِّفَ له** ⇒
+                        //      «التِّلْو». إمّا يُحرَسُ الاثنانِ معًا أو لا يُحرَسُ
+                        //      أحدُهما.
+                        // (EN) The guard must cover the RETURN, not just the emission:
+                        //      the instruction was swallowed while an undefined register
+                        //      name was handed on — the التِّلْو shape.
+                        if (!b_.currentBlock_)
+                            return BuildResult(std::string("0"), SadTypeKind::Integer, true);
+                        std::string zeroReg = b_.newTempRegister();
+                        SIRInstruction zeroInst(SIROpcode::MOVE);
+                        zeroInst.result = SIROperand::Register(zeroReg, SadTypeKind::Integer);
+                        zeroInst.operands.push_back(SIROperand::ConstantI64(0));
+                        b_.currentBlock_->instructions.push_back(zeroInst);
+                        return BuildResult(zeroReg, SadTypeKind::Integer);
+                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -107,6 +145,10 @@ namespace Sad
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::TypeCtor::TO_INT, argResults.size()))
                         return BuildResult();
+
+                    if (rejectUnitConversionArg(b_.errors_, std::string(funcName),
+                                                argResults[0].type))
+                        return rejectedConversionResult(SadTypeKind::Integer);
 
                     if (argResults[0].type == SadTypeKind::Integer)
                     {
@@ -156,6 +198,10 @@ namespace Sad
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::TypeCtor::TO_FLOAT, argResults.size()))
                         return BuildResult();
+
+                    if (rejectUnitConversionArg(b_.errors_, std::string(funcName),
+                                                argResults[0].type))
+                        return rejectedConversionResult(SadTypeKind::Float);
 
                     if (argResults[0].type == SadTypeKind::Float)
                     {
@@ -222,6 +268,32 @@ namespace Sad
                     //      element type (string⇒%s, float⇒bitcast+__sad_format_double, else
                     //      ⇒%lld). Without this it lowered to I64_TO_STRING on the array
                     //      pointer ⇒ a raw address (ISSUE-080 family).
+                    // (AR) 🔑 نص(خالي) ⇒ «()» — القيمةُ الواحدةُ لنوعِ الوحدة، ونصُّها
+                    //      مُعلَنٌ في `language-truth/backend/value_repr.yaml ⇒ kUnitDisplay`
+                    //      لا مؤلَّفٌ ههنا. واللفظُ الذي يكتبُه المستعمِلُ هو الذي يقرؤه.
+                    //      وبغيرِ هذا الفرعِ يُلوَّن I64_TO_STRING على خانةِ الوحدةِ فيطبعُ
+                    //      رقمًا (كان **عنوانَ صفٍّ في الكومة**: 3142254033712 مقيسًا
+                    //      2026-09-07، وصار صفرًا بعد أن صارت الخانةُ i8 — وكلاهما كذب).
+                    // (EN) نص(unit) ⇒ «()», declared in value_repr.yaml (kUnitDisplay),
+                    //      not composed here. Without this arm I64_TO_STRING lowers on the
+                    //      unit slot and prints a number — formerly a heap address, later a
+                    //      zero. Both are lies about a value that has exactly one spelling.
+                    if (argResults[0].type == SadTypeKind::Unit)
+                    {
+                        // (AR) والحارسُ يشملُ الإرجاعَ كنظيرِه أعلاه.
+                        // (EN) The guard covers the return, as in its peer above.
+                        if (!b_.currentBlock_)
+                            return BuildResult(std::string(::Sad::Types::repr::kUnitDisplay),
+                                               SadTypeKind::String, true);
+                        std::string unitStrReg = b_.newTempRegister();
+                        SIRInstruction movInst(SIROpcode::MOVE);
+                        movInst.result = SIROperand::Register(unitStrReg, SadTypeKind::String);
+                        movInst.operands.push_back(
+                            SIROperand::ConstantString(::Sad::Types::repr::kUnitDisplay));
+                        b_.currentBlock_->instructions.push_back(movInst);
+                        return BuildResult(unitStrReg, SadTypeKind::String);
+                    }
+
                     if (argResults[0].type == SadTypeKind::Array)
                     {
                         std::string arrStrReg = b_.newTempRegister();
@@ -352,7 +424,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin اطبع()");
 #endif
-                    return BuildResult("", SadTypeKind::Void); // (AR) لا قيمة إرجاع
+                    return BuildResult("", SadTypeKind::Unit); // (AR) لا قيمة إرجاع
                 }
 
                 // (AR) دالة اطبع_سطر() - BUILTIN_PRINTLN
@@ -435,7 +507,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin اطبع_سطر()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // (AR) دالة اقرأ() - BUILTIN_READ

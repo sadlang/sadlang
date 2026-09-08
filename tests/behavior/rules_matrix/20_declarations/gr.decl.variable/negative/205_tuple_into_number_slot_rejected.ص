@@ -1,0 +1,33 @@
+# @rule: gr.decl.variable
+# @description: صفٌّ في خانةٍ رقميّةٍ ⇒ يُرَدُّ — ولا يُسرَّبُ عنوانُ ذاكرةٍ رقمًا
+# @priority: P0
+# @expect_compile_error: SEM056
+# @expect_error: SEM056
+
+# ============================================================
+# (AR) 🔑 كسبٌ **لم يكن مقصودًا** وقِيسَ، وهو أشدُّ من العلّةِ التي قُصِدَت:
+#      كان `رقم س = (1، 2)` يُقبَلُ ويطبعُ **عنوانًا في الذاكرة**
+#      (مقيسٌ 2026-09-07: `2465587550624`، ويتبدّلُ كلَّ تشغيل).
+#      أي **تسريبُ مؤشّرٍ إلى خانةٍ رقميّة** برمزِ خروجٍ صفر.
+#
+#      وهو من صنفِ «اختلاقِ القيمة» نفسِه الذي حكمَ هذا المجالَ كلَّه، لكنّه
+#      أسوأُ وجهًا: `رقم س = ()` كان يطبعُ **صفرًا** — رقمًا معقولًا يُخفي
+#      نفسَه؛ وهذا يطبعُ عددًا هائلًا **يتبدّلُ بين تشغيلَين**، فهو يكذبُ
+#      ويكذبُ **كذبًا غيرَ مستقرّ**. ⚠️ وبذرةٌ توكِّدُ قيمةً بعينِها لا
+#      تلتقطُه أصلًا: تحمرُّ فيُقرَأُ العطبُ «توقُّعًا خاطئًا».
+#
+#      🔑 ولم يُطلَبْ سدُّه ولا قُصِد: سقطَ مع سدِّ «الصفُّ المملوءُ يُصنَّفُ
+#      صفًّا» لأنّ الجذرَ واحد — **صفٌّ بلا نوعٍ يوافقُ كلَّ خانة**. وبذرتُه
+#      تُكتَبُ لأنّ ما سقطَ عرَضًا يعودُ عرَضًا إن لم يُحرَس.
+# (EN) An UNINTENDED, measured gain, worse than the defect actually targeted:
+#      `رقم س = (1، 2)` was accepted and printed a HEAP ADDRESS (measured
+#      2465587550624, different every run) — a pointer leaking into a numeric
+#      slot with exit code 0. Same "fabricated value" family, but a worse face:
+#      `رقم س = ()` printed a plausible 0 that hides itself, while this prints a
+#      huge number that CHANGES between runs — an unstable lie a value-asserting
+#      seed cannot even catch. It fell out of the same root fix; it is pinned
+#      here because what is fixed by accident regresses by accident.
+# ============================================================
+
+رقم س = (1، 2)
+اطبع_سطر(نص(س))

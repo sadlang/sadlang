@@ -210,11 +210,60 @@ namespace Sad
                 //      type when certainly known, String for string indexing (one
                 //      character), otherwise Any — the element is read tagged at
                 //      runtime.
+                // ══════════════════════════════════════════════════════════════
+                // (AR) 🔑 **قائمةُ سماحِ أنواعِ الحقولِ — قلبٌ واحدٌ لا ثلاثةُ توائم.**
+                //      كانت مكتوبةً ثلاثَ مرّاتٍ (قارئُ العضوِ، وقارئُ حقلِ الكائن،
+                //      والوصولُ الآمنُ `؟.`)، وتعليقاتُها تُقِرُّ بالتوأمةِ وتزعمُ أنّ
+                //      البابَينِ «لا يفترقانِ في جوابِ السؤالِ الواحد». وقد افترقا
+                //      فعلًا: أُضيفَ `خريطة` و`عدم` إلى نسختَينِ ونُسِيا في الثالثة،
+                //      فصارَ `ك.ح` يُجيبُ بنوعِ الحقلِ و`ك؟.ح` يُجيبُ «رقم» — أي أنّ
+                //      **الصيغةَ الآمنةَ تُفسِدُ ما تُصيبُه الخام**، فيُعاقَبُ مَن
+                //      احتاطَ بـ`؟.` بنوعٍ كاذب.
+                //      ⚠️ و`مصفوفة` مستثناةٌ في مسارِ `؟.` عمدًا وبسببٍ مُدوَّنٍ فيه
+                //      (الأعضاءُ الكائنيّةُ تبقى على قناةِ i64 هناك)، فيُمرَّرُ ذلك
+                //      وسيطًا صريحًا لا يُخبَّأُ في نسخةٍ ثالثة.
+                //      📌 والدَّينُ الأصليُّ باقٍ مُسمًّى: الصوابُ أن تصيرَ «اقرأِ
+                //      المُسجَّلَ كما هو»، وذاك مشروعٌ يمسُّ كلَّ حقلٍ في اللغة.
+                // (EN) One heart for the field-kind allow-list, previously written
+                //      three times whose own comments claimed the doors "never differ
+                //      on one question". They did: Map and Null were added to two
+                //      copies and forgotten in the third, so `k.f` answered the field's
+                //      kind while `k?.f` answered «number» — the SAFE spelling
+                //      corrupting what the raw one gets right. Array's exclusion on the
+                //      `?.` path is deliberate and documented there, so it is passed as
+                //      an explicit argument rather than hidden in a third copy.
+                // ══════════════════════════════════════════════════════════════
+                static bool fieldKindIsReadAsDeclared(SadTypeKind fieldKind,
+                                                      bool arrayReadsAsDeclared)
+                {
+                    switch (fieldKind)
+                    {
+                    case SadTypeKind::String:
+                    case SadTypeKind::Float:
+                    case SadTypeKind::Boolean:
+                    case SadTypeKind::Unit:
+                    case SadTypeKind::Map:
+                    case SadTypeKind::Null:
+                        return true;
+                    case SadTypeKind::Array:
+                        return arrayReadsAsDeclared;
+                    default:
+                        return false;
+                    }
+                }
+
                 static SadTypeKind bracketReadResultKind(SadTypeKind objectType,
                                                          SadTypeKind knownElementType)
                 {
-                    if (knownElementType != SadTypeKind::Void &&
-                        knownElementType != SadTypeKind::Unknown)
+                    // (AR) 🔑 و«خالي» **نوعٌ معلومٌ** لا حارسُ جهل: بقاؤه ههنا كان
+                    //      يمنعُ قراءةَ فهرسٍ على مصفوفةِ وحداتٍ من أن تُجيبَ «خالي»
+                    //      أبدًا، فتسقطُ إلى مشتقِّ نوعِ الحاوية — أي أنّ هدفَ الحملةِ
+                    //      المُعلَنَ يبقى مفتوحًا في مسارِ القوالب. و`Unknown` وحدَه
+                    //      حارسُ «لا أعرف»، وهو مذكورٌ سلفًا.
+                    // (EN) Unit is a KNOWN kind, not an ignorance sentinel: keeping it
+                    //      here meant indexing an array of units could never answer
+                    //      «khali». Unknown alone is the "don't know" sentinel.
+                    if (knownElementType != SadTypeKind::Unknown)
                         return knownElementType;
                     if (objectType == SadTypeKind::String)
                         return SadTypeKind::String;

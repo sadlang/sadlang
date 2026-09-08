@@ -1,0 +1,18 @@
+# @rule: gr.decl.variable
+# @description: خانةٌ مُصرَّحةٌ بنوعِ الوحدة «خالي» تحملُ قيمتَها «()» — مجال ١: النوع والقيمة
+# @priority: P0
+# @requires: اطبع_سطر
+# @expected: خالي\n()
+
+# (AR) «خالي» نوعُ الوحدة: الصفُّ الفارغُ نفسُه، وقيمتُه الوحيدةُ «()» — نظيرُ
+#      «()» في رست. وهو **نوعُ قيمةٍ كامل**: الخانةُ تحملُه، فيُقرَأُ منها كما
+#      كُتِب. والتمييزُ بين النوعِ والقيمةِ مقصودٌ ههنا: «خالي» يُكتَبُ في موضعِ
+#      النوع، و«()» في موضعِ القيمة — ولا يُكتَبُ أحدُهما مكانَ الآخر.
+# (EN) Unit type: the empty tuple, sole value «()», exactly Rust's (). A FULL
+#      value type — the slot holds it and reads back what was written. The
+#      type/value distinction is deliberate: «خالي» in type position, «()» in
+#      value position; neither substitutes for the other.
+
+خالي س = ()
+اطبع_سطر(نوع(س))
+اطبع_سطر(نص(س))

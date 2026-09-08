@@ -147,7 +147,7 @@ namespace Sad
                     //      mixed / homogeneous-non-int array has element Any, so its indexing
                     //      inside the lambda body reads runtime-tagged, not as int (mirrors
                     //      declaredSurfaceType but for the array element, not integer signedness).
-                    SadTypeKind elementType = SadTypeKind::Void;
+                    SadTypeKind elementType = SadTypeKind::Unknown;
                 };
 
                 // ──────────────────────────────────────────────────────────
@@ -374,7 +374,7 @@ namespace Sad
                 //      slot is captured and popped after the try body is built.
                 struct ThrownInfo
                 {
-                    SadTypeKind kind = SadTypeKind::Void; ///< (AR) نوع القيمة المرميّة / (EN) thrown value kind
+                    SadTypeKind kind = SadTypeKind::Unit; ///< (AR) نوع القيمة المرميّة / (EN) thrown value kind
                     std::string className;                ///< (AR) اسم الصنف إن كانت كائنًا / (EN) class name if object
                     bool sawThrow = false;                ///< (AR) هل رُصدت أيّ «ارمي»؟ / (EN) any throw seen?
                     bool mixed = false;                   ///< (AR) أنواع متعدّدة ⇒ لا استنتاج / (EN) multiple types ⇒ no inference

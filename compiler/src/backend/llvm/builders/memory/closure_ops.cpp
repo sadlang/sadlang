@@ -120,7 +120,7 @@ namespace Sad
             llvm::Type *retType = cg_.getInt64Type();
             if (inst->result.has_value())
             {
-                if (inst->result->dataType == SadTypeKind::Void)
+                if (inst->result->dataType == SadTypeKind::Unit)
                     retType = llvm::Type::getVoidTy(*cg_.context_);
                 else if (inst->result->dataType == SadTypeKind::Float)
                     retType = cg_.getDoubleType();
@@ -601,13 +601,13 @@ namespace Sad
                             boxedRet = makeDyn(
                                 cg_,
                                 llvm::ConstantInt::get(llvm::Type::getInt8Ty(*cg_.context_),
-                                                       DynKind::Void),
+                                                       DynKind::Missing),
                                 llvm::ConstantInt::get(cg_.getInt64Type(), 0));
                         }
                         else
                         {
                             SadTypeKind boxKind = bridgeRetKind;
-                            if (boxKind == SadTypeKind::Unknown || boxKind == SadTypeKind::Void)
+                            if (boxKind == SadTypeKind::Unknown || boxKind == SadTypeKind::Unit)
                             {
                                 // (AR) احتياطٌ بلا لاحقة: الاستدلالُ من نوع LLVM وحدَه.
                                 // (EN) Fallback without a suffix: infer from the LLVM type alone.
@@ -898,7 +898,7 @@ namespace Sad
             }
             else if (inst->result.has_value())
             {
-                if (inst->result->dataType == SadTypeKind::Void)
+                if (inst->result->dataType == SadTypeKind::Unit)
                     retType = llvm::Type::getVoidTy(*cg_.context_);
                 else if (inst->result->dataType == SadTypeKind::Float)
                     retType = cg_.getDoubleType();
@@ -918,7 +918,7 @@ namespace Sad
             //      return closures but were incorrectly declared as void.
             // ================================================================
             if (retType->isVoidTy() && inst->result.has_value() &&
-                inst->result->dataType != SadTypeKind::Void)
+                inst->result->dataType != SadTypeKind::Unit)
             {
                 retType = cg_.getInt64Type();
             }
@@ -932,6 +932,43 @@ namespace Sad
             if (inst->result.has_value() && !retType->isVoidTy())
             {
                 cg_.context_info_.namedValues[inst->result->name] = result;
+            }
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 عائدُ وحدةٍ: النداءُ `void` ولا قيمةَ يُنتِجُها — ومع ذلك
+            //      **للتعليمةِ نتيجةٌ مُعلَنة**. فتُملأُ خانتُها بحاملِ الوحدة.
+            //
+            //      وبلا هذا السطرِ تقرأُ التعليمةُ التاليةُ سِجِلًّا لا وجودَ له
+            //      ⇒ `INT004` «مرجع غير معرَّف» (مقيسٌ 2026-09-07 حين احتُرِمَ
+            //      عائدُ الوحدةِ في الواجهةِ الأماميّةِ أوّلَ مرّة).
+            //
+            //   🔑 وهذا هو **«التِّلْوُ»** المُدوَّنُ في CLAUDE.md بعينِه: موضعٌ
+            //      يُصيبُ في حكمِه ثمّ ينصرفُ **بغيرِ أن يملأَ خانةَ نتيجةِ
+            //      التعليمة**، فيُتَّهَمُ المترجّمُ زورًا في التعليمةِ التالية.
+            //      وقد وقعتُ فيه ثانيةً بعدَ أن سُدَّ في ستّةِ مواضعَ — لأنّ
+            //      الرقعةَ الصحيحةَ في الأمامِ فتحتْه في الخلف.
+            //
+            //      ولا تناقضَ بين «`void` في LLVM» و«قيمةٍ في اللغة»: الوحدةُ
+            //      لا حمولةَ لها، فحاملُها `i8` اصطلاحُ تمثيلٍ لا معلومة —
+            //      والصفرُ فيه ليس عددًا بل **القيمةَ الوحيدةَ للنوع**.
+            // (EN) A unit-returning closure: the call is void and yields no value, yet
+            //      the INSTRUCTION still declares a result — so bind that result to the
+            //      unit carrier. Without this the next instruction reads a register that
+            //      does not exist (INT004), which is exactly the "orphan result" pattern
+            //      documented in CLAUDE.md: a site that judges correctly then leaves
+            //      without filling the instruction's result slot, so the compiler is
+            //      falsely accused one instruction later. It reappeared here because the
+            //      correct front-end patch opened it in the back end. There is no
+            //      contradiction between "void in LLVM" and "a value in the language":
+            //      the unit has no payload, so its i8 carrier is a representation
+            //      convention, and the zero in it is not a number but the type's only
+            //      value.
+            // ════════════════════════════════════════════════════════════════
+            else if (inst->result.has_value() &&
+                     inst->result->dataType == SadTypeKind::Unit)
+            {
+                llvm::Value *unitCarrier = ::Sad::LLVM::unitCarrierValue(*cg_.context_);
+                cg_.context_info_.namedValues[inst->result->name] = unitCarrier;
+                return unitCarrier;
             }
             return result;
         }

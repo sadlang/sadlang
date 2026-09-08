@@ -261,7 +261,7 @@ namespace Sad
                         litValue = lit.toString();
                         litType = SadTypeKind::String;
                     }
-                    else if (lit.getKind() == SadTypeKind::Null || lit.getKind() == SadTypeKind::Void)
+                    else if (lit.getKind() == SadTypeKind::Null || lit.getKind() == SadTypeKind::Unit)
                     {
                         // (AR) إصلاح X04: نمط لاشيء / null. بعد S-TS-P1 يُبنى بـmakeNull()
                         //      (Null kind)؛ نقبل Void أيضًا لأي بقايا قديمة. يُقارَن مع
@@ -1557,7 +1557,7 @@ namespace Sad
                         //      beyond one level ⇒ pass Void ⇒ the next level's strict gate
                         //      rejects any composite grandchild (deeper nesting unmatched).
                         emitPatternMatchShortCircuit(childPat, childReg, childType, failLabel,
-                                                     SadTypeKind::Void);
+                                                     SadTypeKind::Unit);
                     }
                     else if (dynamic_cast<const Sad::AST::WildcardPattern *>(childPat) ||
                              dynamic_cast<const Sad::AST::VariablePattern *>(childPat))

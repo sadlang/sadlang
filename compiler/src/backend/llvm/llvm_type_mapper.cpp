@@ -15,7 +15,6 @@
  */
 
 #include "llvm_type_mapper.h"
-#include "llvm_type_mapper_composite.h"
 #include "sad_dyn_repr.h"
 #include <stdexcept>
 
@@ -43,142 +42,23 @@ namespace Sad
         // تحويل أنواع Sad / Sad Type Conversion
         // ============================================================================
 
-        /**
-         * تحويل نوع Sad إلى نوع LLVM
-         * Convert Sad type to LLVM type
-         */
-        llvm::Type *LLVMTypeMapper::mapSadType(std::shared_ptr<Type> sadType)
-        {
-            // التحقق من أن النوع ليس null / Check that type is not null
-            if (!sadType)
-            {
-                return getVoidType(); // افتراضي: نوع فارغ / Default: void type
-            }
+        // ════════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 وكان ههنا هرمُ أنواعٍ **ثالثٌ** اسمُه `Sad::LLVM::Type` —
+        //      قاعدةٌ مجرّدةٌ وثلاثةُ فروعٍ (`TupleType` · `TaggedUnionType` ·
+        //      `FunctionPointerType`) في `llvm_type_mapper_composite.h`. وقِيسَ
+        //      أنّ **لا موضعَ في المستودعِ كلِّه يُنشئُ واحدًا منها**: لا
+        //      `make_shared` ولا `new`؛ وكلُّ ما كان يمسُّها `dynamic_cast` من
+        //      مؤشّرٍ لا يُملأُ أبدًا — فالهرمُ كان يُقرأُ ولا يُكتَب.
+        //      أمرُ القياس (⇒ صفر):
+        //        grep -rEn "make_shared<TupleType>|new TupleType" compiler shared
+        //      فحُذِفَ الهرمُ ومعه عنقودُه المغلق: مُحوِّلاتُ الأنواعِ الخمسةُ في
+        //      LLVMTypeMapper وطريقتا التحويلِ في TypesCodeGen — لا مُنادِيَ
+        //      لواحدةٍ منها من خارجِ العنقود.
+        // (EN) A THIRD type hierarchy (Sad::LLVM::Type + 3 subclasses) lived
+        //      here. Measured: nothing in the tree ever constructs one, so the
+        //      whole closed cluster consuming it was dead code. Removed.
+        // ════════════════════════════════════════════════════════════════════════
 
-            // التحقق من التخزين المؤقت أولاً / Check cache first
-            std::string typeName = sadType->toString(); // الحصول على اسم النوع / Get type name
-            if (auto cached = getCachedType(typeName))
-            {
-                return cached; // إرجاع من التخزين المؤقت / Return from cache
-            }
-
-            llvm::Type *result = nullptr; // النتيجة / Result
-
-            // تحديد نوع Sad وتحويله / Determine Sad type and convert
-            if (sadType->isVoid())
-            {
-                // نوع فارغ / Void type
-                result = getVoidType();
-            }
-            else if (sadType->isBoolean())
-            {
-                // نوع منطقي (i1) / Boolean type (i1)
-                result = getBoolType();
-            }
-            else if (sadType->isInteger())
-            {
-                // نوع عدد صحيح / Integer type
-                int bitWidth = sadType->getBitWidth(); // الحصول على حجم البتات / Get bit width
-                result = getIntType(bitWidth);         // تحويل إلى نوع LLVM / Convert to LLVM type
-            }
-            else if (sadType->isFloat())
-            {
-                // نوع عدد عشري / Float type
-                if (sadType->isFloat32())
-                {
-                    result = getFloatType(); // float (32-bit)
-                }
-                else
-                {
-                    result = getDoubleType(); // double (64-bit) - افتراضي / default
-                }
-            }
-            else if (sadType->isString())
-            {
-                // نوع نص (i8*) / String type (i8*)
-                result = getStringPtrType();
-            }
-            else if (sadType->isPointer())
-            {
-                // نوع مؤشر / Pointer type
-                result = mapPointerType(sadType);
-            }
-            else if (sadType->isArray())
-            {
-                // نوع مصفوفة / Array type
-                result = mapArrayType(sadType);
-            }
-            else if (sadType->isFunction())
-            {
-                // م-أ02: مؤشرات الدوال — نستخدم مؤشر شفاف في LLVM 15+
-                // مؤشر دالة يُمثل بـ opaque pointer
-                auto *fnPtr = dynamic_cast<FunctionPointerType *>(sadType.get());
-                if (fnPtr)
-                {
-                    // مؤشر دالة حقيقي — نُرجع مؤشر شفاف
-                    result = llvm::PointerType::get(context_, 0);
-                }
-                else
-                {
-                    // نوع دالة عام — نُرجع مؤشر شفاف
-                    result = llvm::PointerType::get(context_, 0);
-                }
-            }
-            else if (sadType->isClass())
-            {
-                // نوع صنف / Class type
-                result = mapClassType(sadType);
-            }
-            else
-            {
-                // م-أ02: محاولة التحويل كنوع مركب (صف، تعداد بقيم)
-                auto *tuple = dynamic_cast<TupleType *>(sadType.get());
-                auto *taggedUnion = dynamic_cast<TaggedUnionType *>(sadType.get());
-
-                if (tuple || taggedUnion)
-                {
-                    // إنشاء محول مركب مؤقت وتحويل النوع
-                    LLVMCompositeTypeMapper compositeMapper(context_, *this);
-                    result = compositeMapper.mapCompositeType(sadType);
-                }
-                else
-                {
-                    // نوع غير معروف - افتراضي i64 / Unknown type - default i64
-                    result = getInt64Type();
-                }
-            }
-
-            // حفظ في التخزين المؤقت / Save to cache
-            cacheType(typeName, result);
-
-            return result; // إرجاع النتيجة / Return result
-        }
-
-        /**
-         * تحويل نوع دالة Sad إلى نوع دالة LLVM
-         * Convert Sad function type to LLVM function type
-         */
-        llvm::FunctionType *LLVMTypeMapper::mapFunctionType(
-            std::shared_ptr<Type> returnType,
-            const std::vector<std::shared_ptr<Type>> &paramTypes,
-            bool isVarArg)
-        {
-            // تحويل نوع الرجوع / Convert return type
-            llvm::Type *llvmReturnType = mapSadType(returnType);
-
-            // تحويل أنواع المعاملات / Convert parameter types
-            std::vector<llvm::Type *> llvmParamTypes;
-            llvmParamTypes.reserve(paramTypes.size()); // حجز مساحة مسبقاً / Reserve space
-
-            for (const auto &paramType : paramTypes)
-            {
-                llvm::Type *llvmParamType = mapSadType(paramType); // تحويل كل معامل / Convert each parameter
-                llvmParamTypes.push_back(llvmParamType);
-            }
-
-            // إنشاء نوع الدالة / Create function type
-            return createFunctionType(llvmReturnType, llvmParamTypes, isVarArg);
-        }
 
         // ============================================================================
         // تحويل أنواع SIR / SIR Type Conversion
@@ -193,7 +73,7 @@ namespace Sad
             // تحويل مباشر بناءً على نوع SIR / Direct conversion based on SIR type
             switch (sirType)
             {
-            case Compiler::SIR::SadTypeKind::Void:
+            case Compiler::SIR::SadTypeKind::Unit:
                 // نوع فارغ / Void type
                 return getVoidType();
 
@@ -493,64 +373,6 @@ namespace Sad
         // دوال مساعدة خاصة / Private Helper Functions
         // ============================================================================
 
-        /**
-         * تحويل نوع مصفوفة Sad / Convert Sad array type
-         */
-        llvm::Type *LLVMTypeMapper::mapArrayType(std::shared_ptr<Type> sadType)
-        {
-            // الحصول على نوع العنصر / Get element type
-            auto elementType = sadType->getElementType();
-
-            // تحويل نوع العنصر إلى LLVM / Convert element type to LLVM
-            llvm::Type *llvmElementType = mapSadType(elementType);
-
-            // الحصول على حجم المصفوفة / Get array size
-            size_t arraySize = sadType->getArraySize();
-
-            // إنشاء نوع مصفوفة / Create array type
-            return createArrayType(llvmElementType, arraySize);
-        }
-
-        /**
-         * تحويل نوع مؤشر Sad / Convert Sad pointer type
-         */
-        llvm::Type *LLVMTypeMapper::mapPointerType(std::shared_ptr<Type> sadType)
-        {
-            // الحصول على نوع البيانات المشار إليه / Get pointee type
-            auto pointeeType = sadType->getPointeeType();
-
-            // تحويل نوع البيانات المشار إليه إلى LLVM / Convert pointee type to LLVM
-            llvm::Type *llvmPointeeType = mapSadType(pointeeType);
-
-            // إنشاء نوع مؤشر / Create pointer type
-            return createPointerType(llvmPointeeType);
-        }
-
-        /**
-         * تحويل نوع صنف Sad / Convert Sad class type
-         */
-        llvm::Type *LLVMTypeMapper::mapClassType(std::shared_ptr<Type> sadType)
-        {
-            // الحصول على اسم الصنف / Get class name
-            std::string className = sadType->toString();
-
-            // التحقق من التخزين المؤقت / Check cache
-            auto it = structCache_.find(className);
-            if (it != structCache_.end())
-            {
-                return it->second->getPointerTo(); // إرجاع مؤشر للبنية / Return pointer to struct
-            }
-
-            // إنشاء بنية فارغة مؤقتاً / Create empty struct temporarily
-            // سيتم ملؤها لاحقاً عند تعريف الصنف / Will be filled later when class is defined
-            llvm::StructType *classStruct = llvm::StructType::create(context_, className);
-
-            // حفظ في التخزين المؤقت / Save to cache
-            structCache_[className] = classStruct;
-
-            // إرجاع مؤشر للبنية / Return pointer to struct
-            return classStruct->getPointerTo();
-        }
 
         /**
          * الحصول على نوع من التخزين المؤقت / Get type from cache

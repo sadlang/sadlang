@@ -1,0 +1,32 @@
+# @description «خالي» نوعُ قيمةٍ كاملٌ: خانةٌ تحملُه، وقيمتُه الوحيدةُ «()» — نظيرُ «()» في رست.
+# @priority P0
+# @expected خالي
+# @rule gr.decl.variable
+
+# ============================================================
+# (AR) 🔑 هذه البذرةُ حلَّت محلَّ `067_issue113_void_is_not_a_value_type.ص`،
+#      والقلبُ مقصودٌ لا مصادفة: تلك كانت تُوكِّدُ أنّ «فراغ» **يُرفَض** خانةً
+#      بـSEM040، وهذه تُوكِّدُ أنّ «خالي» **يُقبَل** خانةً.
+#
+#      وما تغيَّرَ ليس شدّةَ الحكمِ بل موضوعَه: «فراغ» حُذف من اللغةِ (2026-09-07)
+#      وحلَّ محلَّه «خالي» — نوعُ الوحدة، وهو **الصفُّ الفارغُ نفسُه** وقيمتُه
+#      الوحيدةُ «()». وفي رست `()` قيمةٌ حقيقيّةٌ تُخزَّنُ وتُمرَّرُ وتُرجَع،
+#      لا «لا قيمة». فالخانةُ التي تحملُه ليست تناقضًا في التعريفِ بل هي
+#      التعريفُ نفسُه — ولذلك حُذف SEM040 وSEM045 معه: زالَ موضوعُ القاعدةِ
+#      لا شدّتُها، ورقماهما لا يُشغَلانِ بغيرِهما أبدًا.
+#
+#      ⚠️ ولم تُحذَفِ البذرةُ القديمةُ صامتةً. حذفُ سالبٍ بلا موجبٍ يقابلُه
+#      يترك القاعدةَ الجديدةَ **بلا برهان**: تمرُّ الشجرةُ خضراءَ ولا أحدَ
+#      يعلم أهي مُنفَّذةٌ أم مسكوتٌ عنها. فالسالبُ زالَ ومكانَه موجبٌ يُقاس.
+# (EN) Replaces 067_issue113_void_is_not_a_value_type.ص, and the inversion is
+#      deliberate: that seed asserted «فراغ» is REJECTED as a slot type
+#      (SEM040); this one asserts «خالي» is ACCEPTED. Void was deleted from
+#      the language on 2026-09-07 in favour of unit — the empty tuple, whose
+#      sole value is «()», a full value type exactly as in Rust. SEM040/SEM045
+#      went with it: the rule lost its subject, not its severity.
+#      The negative was not dropped in silence — a deleted negative with no
+#      positive to replace it leaves the new rule unproven.
+# ============================================================
+
+خالي س = ()
+اطبع_سطر(نوع(س))

@@ -23,9 +23,6 @@
 
 namespace Sad {
 
-    // (AR) إعلان أمامي لنوع Sad / (EN) Forward declaration of Sad Type
-    class Type;
-
     namespace LLVM {
 
         class LLVMCodeGen;
@@ -43,14 +40,6 @@ namespace Sad {
             TypesCodeGen(const TypesCodeGen &) = delete;
             TypesCodeGen &operator=(const TypesCodeGen &) = delete;
 
-            // ====================================================================
-            // (AR) تحويل الأنواع / (EN) Type Conversions
-            // ====================================================================
-            llvm::Type *convertType(std::shared_ptr<Type> sadType);
-            llvm::FunctionType *convertFunctionType(
-                std::shared_ptr<Type> returnType,
-                const std::vector<std::shared_ptr<Type>> &paramTypes,
-                bool isVarArg = false);
 
             // ====================================================================
             // (AR) الأنواع الأساسية / (EN) Primitive Types

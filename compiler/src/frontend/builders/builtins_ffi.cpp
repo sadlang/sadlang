@@ -93,7 +93,7 @@ namespace Sad
                 if (funcName == Bn::FFI::C_FREE || funcName == "free" || funcName == "c_free")
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_FREE, argOperands.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::FFI_FREE);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -101,7 +101,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin free()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 4. اعد_حجز / realloc

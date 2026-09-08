@@ -193,7 +193,7 @@ namespace Sad
                 //      Solution: Build in current body block + store in unique temp alloca.
                 // ================================================================
                 std::string prebuiltRetReg;
-                SadTypeKind prebuiltRetType = SadTypeKind::Void;
+                SadTypeKind prebuiltRetType = SadTypeKind::Unit;
                 // (AR) [وسم زمن-التشغيل] نوعُ عنصر المصفوفة للقيمة المُبنيّة مسبقًا — يُحفَظ
                 //      بمعزلٍ عن prebuiltRetType (النوع فقط) لئلّا يضيع Any/نوعُ العنصر عبر
                 //      alloca/store/load في مسار defer، فيبقى متاحًا لتتبّع إرجاع المصفوفة.
@@ -201,7 +201,7 @@ namespace Sad
                 //      separately from prebuiltRetType (type only) so Any/element type isn't
                 //      lost through the alloca/store/load of the defer path, keeping it
                 //      available for array-return tracking.
-                SadTypeKind prebuiltRetElementType = SadTypeKind::Void;
+                SadTypeKind prebuiltRetElementType = SadTypeKind::Unknown;
                 // (AR) 🔑 واسمُ صنفِ القيمةِ المُرجَعةِ يعبُرُ الـalloca/store/load كأخيهِ فوقه
                 //      (ISSUE-140 الشطرُ غيرُ المُصرَّح). فالمسارُ أدناهُ يُعيدُ بناءَ
                 //      `valueResult` يدويًّا من حقولٍ محفوظةٍ معدودة، فما لم يُحفَظ
@@ -548,7 +548,7 @@ namespace Sad
                     //      downgrade a recorded Any from another return). Sibling of the
                     //      returnClassName writeback above but for the array element.
                     if (b_.currentFunction_ &&
-                        valueResult.elementType != SadTypeKind::Void)
+                        valueResult.elementType != SadTypeKind::Unknown)
                     {
                         auto feIt = b_.functionTable_.find(b_.currentFunction_->name);
                         if (feIt != b_.functionTable_.end())
@@ -568,7 +568,7 @@ namespace Sad
                             //      crash). Widening is safe now that the Any read at tags==null
                             //      is fixed (homogKind field): a homogeneous branch self-
                             //      describes at runtime. A recorded Any stays Any.
-                            if (rt == SadTypeKind::Void)
+                            if (rt == SadTypeKind::Unknown)
                                 rt = valueResult.elementType;
                             else if (rt != SadTypeKind::Any &&
                                      rt != valueResult.elementType)

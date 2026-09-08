@@ -1,6 +1,6 @@
 # سِجلُّ سطحِ لغة ص — مُشتَقٌّ آليًّا من language-truth/
 # ⚠️ لا يُحرَّرُ باليد: python tests/metrics/surface/surface_map.py --update
-# آخرُ اشتقاق / last derivation: 2026-09-04
+# آخرُ اشتقاق / last derivation: 2026-09-08
 sections:
   01_core:
     name_ar: النواةُ اللغويّة
@@ -132,7 +132,7 @@ sections:
     name_ar: الخلفيّةُ الأصليّة
     name_en: Native backend
     is_language_surface: false
-    total: 1025
+    total: 1028
     counts:
       أوپكودات SIR (opcodes): 780
       أوپكوداتُ معماريّة (opcodes): 35
@@ -140,8 +140,8 @@ sections:
       أهدافُ ترجمة (targets): 5
       مراحل (stages): 1
       خارجَ النطاق (out_of_scope): 2
-      أنواعُ القيمةِ الديناميّة (dyn_kinds): 7
-      نصوصُ العرض (display_texts): 7
+      أنواعُ القيمةِ الديناميّة (dyn_kinds): 8
+      نصوصُ العرض (display_texts): 9
       تخطيطُ الخريطة (map_layout): 9
       تعليماتُ المعماريّات (instructions): 137
       أصنافُ المسجّلات (classes): 3
@@ -191,6 +191,6 @@ sections:
       مرادفاتُ الثُّلاثيّ (triple_aliases): 12
 totals:
   language_surface: 2434
-  all_sections: 3822
+  all_sections: 3825
   sot_files_counted: 100
   sot_files_ignored: 6

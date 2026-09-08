@@ -297,7 +297,7 @@ inline TypePtr makeBoolType() {
  * @brief (EN) Create void type
  */
 inline TypePtr makeVoidType() {
-    return std::make_shared<PrimitiveType>(SadTypeKind::Void);
+    return std::make_shared<PrimitiveType>(SadTypeKind::Unit);
 }
 
 /**

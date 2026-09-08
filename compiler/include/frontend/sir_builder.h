@@ -506,7 +506,7 @@ namespace Sad
 
                     SIRInstruction bridgeCall(SIROpcode::CALL);
                     const bool targetReturnsValue =
-                        targetRet != SadTypeKind::Void;
+                        targetRet != SadTypeKind::Unit;
                     const std::string bridgeResultReg = Sad::Compiler::kClosureDynBridgeResultReg;
                     if (targetReturnsValue)
                         bridgeCall.result =
@@ -1228,7 +1228,7 @@ namespace Sad
                     size_t caseIndex,
                     std::vector<MatchDeferredField> &deferredExtractions,
                     const std::string &failLabel = "",
-                    SadTypeKind matchValueElementType = SadTypeKind::Void);
+                    SadTypeKind matchValueElementType = SadTypeKind::Unknown);
 
                 /**
                  * @brief (AR) مُطابِق أنماط قاصر الدائرة (ISSUE-067) — يعالج الأنماط
@@ -1243,7 +1243,7 @@ namespace Sad
                     const std::string &valueReg,
                     SadTypeKind valueType,
                     const std::string &failLabel,
-                    SadTypeKind valueElementType = SadTypeKind::Void);
+                    SadTypeKind valueElementType = SadTypeKind::Unknown);
 
                 /**
                  * @brief (AR) هل يحتوي النمط على ابنٍ مركّب (قائمة/بنية/نطاق/تعداد/بدائل/ربط)
@@ -1809,11 +1809,39 @@ namespace Sad
                  * @param hasInitializer (AR) أللتصريحِ مُهيِّئٌ يُستنتَج منه النوع؟
                  * @param resolvedKind   (AR) النوعُ المحسوبُ في موضعِ النداء — يُرجَع كما هو
                  *                       ما لم تنطبق الحالة
+                 * @param initializerYieldsValue (AR) أيُنتِجُ المُهيّئُ قيمةً حقًّا؟
+                 *                       (EN) does the initializer actually yield a value?
+                 *
+                 * (AR) 🔑 **ولا قيمةَ افتراضيّةً لهذا الوسيط.** كانت `= true`، وهي
+                 *      تجعلُ الشرطَ `!initializerYieldsValue` **ميّتًا في ثلاثةٍ من
+                 *      أربعةِ مُنادِين** — وتعليقُ الجسمِ نفسِه يقولُ إنّ ما يحرسُه
+                 *      «يُفجّرُ LLVM بثابتٍ عدميّ». وحارسٌ يُنادى بقيمةٍ مسكوتٍ
+                 *      عنها ليس حارسًا بل سطرٌ يُقرَأُ حراسةً. فمن نادى صرّح.
+                 * (EN) No default. It was `= true`, which made the guard dead at three
+                 *      of four call sites while the body's own comment says the case it
+                 *      guards "trips LLVM's null constant". Every caller must now state
+                 *      what it knows.
                  */
                 static SadTypeKind resolveBareSlotStorageKind(
                     const Sad::Types::SadTypeKind &declaredKind,
                     bool hasInitializer,
-                    SadTypeKind resolvedKind);
+                    SadTypeKind resolvedKind,
+                    bool initializerYieldsValue);
+
+                /**
+                 * @brief (AR) أيُنتِجُ هذا المُهيّئُ قيمةً تُقرَأُ — سؤالًا نحويًّا؟
+                 * @brief (EN) Does this initializer yield a readable value — syntactically?
+                 *
+                 * (AR) يُستعمَلُ حيثُ لا سِجِلَّ بعدُ (المسارُ العامُّ والمسحُ
+                 *      التمهيديّ): نداءٌ نتيجتُه وحدةٌ لا يُنتِجُ قيمةً تُقرَأ،
+                 *      و«()» — وهي صفٌّ فارغٌ في الشجرة — قيمةٌ حقيقيّة. والتمييزُ
+                 *      بالشكلِ ههنا لأنّ التمييزَ بالسِّجِلِّ متعذّرٌ قبلَ البناء.
+                 * (EN) Used where no register exists yet (global path, pre-scan): a call
+                 *      whose result is Unit yields nothing readable, while «()» — an
+                 *      empty TupleExpr in the AST — is a real value.
+                 */
+                static bool initializerYieldsValueSyntactically(const Sad::AST::Expression *init,
+                                                                SadTypeKind resolvedKind);
 
                 /**
                  * @brief (AR) تحويل نوع AST إلى SadTypePtr (النظام الموحد)

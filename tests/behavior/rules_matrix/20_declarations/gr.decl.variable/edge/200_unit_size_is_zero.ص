@@ -1,0 +1,22 @@
+# @rule: gr.decl.variable
+# @description: حجمُ «خالي» صفرٌ — يُقرَأُ من مصدرِ الحقيقةِ لا من عرضِ خانةِ LLVM
+# @priority: P1
+# @expected 0
+
+# ============================================================
+# (AR) 🔑 الموجَبُ الذي يُكمِلُ السوالب: نوعٌ لا يحملُ معلومةً حجمُه صفر.
+#      و`@حجم` تقرأُ `types.yaml ⇒ size_bytes` **لا عرضَ خانةِ LLVM**،
+#      والفرقُ مقيسٌ: خانةُ الوحدةِ في الخلفيّةِ `i8` (حاملٌ لا يُقرَأ)
+#      لأنّ خانةً بعرضٍ صفريٍّ تُفجِّرُ LLVM. فلو اشتُقَّ الحجمُ من الخانةِ
+#      لأجابَ **١** وهو خطأ.
+#      ⚠️ وهذه بذرةُ ضابطٍ في الاتّجاهِ المعاكس: أكثرُ ما يُخشى في هذا النوعِ
+#      أن يُصلَحَ عرضُ خانتِه يومًا فينجرفَ حجمُه المُعلَنُ معه صامتًا.
+# (EN) The positive that completes the negatives: a type carrying no information
+#      has size zero. @حجم reads types.yaml's size_bytes, NOT the LLVM slot
+#      width — measured: the backend slot is i8 (an unread carrier) because a
+#      zero-width slot trips LLVM, so deriving from the slot would answer 1.
+#      A control in the reverse direction: the real risk is that a future change
+#      to the slot width silently drags the declared size with it.
+# ============================================================
+
+اطبع_سطر(نص(@حجم(خالي)))

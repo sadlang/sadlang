@@ -192,21 +192,71 @@ namespace Sad
                  * @brief (AR) منشئ افتراضي
                  * @brief (EN) Default constructor
                  */
-                BuildResult() : type(SadTypeKind::Void), elementType(SadTypeKind::Void) {}
+                // (AR) 🔑 وافتراضيُّ `elementType` هو `Unknown` لا `Unit`: القناةُ
+                //      تعني «نوعُ العنصرِ لم يُستنتَجْ بعد»، وكان يُعبَّرُ عنه بنوعِ
+                //      الوحدة. وذلك صحيحٌ يومَ كان اللفظُ «فراغ» ومعناه غيابُ نوع؛
+                //      واليومَ «خالي» نوعُ قيمةٍ حقيقيّ، فبقاءُ الحارسِ يجعلُ
+                //      «مصفوفةُ وحداتٍ» و«مصفوفةٌ لا أعرفُ عناصرَها» شيئًا واحدًا.
+                //      ⚠️ وحقلُ `type` يبقى `Unit` افتراضيًّا: تبديلُه عقدٌ آخر
+                //      يمسُّ كلَّ بانٍ، ورقعةٌ أوسعُ من علّتِها.
+                // (EN) elementType defaults to Unknown, not Unit: the channel means
+                //      "element type not yet inferred", which used to be spelled with
+                //      the unit kind. `type` deliberately keeps its Unit default — a
+                //      separate contract touching every builder.
+                BuildResult() : type(SadTypeKind::Unit), elementType(SadTypeKind::Unknown) {}
 
                 /**
                  * @brief (AR) منشئ بسجل ونوع
                  * @brief (EN) Constructor with register and type
                  */
                 BuildResult(const std::string &reg, SadTypeKind t)
-                    : registerName(reg), type(t), isConstant(false), elementType(SadTypeKind::Void) {}
+                    : registerName(reg), type(t), isConstant(false), elementType(SadTypeKind::Unknown) {}
 
                 /**
                  * @brief (AR) منشئ لقيمة ثابتة
                  * @brief (EN) Constructor for constant value
                  */
                 BuildResult(const std::string &value, SadTypeKind t, bool isConst)
-                    : constantValue(value), type(t), isConstant(isConst), elementType(SadTypeKind::Void) {}
+                    : constantValue(value), type(t), isConstant(isConst), elementType(SadTypeKind::Unknown) {}
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 **سؤالٌ واحدٌ ومعيارٌ واحد**: أهذه قيمةُ وحدةٍ حقيقيّةٌ أم
+                //      لا قيمةَ أصلًا؟ وكان يُعادُ اشتقاقُه في خمسةِ مواضعَ بخمسِ
+                //      صياغاتٍ غيرِ متطابقة — اثنتانِ تُسقِطانِ حدَّ `isConstant`
+                //      واثنتانِ تختبرانِ النوعَ وحدَه بلا شكل — فكانت
+                //      «م[0] = ()» تكتبُ حارسَ الغيابِ مكانَ القيمةِ بينما
+                //      «خ["أ"] = ()» تكتبُها صحيحةً: سؤالٌ واحدٌ وجوابانِ بحسبِ
+                //      الحاوية. والمعيارُ المُوحَّدُ **شكلُ النتيجةِ لا نوعُها**:
+                //      القيمةُ الحقيقيّةُ لها سِجِلٌّ أو هي ثابت.
+                //      ⚠️ وموضعُ المُعينِ على `BuildResult` نفسِه لا في ملفٍّ
+                //      جانبيّ: مَن يملكُ الحقولَ الثلاثةَ يملكُ الحكم، فلا يُخترَعُ
+                //      قارئٌ سادس.
+                // (EN) One question, one criterion: is this a real unit VALUE or no
+                //      value at all? It used to be re-derived at five sites with five
+                //      non-identical predicates (two dropped the isConstant term, two
+                //      tested the kind with no shape test), so `arr[0] = ()` wrote the
+                //      absence sentinel while `map["k"] = ()` wrote the value — one
+                //      question, two answers by container. The criterion is the
+                //      result's SHAPE: a real value has a register or is a constant.
+                // ════════════════════════════════════════════════════════════════
+
+                /**
+                 * @brief (AR) أهي «لا قيمة» — نداءٌ لم يُنتِجْ شيئًا يُقرَأ؟
+                 * @brief (EN) Is this an ABSENT value — a call that yielded nothing?
+                 */
+                bool isAbsentValue() const
+                {
+                    return type == SadTypeKind::Unit && registerName.empty() && !isConstant;
+                }
+
+                /**
+                 * @brief (AR) أهي قيمةُ وحدةٍ حقيقيّةٌ لها تمثيلٌ يُخزَّن؟
+                 * @brief (EN) Is this a real unit VALUE with a storable representation?
+                 */
+                bool isUnitValue() const
+                {
+                    return type == SadTypeKind::Unit && (!registerName.empty() || isConstant);
+                }
             };
 
             /**
@@ -334,7 +384,7 @@ namespace Sad
                  * @brief (AR) منشئ افتراضي
                  * @brief (EN) Default constructor
                  */
-                VariableInfo() : type(SadTypeKind::Void), isGlobal(false), isMutable(true), isVolatile(false), isParameter(false), scopeLevel(0), elementType(SadTypeKind::Void) {}
+                VariableInfo() : type(SadTypeKind::Unit), isGlobal(false), isMutable(true), isVolatile(false), isParameter(false), scopeLevel(0), elementType(SadTypeKind::Unknown) {}
             };
 
             /**
@@ -392,7 +442,26 @@ namespace Sad
                 //      index reads the slot tagged, not as an integer. (Sibling of
                 //      returnClassName but for the array element.)
                 // ================================================================
-                SadTypeKind returnElementType = SadTypeKind::Void; ///< (AR) نوع عنصر المصفوفة المُرجعة / (EN) Returned array element type
+                // (AR) 🔑 والحارسُ `Unknown` لا `Unit`: هذه الخانةُ تعني «لم
+                //      يُضبَطْ نوعُ العنصرِ بعد»، و`خالي` **نوعُ عنصرٍ مشروع**
+                //      منذُ صارت نوعَ قيمة. فبقاؤها حارسًا يجعلُ
+                //      `دالة ج() ارجع [()، ()] نهاية` تُجيبُ `نوع(ج()[0])`
+                //      بـ«رقم» وتطبعُ `0` (مقيسٌ 2026-09-07)، بينما الحرفيُّ
+                //      المباشرُ `متغير م = [()، ()]` يُجيبُ «خالي» — فرقٌ سببُه
+                //      المرورُ بهذه الخانةِ لا اختلافُ المعنى.
+                //      وهو النمطُ نفسُه الذي نُقِلَ في ٢٨ موضعًا لقناةِ
+                //      `elementType`، وبقيَت هذه الخانةُ خارجَه لأنّ اسمَها
+                //      مختلف — **والبحثُ عن اسمٍ لا يجدُ نظيرًا باسمٍ آخر.**
+                // (EN) The sentinel is Unknown, not Unit: this slot means "the element
+                //      type has not been set yet", and خالي is a legitimate element type
+                //      now that it is a value type. Leaving it as the sentinel made a
+                //      function returning [(), ()] report «رقم» and print 0, while the
+                //      same literal assigned directly reported «خالي» — a difference
+                //      caused by passing through this slot, not by any difference in
+                //      meaning. It is the same flip already applied to 28 elementType
+                //      sites; this slot was missed because its NAME differs, and a
+                //      search for one name does not find its twin under another.
+                SadTypeKind returnElementType = SadTypeKind::Unknown; ///< (AR) نوع عنصر المصفوفة المُرجعة / (EN) Returned array element type
 
                 // ================================================================
                 // (AR) [Fix #52] اسم اللامدا المُرجعة — يُستخدم عندما تُرجع الدالة إغلاقاً
@@ -416,7 +485,7 @@ namespace Sad
                  * @brief (AR) منشئ افتراضي
                  * @brief (EN) Default constructor
                  */
-                FunctionInfo() : returnType(SadTypeKind::Void) {}
+                FunctionInfo() : returnType(SadTypeKind::Unit) {}
             };
 
             /**
@@ -455,14 +524,14 @@ namespace Sad
                  * @brief (AR) منشئ افتراضي
                  * @brief (EN) Default constructor
                  */
-                TypeParameter() : constraintType(SadTypeKind::Void), hasConstraint(false) {}
+                TypeParameter() : constraintType(SadTypeKind::Unit), hasConstraint(false) {}
 
                 /**
                  * @brief (AR) منشئ باسم
                  * @brief (EN) Constructor with name
                  */
                 TypeParameter(const std::string &n)
-                    : name(n), constraintType(SadTypeKind::Void), hasConstraint(false) {}
+                    : name(n), constraintType(SadTypeKind::Unit), hasConstraint(false) {}
             };
 
             /**
@@ -516,7 +585,7 @@ namespace Sad
                 SadTypeKind getSubstitutedType(const std::string &name) const
                 {
                     auto it = typeSubstitutions.find(name);
-                    return (it != typeSubstitutions.end()) ? it->second : SadTypeKind::Void;
+                    return (it != typeSubstitutions.end()) ? it->second : SadTypeKind::Unit;
                 }
             };
 

@@ -1,0 +1,61 @@
+# @rule: gr.expr.lambda
+# @description: لامدا تُرجِعُ «خالي» — بجسمٍ تعبيريٍّ وبجسمٍ كتليّ
+# @priority: P0
+# @expected خالي\nخالي\nأ\n5\nصحيح
+
+# ============================================================
+# (AR) 🔑 **سلسلةُ خمسِ حلقات، وثلاثُ رقعاتٍ متتاليةٍ بَدَت كافيةً حتّى
+#      قِيسَت.** كان `لامدا() => ()` يُجيبُ «رقم» ويطبعُ `0`، وسدُّه لزمَه
+#      خمسةُ مواضعَ في أربعِ طبقات:
+#        ① نوعُ عائدِ اللامدا الابتدائيُّ — كان `Integer` ولا استنتاجَ
+#           لجسمٍ تعبيريّ أصلًا؛
+#        ② تبنّي نوعِ الجسم — كان يشترطُ `≠ خالي`، فـ`=> "أ"` يُصيبُ
+#           و`=> ()` يسقط؛
+#        ③ نوعُ نتيجةِ نداءِ الإغلاق — كان يُبدِّلُ كلَّ عائدِ وحدةٍ عددًا؛
+#        ④ ثمّ ظهرَ `INT004` «مرجعٌ غير معرَّف»: عائدُ الوحدةِ يُخفَضُ
+#           `void` في LLVM، فلا سِجِلَّ للنتيجة؛
+#        ⑤ فمُلِئت خانةُ النتيجةِ بحاملِ الوحدةِ في الخلفيّة.
+#
+#   ⚠️ و④ **عادَ إليّ من بابِ رقعتي نفسِها**: هو «التِّلْوُ» المُدوَّنُ في
+#      CLAUDE.md — موضعٌ يُصيبُ في حكمِه ثمّ ينصرفُ بغيرِ أن يملأَ خانةَ
+#      نتيجةِ التعليمة، فيُتَّهَمُ المترجّمُ زورًا في التعليمةِ التالية.
+#      سُدَّ في ستّةِ مواضعَ من قبل، ثمّ فتحتْه **رقعةٌ صحيحةٌ في الأمام**.
+#
+#   🔑 والدرسُ: **السلسلةُ لا تُقطَعُ بأقوى حلقاتِها بل بأضعفِها، وأضعفُها
+#      آخرُها**. وكلُّ حلقةٍ من الخمسِ كانت تُخفي ما بعدَها: تُصلَحُ فيبقى
+#      المخرَجُ «رقم» كما هو، فيبدو أنّ الرقعةَ لم تُطبَّق.
+#
+#   والأسطرُ الثلاثةُ الأخيرةُ ضوابط — نصٌّ وعددٌ ومنطقيّ — تحرسُ ألّا يكونَ
+#   احترامُ الوحدةِ قد ابتلعَ بقيّةَ أنواعِ العائد.
+# (EN) A five-link chain in which three consecutive patches each looked
+#      sufficient until measured. `lambda() => ()` answered «رقم» and printed 0;
+#      closing it took five sites across four layers: the lambda's initial
+#      return type (Integer, with no inference for an expression body at all);
+#      the adoption of the body's type (guarded by "≠ unit", so `=> "s"` worked
+#      and `=> ()` fell through); the closure call's result type (which replaced
+#      every unit return with an integer); then INT004 "undefined register",
+#      because a unit return lowers to LLVM void and yields no register; and
+#      finally filling that result slot with the unit carrier in the back end.
+#      That fourth one is the "orphan result" pattern documented in CLAUDE.md,
+#      already closed in six places — and reopened here by a CORRECT front-end
+#      patch. A chain breaks at its weakest link, and the weakest is the last:
+#      each of the five hid the ones behind it, since fixing one left the output
+#      unchanged and the patch looked inert. The last three lines are controls.
+# ============================================================
+
+متغير تعبيريّة = لامدا() => ()
+اطبع_سطر(نوع(تعبيريّة()))
+
+متغير كتليّة = لامدا()
+    ارجع ()
+نهاية
+اطبع_سطر(نوع(كتليّة()))
+
+متغير نصّيّة = لامدا() => "أ"
+اطبع_سطر(نصّيّة())
+
+متغير عدديّة = لامدا() => 5
+اطبع_سطر(عدديّة())
+
+متغير منطقيّة = لامدا(س) => س > 10
+اطبع_سطر(منطقيّة(20))

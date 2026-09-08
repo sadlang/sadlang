@@ -285,6 +285,84 @@ namespace Sad
                         isStaticNumericKind(left.dataType));
             }
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 مقارنةُ نوعِ الوحدةِ تُحسَمُ **بالنوعِ لا بالبتّات**.
+            //      نوعُ الوحدةِ مفردٌ: قيمتُه واحدةٌ، فأيُّ وحدتَينِ متساويتانِ
+            //      **بالتعريف**، والوحدةُ مع غيرِها متغايرتانِ — ولا معلومةَ في
+            //      الخانةِ أصلًا تُقارَن.
+            //
+            //      ⚠️ ومقيسٌ (2026-09-07) أنّ غيابَ هذا الحكمِ كان **ينهارُ
+            //      داخليًّا**: خانةُ الوحدةِ حاملٌ `i8` والحارسُ العدميُّ ثابتٌ
+            //      `i64`، فيخرجُ `icmp eq i8 …, i64 0` فيرفضُه مدقّقُ LLVM
+            //      ⇒ `INT011` ولا ثنائيَّ يُسلَّم.
+            //
+            //      🔑 وأخطرُ ما فيه أنّ بذرةَ التفرّدِ `202_unit_is_singleton`
+            //      **كانت خضراءَ** طولَ الوقت: هي تقارنُ متغيّرَينِ اثنَين
+            //      (`أ == ب`) وكلاهما خانةُ `i8`، فتتّفقانِ عرضًا. والصيغةُ
+            //      المنهارةُ هي التي تُقارنُ خانةً بالحرفيّةِ `()`. ودرسُه:
+            //      **بذرةٌ تحرسُ معنًى بصيغةٍ واحدةٍ تحرسُ الصيغةَ لا المعنى**.
+            //
+            //      ⚠️ **واللاتماثلُ هو الدرسُ الثاني**: كان الشرطُ أوّلًا
+            //      `الطرفانِ كلاهما وحدة`، فإن كان أحدُهما وحدةً والآخرُ عددًا
+            //      سقطَ التوليدُ إلى المقارنةِ العامّةِ فأخرجَ عينَ الانهيارِ
+            //      بصيغةٍ أخرى. مقيسٌ: `خالي أ = ()` ثمّ `أ == 5` ⇒ `INT011`،
+            //      بينما `5 == ()` يُجيبُ «خطأ» سليمًا.
+            //
+            //      🔑 **والحكمُ قلبٌ واحدٌ لا أربعُ أذرعة** (2026-09-08): كانت
+            //      الأذرعةُ منسوخةً أربعًا في `emitCmpEq` و`emitCmpNe`، ومعها
+            //      نسختانِ حرفيّتانِ من هذا النصّ — **وقد انجرفتا فعلًا**: نسخةُ
+            //      `emitCmpNe` تقولُ «مقارنةُ وحدتَينِ تُحسَمُ…» وتستشهدُ بـ`icmp eq`
+            //      فوقَ شفرةِ لامساواة، وموضعُ الأذرعةِ اختلفَ بين الدالّتَين.
+            // (EN) Unit comparison is decided BY TYPE, not by bits: the unit type is a
+            //      singleton, so two units are equal by definition and a unit versus a
+            //      non-unit are unequal. Without this, codegen emitted
+            //      `icmp eq i8 …, i64 0`, which the LLVM verifier rejects (INT011).
+            //      Measured: `خالي أ = ()` then `أ == 5` gave INT011 while `5 == ()`
+            //      answered correctly — a guard predicated on BOTH operands guards only
+            //      the symmetric case, the rarest one in real programs.
+            //      One heart, not four arms (2026-09-08): the verdict lived as four
+            //      copied arms plus two verbatim copies of this note, and the copies had
+            //      ALREADY drifted — the emitCmpNe copy described equality and cited
+            //      `icmp eq` above inequality code, and the arms sat at different points
+            //      in the two functions.
+            //
+            // (AR) والجوابُ «خطأ»/«صحيح» لا رفضٌ: هو حكمُ `boolVersusNumber` نفسُه
+            //      لنوعَينِ متغايرَين — فلا تُخترَعُ قاعدةٌ لنوعِ الوحدةِ تخالفُ ما
+            //      تفعلُه اللغةُ لسائرِ الأنواع.
+            // (EN) False/true, not a rejection — the same verdict boolVersusNumber gives
+            //      for two mismatched types.
+            // ════════════════════════════════════════════════════════════════
+            /// (AR) أيُحسَمُ الطرفانِ بنوعِ الوحدةِ وحدَه؟ وإن نعم فـ`verdict` الحكم.
+            /// (EN) Is the pair decided by the unit type alone? If so, `verdict` holds it.
+            bool unitComparisonVerdict(const SIROperand &left, const SIROperand &right,
+                                       bool isEquality, bool &verdict)
+            {
+                const bool leftUnit = (left.dataType == SadTypeKind::Unit);
+                const bool rightUnit = (right.dataType == SadTypeKind::Unit);
+                if (!leftUnit && !rightUnit)
+                    return false;
+                // (AR) 🔑 ولا يُحسَمُ سكونيًّا إلّا حين يكونُ الطرفانِ **معلومَي
+                //      النوعِ يقينًا**. وكان الحكمُ بالنوعِ الساكنِ وحدَه، فطرفٌ
+                //      وحدةٌ وآخرُ خانةٌ ديناميّةٌ (`أي`) تحملُ وحدةً فعلًا يُطوى
+                //      إلى ثابتِ «غير متساويَين» زمنَ الترجمة: `أي س = ()` ثمّ
+                //      `س == ()` تُجيبُ «خطأ» **بلا أيِّ تشخيص** — مقارنةُ قيمتَينِ
+                //      متطابقتَينِ تُجيبُ بالنفي. وهو عينُ الدرسِ المُدوَّنِ في
+                //      الوثيقة: المِطلاقُ على **اليقين** لا على النوع.
+                // (EN) Decide statically only when BOTH sides are certainly known. The
+                //      verdict used to rest on the static kind alone, so a unit against
+                //      a dynamic slot actually holding a unit folded to a compile-time
+                //      "not equal": `any x = ()` then `x == ()` answered false with no
+                //      diagnosis at all — the predicate must gate on CERTAINTY.
+                const auto undecided = [](SadTypeKind k) {
+                    return k == SadTypeKind::Any || k == SadTypeKind::Unknown;
+                };
+                if (undecided(left.dataType) || undecided(right.dataType))
+                    return false;
+                const bool areEqual = (leftUnit && rightUnit);
+                verdict = isEquality ? areEqual : !areEqual;
+                return true;
+            }
+
             // (AR) تطبيعُ الطرفِ غيرِ العدمِ إلى عرضِ الحارسِ (٦٤ بتًّا) بلا تغييرِ بتّاتِه:
             //      المؤشرُ بـptrtoint، والعشريُّ ببتّاتِه، والعددُ الأضيقُ بتمديدِ إشارة.
             //      وما لا يُطبَّعُ يُعادُ فيه عدمٌ ليسقطَ النداءُ إلى المسارِ العامِّ بدلَ
@@ -417,6 +495,17 @@ namespace Sad
                         cg_.context_info_.namedValues[inst->result->name] = result;
                     return result;
                 }
+            }
+
+            // (AR) حكمُ نوعِ الوحدة — التعليلُ عند `unitComparisonVerdict` أعلاه.
+            // (EN) The unit-type verdict — rationale at unitComparisonVerdict above.
+            bool unitEq = false;
+            if (unitComparisonVerdict(inst->operands[0], inst->operands[1], true, unitEq))
+            {
+                result = llvm::ConstantInt::getBool(*cg_.context_, unitEq);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = result;
+                return result;
             }
 
             // (AR) منطقيٌّ مقابل عدد ⇒ «خطأ» — راجِعْ تعليقَ boolVersusNumber أعلاه.
@@ -586,6 +675,28 @@ namespace Sad
                 }
             }
 
+            // (AR) 🔑 وموضعُها **قبلَ** `boolVersusNumber` كنظيرتِها في «يساوي»:
+            //      كان التعليقُ يُعلنُ «قلبٌ واحدٌ لا أربعُ أذرعة» وينتقدُ اختلافَ
+            //      الموضعِ بين التوأمَين، والموضعُ ما زالَ مختلفًا — ذراعٌ قبلَ
+            //      وذراعٌ بعد. ولا أثرَ اليومَ لأنّ المِطلاقَينِ متنافيان، لكنّ
+            //      توسيعَ أحدِهما لاحقًا يجعلُ التوأمَينِ يحكمانِ بترتيبَين — وهي
+            //      العلّةُ التي ادّعى النصُّ سدَّها.
+            // (EN) Placed BEFORE boolVersusNumber, matching its equality twin: the
+            //      comment claimed "one heart, not four arms" while criticising the
+            //      twins' differing arm ORDER — which was still different. Inert today
+            //      because the predicates are disjoint, but widening either would make
+            //      the twins decide in two different orders.
+            // (AR) وتوأمُ الحكمِ في «لا يساوي» — والقلبُ واحدٌ لا نسختان.
+            // (EN) The inequality twin of the same verdict — one heart, not two copies.
+            bool unitNe = false;
+            if (unitComparisonVerdict(inst->operands[0], inst->operands[1], false, unitNe))
+            {
+                llvm::Value *unitRes = llvm::ConstantInt::getBool(*cg_.context_, unitNe);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = unitRes;
+                return unitRes;
+            }
+
             // (AR) منطقيٌّ مقابل عدد ⇒ «صحيح» — راجِعْ تعليقَ boolVersusNumber أعلاه.
             // (EN) Bool vs number ⇒ true — see the boolVersusNumber comment above.
             if (boolVersusNumber(inst->operands[0], inst->operands[1]))
@@ -595,6 +706,7 @@ namespace Sad
                     cg_.context_info_.namedValues[inst->result->name] = mismatch;
                 return mismatch;
             }
+
 
             llvm::Type *leftTy = left->getType();
             llvm::Type *rightTy = right->getType();

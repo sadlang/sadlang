@@ -58,7 +58,7 @@ namespace Sad
             {
                 std::string name;                           ///< (AR) اسم الدالة / (EN) Method name
                 std::vector<SadTypeKind> paramTypes;        ///< (AR) أنواع المعاملات / (EN) Parameter types
-                SadTypeKind returnType = SadTypeKind::Void; ///< (AR) نوع الإرجاع / (EN) Return type
+                SadTypeKind returnType = SadTypeKind::Unit; ///< (AR) نوع الإرجاع / (EN) Return type
                 bool hasDefaultImpl = false;                ///< (AR) هل لها تنفيذ افتراضي / (EN) Has default impl
             };
 
@@ -306,7 +306,7 @@ namespace Sad
             {
                 std::string name;                            ///< (AR) اسم المعامل / (EN) Parameter name
                 SadTypeKind type;                            ///< (AR) نوع المعامل / (EN) Parameter type
-                SadTypeKind elementType = SadTypeKind::Void; ///< (AR) نوع عنصر المصفوفة (للمصفوفات) / (EN) Array element type (for arrays)
+                SadTypeKind elementType = SadTypeKind::Unknown; ///< (AR) نوع عنصر المصفوفة (للمصفوفات) / (EN) Array element type (for arrays)
                 /// (AR) اسم الصنف للمعامل المصرَّح بصنفٍ مسجَّل (نحو `دالة معالج(حدث ح)`) —
                 ///      تبذره الخلفيّة في objectClassMap فلا يُترك حلّ الحقول لتخمين الاسم
                 ///      (معالِج الحدث لا يُستدعى من كود ص فلا يصله استدلال مواقع الاستدعاء).
@@ -330,8 +330,25 @@ namespace Sad
                 ///      false-positive/false-negative pair under name collision.
                 SadTypeKind declaredSurfaceType = SadTypeKind::Unknown;
 
+                // (AR) ⚠️ **ولا يُعاد تهيئةُ `elementType` ههنا**: قيمتُه الافتراضيّةُ
+                //      أعلاه (`Unknown`) هي الحارسُ الوحيدُ لـ«نوعُ العنصرِ لم يُستنتَجْ».
+                //      وكان البانِي يُثبِّتُ `Unit` — أي حارسَ «فراغ» القديمَ بعدَ إعادةِ
+                //      تسميتِه — بينما نُقِلَ قارئُوه إلى `Unknown` (مقيسٌ:
+                //      `sir_builder_functions.cpp:701`). فصارَ كلُّ معاملٍ لم يُستنتَجْ
+                //      نوعُ عنصرِه **يمرُّ حارسَ «معلوم»** فيُبَثُّ `Unit` نوعًا لعنصرِه.
+                //      والأثرُ مقيسٌ (2026-09-08): `دالة اطبع_اول(مصفوفة ق)` ثمّ `ق[0]`
+                //      يطبعُ `()` و`نوع(ق[0])` يقولُ «خالي» — والمصفوفةُ أعدادٌ.
+                //      🔑 والدرسُ: **قيمةٌ افتراضيّةٌ مكتوبةٌ مرّتَين تنجرفُ نصفَ انجرافٍ**؛
+                //      وإصلاحُ الحارسِ في القارئِ دونَ الكاتبِ يُنتِجُ عطبًا لم يكن قبلَه.
+                // (EN) elementType is deliberately NOT re-initialised here: the in-class
+                //      default above (Unknown) is the single sentinel for "element type not
+                //      inferred". The ctor used to pin Unit — the renamed old Void sentinel —
+                //      while its readers had moved to Unknown, so every parameter with an
+                //      uninferred element type passed the "known" guard and propagated Unit.
+                //      Measured: an array parameter indexed as ق[0] printed «()» and نوع()
+                //      answered «خالي» for an array of integers.
                 SIRParameter(const std::string &paramName, SadTypeKind paramType)
-                    : name(paramName), type(paramType), elementType(SadTypeKind::Void) {}
+                    : name(paramName), type(paramType) {}
 
                 std::string toString() const;
             };
@@ -702,7 +719,7 @@ namespace Sad
                 //      coroutine, so the type inferred from `ارجع` had no carrier left,
                 //      and whoever read the promise knew only its container's width.
                 // ════════════════════════════════════════════════════════════
-                SadTypeKind coroutineValueType = SadTypeKind::Void;
+                SadTypeKind coroutineValueType = SadTypeKind::Unit;
 
                 bool isCoroutine = false;                                ///< (AR) دالة غير متزامنة (كوروتين) / (EN) Async function (coroutine)
                 bool isGenerator = false;                                ///< (AR) دالة مولّد / (EN) Generator function

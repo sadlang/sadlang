@@ -152,7 +152,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] async yield()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 4. async_sleep - non-blocking sleep
@@ -161,7 +161,7 @@ namespace Sad
                     if (!checkBuiltinArity(b_.errors_, funcName,
                                            Ar::AsyncAdvanced::ASYNC_SLEEP,
                                            argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::ASYNC_SLEEP);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -169,7 +169,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] async_sleep()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 5. create_future
@@ -201,7 +201,7 @@ namespace Sad
                 if (funcName == Bn::AsyncAdvanced::FUTURE_OFF || funcName == "resolve_future" || funcName == "\xd8\xad\xd9\x82\xd9\x82_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84")
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::FUTURE_OFF, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::ASYNC_RESOLVE_FUTURE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -210,7 +210,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] resolve_future()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 7. get_future
@@ -264,7 +264,7 @@ namespace Sad
                 if (funcName == Bn::AsyncAdvanced::CHANNEL_SEND || funcName == "channel_send")
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::CHANNEL_SEND, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_SEND);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -275,7 +275,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] channel_send()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 10. channel_recv
@@ -304,7 +304,7 @@ namespace Sad
                     if (!checkBuiltinArity(b_.errors_, funcName,
                                            Ar::AsyncAdvanced::CHANNEL_CLOSE,
                                            argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_CLOSE);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -312,7 +312,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] channel_close()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 12. create_mutex
@@ -340,7 +340,7 @@ namespace Sad
                     if (!checkBuiltinArity(b_.errors_, funcName,
                                            Ar::AsyncAdvanced::MUTEX_LOCK,
                                            argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_LOCK);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -348,7 +348,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] mutex_lock()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 14. mutex_unlock
@@ -357,7 +357,7 @@ namespace Sad
                     if (!checkBuiltinArity(b_.errors_, funcName,
                                            Ar::AsyncAdvanced::MUTEX_UNLOCK,
                                            argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_UNLOCK);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -365,7 +365,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] mutex_unlock()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 15. thread_spawn
@@ -434,7 +434,7 @@ namespace Sad
                 if (funcName == Bn::AsyncAdvanced::ATOMIC_STORE || funcName == "atomic_store")
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::ATOMIC_STORE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_STORE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -443,7 +443,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] atomic_store()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 19. atomic_add

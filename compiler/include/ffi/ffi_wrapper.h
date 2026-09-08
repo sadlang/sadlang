@@ -47,7 +47,17 @@
 #define SAD_FFI_WRAPPER_H
 
 #include "ffi/c_abi.h"
-#include "types/c_types.h"
+// (AR) 🔑 وكان ههنا `#include "types/c_types.h"` — ترويسةٌ تُعلِنُ `CTypeMapper`
+//      و`CTypeInfo` ولا **تنفيذَ لواحدٍ منها في المستودعِ كلِّه**: لا
+//      `c_types.cpp` ولا تعريفَ لأيِّ طريقةٍ منها. أمرُ القياس:
+//        grep -rn "CTypeMapper::" compiler shared   ⇒ صفر
+//      فكانت التضمينةُ تجرُّ هرمَ الأنواعِ الثانيَ كلَّه (`struct_types.h` ⇒
+//      `generics.h` ⇒ `trait_system.h`) إلى ملفٍّ **لا يستعملُ منها اسمًا
+//      واحدًا** — مقيسٌ بالبحثِ عن `CTypeMapper` في هذا الملفِّ وفي
+//      `ffi_wrapper.cpp` معًا. فنُزِعَت التضمينةُ وحُذِفَت الترويسة.
+// (EN) c_types.h declared a CTypeMapper that has no implementation anywhere,
+//      and neither this header nor ffi_wrapper.cpp names a single symbol from
+//      it — yet it dragged in the whole second type hierarchy.
 
 #include <string>
 #include <vector>

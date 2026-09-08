@@ -108,7 +108,7 @@ static int token_to_semantic_type(Sad::Lexer::TokenType type) {
     switch (type) {
         // أنواع البيانات → type (legacy — المحلل المعجمي لا ينتجها بعد الآن)
         case TT::TYPE_INTEGER: case TT::TYPE_DOUBLE: case TT::TYPE_STRING:
-        case TT::TYPE_BOOLEAN: case TT::TYPE_VOID: case TT::TYPE_NULL:
+        case TT::TYPE_BOOLEAN: case TT::TYPE_UNIT: case TT::TYPE_NULL:
         case TT::TYPE_ARRAY: case TT::TYPE_MAP: case TT::TYPE_ANY:
         case TT::TYPE_U8: case TT::TYPE_U16: case TT::TYPE_U32: case TT::TYPE_U64:
         case TT::TYPE_I8: case TT::TYPE_I16: case TT::TYPE_I32: case TT::TYPE_I64:

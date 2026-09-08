@@ -311,7 +311,7 @@ namespace Sad
             TYPE_DOUBLE,  ///< 📝 عشري / double — مُعرّف مدمج
             TYPE_STRING,  ///< 📝 نص / string — مُعرّف مدمج
             TYPE_BOOLEAN, ///< 📝 منطقي / boolean — مُعرّف مدمج
-            TYPE_VOID,    ///< 📝 فراغ / void — مُعرّف مدمج
+            TYPE_UNIT,    ///< 📝 خالي / unit — نوعُ الوحدة، الصفُّ الفارغُ نفسُه ‏(‏()‏)‏ كما في رست
             TYPE_NULL,    ///< 📝 عدم / null — مُعرّف مدمج
             TYPE_ARRAY,   ///< 📝 مصفوفة / array — مُعرّف مدمج
             TYPE_MAP,     ///< 📝 خريطة / map — مُعرّف مدمج

@@ -331,7 +331,7 @@ namespace Sad
                 if (funcName == Ba::ADD)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Arrays::ADD, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
                     // (AR) ننشر elementType إلى معامل المصفوفة: مختلطةٌ قياسيّة (Any) ⇒
                     //      تُعلّب الخلفيّةُ العنصرَ الملحَق في %SadDyn، متّسقةً مع خاناتها المُعلَّبة.
@@ -347,14 +347,14 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 2. إزالة_عنصر / remove / أزل / احذف
                 if (funcName == Ba::REMOVE)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Arrays::REMOVE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -363,7 +363,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 3. حجم_مصفوفة / array_size / length
@@ -468,9 +468,9 @@ namespace Sad
                 if (funcName == Ba::FIRST)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Arrays::FIRST, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     std::string resultReg = b_.newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Void);
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_FIRST);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
@@ -479,16 +479,16 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
-                    return BuildResult(resultReg, SadTypeKind::Void);
+                    return BuildResult(resultReg, SadTypeKind::Unit);
                 }
 
                 // 9. آخر / last
                 if (funcName == Ba::LAST)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Arrays::LAST, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     std::string resultReg = b_.newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Void);
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_LAST);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
@@ -497,7 +497,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
-                    return BuildResult(resultReg, SadTypeKind::Void);
+                    return BuildResult(resultReg, SadTypeKind::Unit);
                 }
 
                 // 10. شريحة / slice

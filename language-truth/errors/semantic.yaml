@@ -691,25 +691,20 @@ errors:
   detailed:
     ar: 'مدّة التخزين الساكنة تعني أنّ الخانة تُهيَّأ مرّة واحدة وتبقى قيمتها بين النداءات. وهي لا تتحقّق إلّا للتصاريح التي تصير عوامَّ، وذلك مقيس: حلقة تسجيل العوامّ في المترجم تمسح أبناء البرنامج المباشرين وحدهم، فما دونهم يهبط alloca في إطار النداء ويزول بزواله — فلا خانة معمّرة تُربط بموقع التصريح. ولذلك البوّابة تقيس عمق الكتلة لا عمق الدالّة: «متغير ساكن ب = 7» داخل «إذا … نهاية» في أعلى الملفّ ليس عامًّا وإن بدا وحدويًّا. وقبل ISSUE-120 كان «متغير ساكن ن = 0» يُبلَّغ بـSEM023 برسالة تتحدّث عن مصفوفات .bss لأنّ فرع اللبنة 3.16 كان يبتلع كلّ «ساكن»؛ فصار التشخيص يسمّي الحدّ الحقيقيّ بدل أن يحيل على صيغة لا صلة لها. أمّا مصفوفة التخزين الساكن «متغير ساكن اسم مصفوفة[N]» فتعمل في الموضعين لأنّها تُبثّ في قسم .bss لا في إطار النداء.'
     en: 'Static storage duration means the slot is initialized once and keeps its value across calls. It only holds for declarations that become globals, and this is measured: the compiler''s global-registration loop scans direct children of the program only, so anything deeper lowers to an alloca in the call frame and dies with it — no persistent slot is keyed to the declaration site. Hence the gate measures block depth, not function depth: «متغير ساكن ب = 7» inside an if-block at the top of the file is not a global even though it looks module-level. Before ISSUE-120 this was reported as SEM023 with a message about .bss arrays, because the Brick 3.16 branch swallowed every «ساكن»; the diagnostic now names the real limit. The static storage array form does work in both positions, because it is emitted into .bss rather than the call frame.'
-- code: SEM_VOID_NOT_A_VALUE_TYPE
-  id: SEM040
-  category: semantic
-  title:
-    ar: «{void_word}» نوعُ إرجاعٍ لا نوعُ قيمة
-    en: «{void_word}» is a return type, not a value type
-  brief:
-    ar: 'الخانة «{name}» صُرِّح نوعُها «{void_word}»، و«{void_word}» يعني «لم تُرجَع قيمةٌ أصلًا» فلا خانةَ تحمله'
-    en: 'Slot «{name}» is declared «{void_word}», which means «no value was ever returned» — no slot can hold it'
-  placeholders:
-  - name
-  - void_word
-  - null_word
-  fix_hint:
-    ar: 'إن كان المقصودُ خانةً تقبل «لاشيء» فاكتب «{null_word}» — وهو نوعُ القيمةِ العدميّةِ الصريحة. وإن كان المقصودُ استنتاجَ النوعِ من المُهيّئ فاحذف النوعَ رأسًا.'
-    en: 'If a slot that accepts «لاشيء» was intended, write «{null_word}» — the type of the explicit null value. If type inference was intended, drop the type annotation entirely.'
-  detailed:
-    ar: 'مصدرُ الحقيقة يفصل الغيابَين فصلًا صريحًا: «{void_word}» هو ما لم يُرجَع أصلًا (مفتاحٌ غائب، بحثٌ بلا مطابقة)، و«{null_word}» هو قيمةُ «لاشيء» الصريحة. والفصلُ ليس تسميةً: «{null_word}» يُنزَل إلى عددٍ صحيحٍ بحارسٍ مميَّز فله تمثيلٌ يُخزَّن، أمّا «{void_word}» فيُنزَل إلى نوعِ ‎void‎ في LLVM ولا ثابتَ صفريَّ له. ولذلك كان «متغير {void_word} س = لاشيء» يُسقِط المترجّم برسالةٍ داخليّة «Cannot create a null constant of that type! UNREACHABLE»، بينما يقبله المفسّرُ ويحذّر تحذيرًا كاذبًا عن إسنادِ عدمٍ إلى فراغ — تباعُدُ محرّكَين وانهيارٌ من عيبٍ واحد. والقياسُ الذي ولّد هذا التشخيص: ISSUE-113، حيث كان لفظُ «{null_word}» نفسُه يُخفَّض إلى {void_word} في سبعةِ مواضع، فلمّا فُصلا بقي الانهيارُ قائمًا على «{void_word}» صراحةً — عيبٌ مستقلٌّ كشفه الفصل. والرفضُ يقع في المحلّلِ لا في خلفيّةٍ بعينها، فيتّفق المحرّكان بالبناءِ لا بالمصادفة.'
-    en: 'The source of truth separates the two absences explicitly: «{void_word}» is what was never returned (a missing key, a search with no match), while «{null_word}» is the explicit null value. The separation is not cosmetic: «{null_word}» lowers to an integer with a distinguished sentinel, so it has a representation that can be stored, whereas «{void_word}» lowers to LLVM''s void type, for which no zero constant exists. Hence «متغير {void_word} س = لاشيء» used to crash the compiler with the internal message «Cannot create a null constant of that type! UNREACHABLE», while the interpreter accepted it and emitted a false warning about assigning null to void — an engine divergence and a crash from one defect. The measurement behind this diagnostic is ISSUE-113: the word «{null_word}» itself was being lowered to {void_word} in seven places, and once the two were separated the crash remained on «{void_word}» proper — an independent defect the separation exposed. The rejection lives in the parser rather than in one backend, so both engines agree by construction rather than by coincidence.'
+# ============================================================================
+# (AR) 🔑 فجوةٌ محجوزةٌ عمدًا: SEM040 و SEM045 — حُذفا في 2026-09-07.
+#      كانا SEM_VOID_NOT_A_VALUE_TYPE و SEM_VOID_ASSIGNED_TO_TYPED_SLOT،
+#      ويفرضان قاعدةً واحدةً: «فراغ» نوعُ إرجاعٍ لا نوعُ قيمة. وقد حُذف «فراغ»
+#      من اللغةِ وحلَّ محلَّه «خالي» — نوعُ الوحدة، وهو **نوعُ قيمةٍ كاملٌ**
+#      تحملُه الخانةُ ويُمرَّرُ ويُرجَع. فالقاعدةُ لم تُخفَّفْ بل زالَ موضوعُها.
+#      ⛔ ورقماهما **لا يُشغَلانِ بغيرِهما أبدًا**: رقمٌ واحدٌ لا يعني شيئَين،
+#      وبذرةٌ قديمةٌ توكِّدُ SEM040 يجب أن تُخفِقَ بغيابِ الرمزِ لا أن تَخضرَّ
+#      على رمزٍ جديدٍ لبسَ رقمَه.
+# (EN) Deliberate gap: SEM040 and SEM045 were deleted on 2026-09-07 with the
+#      «فراغ» (void) type they existed to police. «خالي» (unit) is a full value
+#      type, so the rule lost its subject. Their numbers are never reused.
+# ============================================================================
+
 - code: SEM_IMPLICIT_CTOR_REQUIRES_ARGS
   id: SEM041
   category: semantic
@@ -783,25 +778,6 @@ errors:
   detailed:
     ar: '🔑 هذا الرمز وُلد من عطب مقيس (١٩ آب ٢٠٢٦): اللهجة كانت تُعلن «architectures: [i686]» بينما المترجّم يخفض كتلة «تجميع» إلى منمنمات i686 **لأيّ هدف** بلا بوّابة معماريّة واحدة — صفرُ ذكرٍ للمعماريّة في خافض الكتلة كلّه. فعلى macos-14-arm64 كانت ثمانية اختبارات موجبة تموت في المُجمِّع بـ«unrecognized instruction mnemonic» على «cli» و«ltr w9» و«lea 8(%ebx), %eax»، بينما تمرّ الاثنا عشر اختبارًا السالبة **بحقّ** لأنّ مرساة كلٍّ منها رمزُ خطأ دلاليّ يسبق التوليد. أي أنّ الأخضر كان يقيس الطبقة الدلاليّة وحدها والأحمر يأتي من طبقة لم يحرسها أحد. والرفض هنا أصدق من الخفض: منمنمة معماريّة تُخفَض لمعماريّة أخرى إمّا يرفضها المُجمِّع — وهو المخرج الرحيم — أو **يقبلها بدلالة أخرى**، وهو كودٌ خاطئ صامت.'
     en: 'This code was born from a measured defect (2026-08-19): the dialect declared «architectures: [i686]» while the compiler lowered «تجميع» blocks to i686 mnemonics for ANY target, with not a single architecture reference in the whole block lowering. On macos-14-arm64 eight positive tests died in the assembler with "unrecognized instruction mnemonic" on cli, ltr w9 and lea 8(%ebx), %eax, while the twelve negative tests passed LEGITIMATELY because each is anchored to a semantic error code that precedes codegen — green measured only the semantic layer, and red came from a layer no guard covered. Rejecting is more honest than lowering: a mnemonic of one architecture emitted for another is either rejected by the assembler (the merciful outcome) or ACCEPTED WITH A DIFFERENT MEANING, which is silent wrong code.'
-- code: SEM_VOID_ASSIGNED_TO_TYPED_SLOT
-  id: SEM045
-  category: semantic
-  title:
-    ar: الفراغُ لا يعبر إلى خانةٍ مصنَّفة
-    en: Void does not cross into a typed slot
-  brief:
-    ar: 'الخانة «{name}» من نوع «{type_name}» أُسند إليها «{void_word}» — غيابُ نتيجةٍ لا قيمة، فلا يصلح حشوًا لخانةٍ أعلنت نوعَها'
-    en: 'Slot «{name}» of type «{type_name}» was assigned «{void_word}» — an absent result, not a value, so it cannot fill a slot that declared its type'
-  placeholders:
-  - name
-  - type_name
-  - void_word
-  fix_hint:
-    ar: 'افحص الغيابَ قبل الإسناد: «إذا (القيمة)» أو «نوع(القيمة)». وإن كان المصدرُ «خريطة_احصل» فمرّر البديلَ وسيطًا ثالثًا: خريطة_احصل(السجل، المفتاح، البديل).'
-    en: 'Check for absence before assigning: «إذا (value)» or «نوع(value)». If the source is خريطة_احصل, pass a default third argument: خريطة_احصل(map, key, default).'
-  detailed:
-    ar: 'قِيس (٢١ آب ٢٠٢٦) أنّ خانةً معلنةً «نص» تُسنَد إليها نتيجةُ بحثٍ غائبٍ فتحمل «{void_word}» والتنفيذُ يمضي برمز خروجٍ صفر — تحذيرٌ استشاريٌّ حيث وعدت اللغةُ جدارًا. وهذا نقضُ الضمانةِ الجوهريّة «خانةُ نصٍّ تحمل نصًّا دائمًا»: الجدارُ كان مؤجَّلًا إلى موضعِ الاستعمالِ وقتَ التشغيل بدل حدودِ النوع. فيُرقّى التحذيرُ إلى هذا الرمز، ودرجةُ فرضِه تتبع محورَ الصرامةِ القائم (قرار D6): «--إنتاج» خطأٌ يوقف، و«--تعلم» تحذيرٌ مُدرِّس، و«--جامع» صامت. ⚠️ والاختياريّةُ ليست بابًا خلفيًّا: نطاقُ «نص عدمي» هو {نصٌّ، عدمٌ} ولا يسع «{void_word}» — وقبولُه فيها إمّا تحويلٌ صامتٌ فراغ→عدم (فبركةُ عدمٍ لم يكتبه أحد) وإمّا الكسرُ ذاتُه بثوبٍ جديد. والعقدُ الديناميكيُّ لم يُمسّ: غيابُ البحثِ في خانة «أي» يبقى «{void_word}» لا «لاشيء» (بذرة 100_lookup_miss محروسة). المرجع: RFC «عقدُ الغياب في الجلب» (sadlang/rfcs#58)، المرحلة أ.'
-    en: 'Measured (2026-08-21): a slot declared «نص» assigned the result of a missing lookup ends up holding «{void_word}» while execution continues with exit code zero — an advisory warning where the language promised a wall. That breaks the core guarantee that a string slot always holds a string: the wall was deferred to the use site at runtime instead of the type boundary. The warning is therefore promoted to this code, enforced along the existing strictness axis (decision D6): --prod stops, --learn teaches with a warning, --gc stays silent. Optionals are no backdoor: the domain of «نص عدمي» is {string, null} and has no room for Void — accepting it would either silently convert Void into a null nobody wrote, or reintroduce the same breach in a new guise. The dynamic contract is untouched: a missing lookup into an «أي» slot still yields Void, never null (guarded by seed 100_lookup_miss). Reference: the absence-contract RFC (sadlang/rfcs#58), stage A.'
 - code: SEM_INTERRUPT_HANDLER_CONTRACT
   id: SEM046
   category: semantic
@@ -814,10 +790,10 @@ errors:
   placeholders:
   - detail
   fix_hint:
-    ar: 'صرّح المعالج «دالة مقاطعة اسم(رقم إطار_المقاطعة)» بعائد فراغ ومعامل أوّل إلزاميّ (ورمز خطأ اختياريّ ثانٍ)، وخذ عنوانه بـ«عنوان_رمز» بدل ندائه، وصرّف للوضع الحرّ على هدف x86_64.'
+    ar: 'صرّح المعالج «دالة مقاطعة اسم(رقم إطار_المقاطعة)» بعائد خالي ومعامل أوّل إلزاميّ (ورمز خطأ اختياريّ ثانٍ)، وخذ عنوانه بـ«عنوان_رمز» بدل ندائه، وصرّف للوضع الحرّ على هدف x86_64.'
     en: 'Declare the handler as «دالة مقاطعة name(رقم frame)» returning void with a mandatory first parameter (and an optional second error code), take its address with «عنوان_رمز» instead of calling it, and compile freestanding for an x86_64 target.'
   detailed:
-    ar: 'بوّابةُ المقاطعةِ خاصيّةُ دالّةٍ لا تعليمةٌ في جسمها: المُعدِّل «مقاطعة» يخفّض الدالّة باتّفاقيّة x86_intrcc فيولّد المصرّفُ كعبَ الدخولِ والخروجِ كاملًا (حفظ السجلّات المتطايرة، وتسويةُ المكدّس لرمز الخطأ، والعودةُ بـiretq). ولهذا العقدِ شروطٌ ليست اختياراتٍ بل مطالبُ مُصادِقِ LLVM والعتاد: المعاملُ الأوّلُ إطارُ المقاطعةِ الذي يدفعه العتاد (يُخفَّض مؤشّرًا بسمة byval)، والعائدُ فراغٌ حصرًا (لا مكانَ لقيمةِ عائدٍ في iretq)، والدالّةُ لا تُنادى من ص — يُؤخَذ عنوانُها بـ«عنوان_رمز» ويُسجَّل في جدول المقاطعات؛ فنداؤها مباشرةً يدخلها بإطارٍ لم يدفعه العتادُ ثمّ يخرج بـiretq على مكدّسٍ مكسور: انهيارٌ صامتٌ لا يمسكه اختبار. والمرحلةُ الأولى مقصورةٌ على x86_64 في الوضع الحرّ (قرارُ نحلة «64-بت فقط»؛ وi386 عقدُه مختلف: رمزُ خطأٍ i32 وعودةٌ بـiret). ويتنافى المُعدِّلُ مع «خارجية» (المعالجُ يلزمه جسم) ومع «غير_متزامن»/المولّد (لا حالةَ معلَّقةً داخل بوّابةِ عتاد). المرجع: RFC 0059.'
+    ar: 'بوّابةُ المقاطعةِ خاصيّةُ دالّةٍ لا تعليمةٌ في جسمها: المُعدِّل «مقاطعة» يخفّض الدالّة باتّفاقيّة x86_intrcc فيولّد المصرّفُ كعبَ الدخولِ والخروجِ كاملًا (حفظ السجلّات المتطايرة، وتسويةُ المكدّس لرمز الخطأ، والعودةُ بـiretq). ولهذا العقدِ شروطٌ ليست اختياراتٍ بل مطالبُ مُصادِقِ LLVM والعتاد: المعاملُ الأوّلُ إطارُ المقاطعةِ الذي يدفعه العتاد (يُخفَّض مؤشّرًا بسمة byval)، والعائدُ خالٍ حصرًا (لا مكانَ لقيمةِ عائدٍ في iretq)، والدالّةُ لا تُنادى من ص — يُؤخَذ عنوانُها بـ«عنوان_رمز» ويُسجَّل في جدول المقاطعات؛ فنداؤها مباشرةً يدخلها بإطارٍ لم يدفعه العتادُ ثمّ يخرج بـiretq على مكدّسٍ مكسور: انهيارٌ صامتٌ لا يمسكه اختبار. والمرحلةُ الأولى مقصورةٌ على x86_64 في الوضع الحرّ (قرارُ نحلة «64-بت فقط»؛ وi386 عقدُه مختلف: رمزُ خطأٍ i32 وعودةٌ بـiret). ويتنافى المُعدِّلُ مع «خارجية» (المعالجُ يلزمه جسم) ومع «غير_متزامن»/المولّد (لا حالةَ معلَّقةً داخل بوّابةِ عتاد). المرجع: RFC 0059.'
     en: 'An interrupt gate is a property of the function, not an instruction in its body: the «مقاطعة» modifier lowers the function through the x86_intrcc calling convention so the compiler emits the full entry/exit stub (volatile register save, error-code stack adjustment, and an iretq return). Its terms are LLVM-verifier and hardware requirements rather than choices: the first parameter is the hardware-pushed interrupt frame (lowered as a byval pointer), the return type is void only (iretq has nowhere to put a return value), and the function is never called from Sad — its address is taken with «عنوان_رمز» and installed in the IDT. Calling it directly enters with a frame the hardware never pushed and leaves through iretq on a broken stack: a silent crash no test catches. Stage one is x86_64 freestanding only (the "64-bit only" owner decision; i386 has a different contract — an i32 error code and an iret return). The modifier clashes with «خارجية» (a handler needs a body) and with async/generator functions (no suspended state inside a hardware gate). Reference: RFC 0059.'
 - code: SEM_BUILTIN_ABSENT_IN_COMPILER
   id: SEM047
@@ -1080,5 +1056,78 @@ errors:
     ar: 'حوّلْ أحدَ الطرفَين صراحةً — «رقم(س)» أو «نص(س)» — أو عرّفْ «عامل {op}» في صنفِك.'
     en: 'Convert one side explicitly — «رقم(x)» or «نص(x)» — or define «عامل {op}» on your class.'
   detailed:
-    ar: 'نطاقاتُ معاملاتِ كلِّ عاملٍ مُعلَنةٌ في `language-truth/operators.yaml` بحقلِ `operands`، ويُولَّدُ منها الحارسُ فلا يُكتَبُ الجدولُ مرّتَين. ⚠️ ولا يُستدَلُّ من غيابِ هذا الرمزِ على أنّ تعبيرًا سليمٌ: الحكمُ لا يقعُ إلّا حين يكونُ **الطرفانِ كلاهما** من صنفٍ أعلنَه مصدرُ الحقيقة (عدديّ · نصّيّ · منطقيّ · مصفوفة · خريطة). فما لا يُعرَفُ نوعُه سكونيًّا — «أي»، «عدم»، «فراغ»، معاملُ دالّةٍ غيرُ مُنمَّط، متغيّرُ حلقة، وصولُ عضو — يمرُّ بلا حكمٍ عمدًا. وسببُه مقيس: حارسٌ يقرأُ «لا أعرف» حكمًا كان يُحمِّرُ ثلاثين بذرةً صحيحة، أبسطُها «ارجع أ + ب» في دالّةٍ بمعاملَين عاريَين. فالرفضُ الكاذبُ أسوأُ من الانهيارِ الذي حلَّ محلَّه.'
-    en: 'Each operator declares its operand domains in language-truth/operators.yaml under `operands`, and the guard is generated from them so the table is never written twice. This code is NOT a completeness claim: a verdict is reached only when BOTH operands belong to a class the SoT declares (numeric, textual, logical, array, map). Anything not statically certain — أي, عدم, فراغ, an unannotated parameter, a loop variable, a member access — passes unjudged by design. Measured: a guard that reads "unknown" as a verdict reddens thirty correct seeds, the simplest being «ارجع أ + ب». A false rejection is worse than the crash it replaced.'
+    ar: 'نطاقاتُ معاملاتِ كلِّ عاملٍ مُعلَنةٌ في `language-truth/operators.yaml` بحقلِ `operands`، ويُولَّدُ منها الحارسُ فلا يُكتَبُ الجدولُ مرّتَين. ⚠️ ولا يُستدَلُّ من غيابِ هذا الرمزِ على أنّ تعبيرًا سليمٌ: الحكمُ لا يقعُ إلّا حين يكونُ **الطرفانِ كلاهما** من صنفٍ أعلنَه مصدرُ الحقيقة (عدديّ · نصّيّ · منطقيّ · مصفوفة · خريطة). فما لا يُعرَفُ نوعُه سكونيًّا — «أي»، «عدم»، معاملُ دالّةٍ غيرُ مُنمَّط، متغيّرُ حلقة، وصولُ عضو — يمرُّ بلا حكمٍ عمدًا. ⚠️ وكانت «خالي» في هذه القائمةِ فأُخرِجَت: كانت تعني الفراغَ فلا نوعَ لها يُحكَم، وقد صارت **نوعَ وحدةٍ مصرَّحًا تامَّ اليقين** وصُنِّفَت في `operand_classes`، فبقاؤُها ههنا كان يُقعِّدُ بابَ صمتٍ في الكتالوجِ لنوعٍ لا عذرَ له. والدرس: **قائمةُ استثناءٍ تُكتَبُ في نصٍّ لا يُعادُ قياسُه تنجو من التغييرِ الذي أبطلَها.** وسببُه مقيس: حارسٌ يقرأُ «لا أعرف» حكمًا كان يُحمِّرُ ثلاثين بذرةً صحيحة، أبسطُها «ارجع أ + ب» في دالّةٍ بمعاملَين عاريَين. فالرفضُ الكاذبُ أسوأُ من الانهيارِ الذي حلَّ محلَّه.'
+    en: 'Each operator declares its operand domains in language-truth/operators.yaml under `operands`, and the guard is generated from them so the table is never written twice. This code is NOT a completeness claim: a verdict is reached only when BOTH operands belong to a class the SoT declares (numeric, textual, logical, array, map). Anything not statically certain — أي, عدم, an unannotated parameter, a loop variable, a member access — passes unjudged by design. خالي was in this list and has been removed: it meant "void" and so had no type to judge; it is now a fully determined declared unit type, classified in operand_classes, and leaving it here entrenched a silence for a kind that no longer earns one. An exception list written in prose that is never re-measured outlives the change that invalidated it. Measured: a guard that reads "unknown" as a verdict reddens thirty correct seeds, the simplest being «ارجع أ + ب». A false rejection is worse than the crash it replaced.'
+
+- code: SEM_RETURN_TYPE_MISMATCH
+  id: SEM055
+  category: semantic
+  # (AR) 🔑 عدمُ تطابقِ عائدِ دالّةٍ مع عائدِها المُصرَّح. وكان نصُّه **إنجليزيًّا
+  #      خامًّا مؤلَّفًا في `type_checker_stmt_visitors.cpp`** بلا رمزٍ ولا عربيّةٍ
+  #      ولا علاج: «Return type mismatch in function '…'» — أي أنّ أشهرَ خطأِ عقدٍ
+  #      في اللغةِ كان خارجَ الكتالوجِ كلَّه، فلا بذرةَ تستطيعُ أن تُرسى عليه
+  #      برمزٍ، ولا مستعمِلَ عربيَّ يقرؤه.
+  #
+  #      وأظهرَه القياسُ لا التخمين: بذرةٌ سالبةٌ كُتبت (2026-09-07) تحرسُ أنّ
+  #      «دالة خالي و()» مع «ارجع 5» تُرَدّ — وكانت **تُترجَمُ وتطبعُ ٥** قبلَ
+  #      رقعةِ نوعِ الوحدة. فلمّا صحَّ الرفضُ لم يكن للبذرةِ رمزٌ تُرسى عليه،
+  #      فأخفقَ حارسُ «وسمٌ سالبٌ بلا رمزِ خطأ» — وهو أخفقَ **بحقّ**: سالبٌ
+  #      مرساتُه نصُّ رسالةٍ حرٌّ يبلى بأوّلِ إعادةِ صياغة.
+  # (EN) Function return-type mismatch. Its text used to be a RAW ENGLISH string
+  #      composed in type_checker_stmt_visitors.cpp with no code, no Arabic and no
+  #      fix hint — so the language's most common contract error sat outside the
+  #      catalog entirely: no seed could anchor to it, no Arabic user could read it.
+  title:
+    ar: عائدٌ يخالفُ العقدَ المُصرَّح
+    en: Return type violates the declared contract
+  brief:
+    ar: "الدالّة '{name}' صُرِّح عائدُها '{expected}' وتُرجِعُ '{found}'"
+    en: "Function '{name}' declares return type '{expected}' but returns '{found}'"
+  placeholders:
+  - name
+  - expected
+  - found
+  fix_hint:
+    ar: 'غيِّرْ نوعَ الإرجاعِ المُصرَّحَ إلى «{found}»، أو اجعلْ «ارجع» تُعطي قيمةً من نوعِ «{expected}». وإن كان المُصرَّحُ «خالي» فأعطِ «ارجع» قيمةَ الوحدةِ «()» أو احذفْ حمولتَها — كلاهما مقبول، إذ للوحدةِ قيمةٌ واحدةٌ تُكتَبُ وتُحذَف.'
+    en: 'Change the declared return type to «{found}», or make «ارجع» yield a value of type «{expected}». If the declared type is «خالي», either give «ارجع» the unit value «()» or drop its payload — both are accepted, since the unit has exactly one value that may be written or omitted.'
+  detailed:
+    ar: 'التصريحُ بنوعِ الإرجاعِ عقدٌ يُحاكَمُ لا زينةٌ تُقرَأ. ⚠️ ومقيسٌ (2026-09-07) أنّ العقدَ كان **يُهمَلُ كلَّه** حين يكونُ المُصرَّحُ «خالي»: كان نوعُ الوحدةِ يُجمَعُ في الفاحصِ مع «غيرِ المُصرَّح» في شرطٍ واحدٍ (Unknown || Unit)، فيسقطُ إلى استدلالٍ من الجسدِ فيُستنتَجُ «رقم» من «ارجع 5» فيوافقُ نفسَه — أي أنّ الدالّةَ كانت **تُصادِقُ على أيِّ عائدٍ مهما صُرِّح**. والعلّةُ لم تكن شفرةً رديئةً بل شفرةً صحيحةً تحتَ فرضيّةٍ انقلبت: يومَ كان «فراغ» يعني **غيابَ نوعٍ** كان الجمعُ صوابًا، ويومَ صارَ «خالي» **نوعَ قيمةٍ** صارَ خطأً. وهذا الرمزُ يُبعَثُ من موضعَين: «ارجع» في دالّة، و«ارجع» في طريقةِ impl — وكلاهما كان نصًّا حرًّا.'
+    en: 'A declared return type is a contract to be judged, not decoration. Measured (2026-09-07): the contract was ignored ENTIRELY when the declared type was unit — the unit kind was lumped with "undeclared" in a single Unknown-or-Unit condition, fell through to body inference, inferred a number from the returned literal and agreed with itself, so the function rubber-stamped ANY return. Not bad code but correct code under an inverted premise. Raised from two sites: a function return and an impl-method return — both were free text.'
+
+- code: SEM_SLOT_TYPE_MISMATCH
+  id: SEM056
+  category: semantic
+  # (AR) 🔑 قيمةٌ تُسنَدُ إلى خانةٍ مكتوبةِ النوعِ ولا توافقُه. وكان نصُّه —
+  #      كنصِّ SEM055 — **خارجَ الكتالوج**: يُؤلَّفُ في `type_checker.cpp` في
+  #      ذراعِ «بلا رسالةٍ مخصّصة» بعربيّةٍ وإنجليزيّةٍ متوازيتَينِ بلا رمزٍ
+  #      ولا علاج. وهو المصبُّ الافتراضيُّ لثمانيةِ باعثين.
+  #
+  #      وكشفَه الحارسُ لا المراجعة: كُتبت ثلاثُ بذورٍ سالبةٍ (2026-09-07)
+  #      تحرسُ أنّ `رقم س = ()` و`نص س = ()` و`خالي س = 5` تُرَدّ، فلم تجدْ
+  #      رمزًا تُرسى عليه فأُرسيت على **نصِّ الرسالة**، فأخفقَ حارسُ «وسمٌ
+  #      سالبٌ بلا رمزِ خطأ» (٣٦٣ > ٣٦٠). ⚠️ ومرساةٌ نصّيّةٌ تنكسرُ بأوّلِ
+  #      تحريرٍ للنصِّ **وتَخضَرُّ** على رسالةٍ أخرى تصادفَ أنّها تحملُ
+  #      العبارةَ نفسَها — وهو أسوأُ من انكسارِها.
+  # (EN) A value assigned to a typed slot that does not match it. Like SEM055,
+  #      its text lived OUTSIDE the catalog, composed in type_checker.cpp in the
+  #      "no custom message" arm — the default sink for eight raisers. Found by a
+  #      guard, not a review: three new negative seeds had no code to anchor to,
+  #      anchored on prose instead, and tripped the "negative tag without an error
+  #      code" ceiling. A prose anchor breaks on the first rewording AND turns
+  #      green on any other message that happens to share the phrase.
+  title:
+    ar: قيمةٌ لا توافقُ نوعَ خانتِها
+    en: Value does not match its slot's type
+  brief:
+    ar: "الخانة '{name}' من نوع '{expected}' وأُسند إليها '{found}'"
+    en: "Slot '{name}' is of type '{expected}' but was assigned '{found}'"
+  placeholders:
+  - name
+  - expected
+  - found
+  fix_hint:
+    ar: 'حوّلِ القيمةَ صراحةً — «رقم(س)» أو «نص(س)» — أو غيِّرْ نوعَ الخانةِ إلى «{found}»، أو اجعلْها «متغير» فيُستنتَجَ نوعُها من مُهيِّئِها.'
+    en: 'Convert the value explicitly — «رقم(x)» or «نص(x)» — or change the slot type to «{found}», or declare it with «متغير» so its type is inferred.'
+  detailed:
+    ar: 'النوعُ المكتوبُ على الخانةِ عقدٌ يُحاكَم. ⚠️ ومقيسٌ (2026-09-07) أنّ الخرقَ لم يكن يُرى في أشهرِ حالاته: كان `رقم س = ()` **يُترجَمُ ويطبعُ صفرًا** و`نص س = ()` يطبعُ «لاشيء». والعلّةُ أنّ فاحصَ الأنواعِ لم يكن يزورُ الصفَّ إطلاقًا، فيسقطُ `()` إلى «مجهول»، و«المجهولُ يوافقُ كلَّ نوع» قاعدةٌ صحيحةٌ عمدًا. فلم تكن الذراعُ خاطئةً؛ الخطأُ أنّ `()` لم يُسأَلْ عنه أحد. ودرسُه أنّ **اختلاقَ القيمةِ أخطرُ من الانهيارِ ومن الرفضِ الكاذبِ معًا**: كلاهما يُرى، وهذا يُقرَأُ جوابًا معقولًا.'
+    en: 'A slot''s written type is a contract to be judged. Measured (2026-09-07): the breach was invisible in its commonest cases — «رقم س = ()» compiled and printed 0, «نص س = ()» printed «لاشيء». The checker never visited tuple expressions, so `()` fell back to "unknown", and "unknown matches every type" is a deliberately correct rule. The arm was not wrong; `()` was simply never asked. A fabricated value is worse than either a crash or a false rejection: both are visible, this reads as a plausible answer.'

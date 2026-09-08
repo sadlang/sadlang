@@ -199,8 +199,8 @@ errors:
     placeholders:
     - detail
     fix_hint:
-      ar: 'لمطوّر المترجم: شغّل الترجمة مع --emit-llvm ومرّر الناتج إلى llvm-as/opt -verify لرؤية التشخيص الكامل ({detail})، ثم تتبّع الباني الذي أصدر البنية المخالفة (تعارض توقيعات/أنواع غالباً). للمستخدم: علّة مترجم — أبلِغ.'
-      en: 'Compiler dev: run with --emit-llvm and feed the output to llvm-as/opt -verify for the full diagnostic ({detail}), then trace the builder that emitted the offending construct (usually signature/type conflicts). User: compiler bug — report.'
+      ar: 'لمطوّر المترجم: شغّل الترجمة مع --أظهر-llvm ومرّر الناتج إلى llvm-as/opt -verify لرؤية التشخيص الكامل ({detail})، ثم تتبّع الباني الذي أصدر البنية المخالفة (تعارض توقيعات/أنواع غالباً). للمستخدم: علّة مترجم — أبلِغ.'
+      en: 'Compiler dev: run with --أظهر-llvm and feed the output to llvm-as/opt -verify for the full diagnostic ({detail}), then trace the builder that emitted the offending construct (usually signature/type conflicts). User: compiler bug — report.'
     detailed:
       ar: فشل مدقّق LLVM ‏(verifyModule) بعد اكتمال التوليد ({detail}) — الوحدة تحوي IR مخالفًا للمواصفة (مثل تعارض توقيعَي دالة أو أنواع معاملات). كان هذا الفشل يمرّ صامتًا قبل أن يُجعَل قاطعًا؛ وصوله يعني عيبًا في أحد البُناة لا في كود ص.
       en: LLVM verifyModule failed after codegen completed ({detail}) — the module contains spec-violating IR (e.g., conflicting function signatures or operand types). This used to pass silently before being made fatal; reaching it indicates a defect in a builder, not in the ص code.
@@ -224,7 +224,7 @@ errors:
       ar: 'لمطوّر المفسر: المُحلِّل (parser) سلّم لـtokenToValue رمزاً ({detail}) ليس حرفيّاً. تحقّق من أن بناء عقدة التعبير الحرفي يقتصر على أنواع الرموز الحرفية. للمستخدم: علّة مفسر — أبلِغ، وليست علّة في برنامجك.'
       en: 'Interpreter dev: the parser handed tokenToValue a token ({detail}) that is not a literal. Ensure literal-expression node construction is restricted to literal token types. User: interpreter bug — report; not an error in your code.'
     detailed:
-      ar: حاول المفسر تحويل رمز ({detail}) إلى قيمة حرفية، لكن نوع الرمز ليس من الأنواع الحرفية المعروفة (عدد/نص/منطقي/فراغ). ثابت داخلي — المُحلِّل يُفترض ألّا يُنشئ عقدة تعبير حرفي إلا لرمز حرفي. لا علاقة له بصحّة كود ص.
+      ar: حاول المفسر تحويل رمز ({detail}) إلى قيمة حرفية، لكن نوع الرمز ليس من الأنواع الحرفية المعروفة (عدد/نص/منطقي/عدم). ثابت داخلي — المُحلِّل يُفترض ألّا يُنشئ عقدة تعبير حرفي إلا لرمز حرفي. لا علاقة له بصحّة كود ص.
       en: The interpreter tried to convert a token ({detail}) into a literal value, but the token type is not among the known literal types (number/string/boolean/null). An internal invariant — the parser should only build a literal-expression node for a literal token. Unrelated to your ص code.
 
   # ── الخلفيّة السياديّة الأصليّة (بلا LLVM): حدودُ التخفيض الأدنى (MVP) ──

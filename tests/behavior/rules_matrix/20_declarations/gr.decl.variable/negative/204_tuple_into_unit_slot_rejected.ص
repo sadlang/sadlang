@@ -1,0 +1,35 @@
+# @rule: gr.decl.variable
+# @description: صفٌّ من عنصرَين في خانةِ «خالي» ⇒ يُرَدُّ — لا يتبخّرُ فيها
+# @priority: P0
+# @expect_compile_error: SEM056
+# @expect_error: SEM056
+
+# ============================================================
+# (AR) 🔑 «خالي» لا يقبلُ قيمةً مركَّبة. وكان `خالي س = (1، 2)` **يُقبَلُ
+#      ويطبعُ `()`** (مقيسٌ 2026-09-07): صفٌّ من عنصرَين **يتبخّرُ** في خانةِ
+#      وحدةٍ بلا كلمةِ تحذير.
+#
+#   ⚠️ **والدرسُ في حُجّةِ الرقعةِ الأولى لا في العطب.** حين سُدَّ `رقم س = ()`
+#      كتبتُ زائرَ الصفِّ فاستنتجتُ **الفارغَ وحدَه**، وتركتُ المملوءَ بلا
+#      استنتاجٍ بحجّةٍ تبدو منضبطة: «عقدُ الصفوفِ المملوءةِ مشروعٌ مستقلٌّ
+#      فلا يُدَسُّ في رقعةِ نوعِ الوحدة». والحجّةُ صحيحةٌ في **الامتناعِ عن
+#      توسيعِ الرقعة**، وخاطئةٌ في **ما ظنّتْه أثرَ الترك**:
+#         «بلا استنتاج» ‎≠‎ «بلا حكم» — بل «**يوافقُ كلَّ نوع**».
+#      لأنّ `Unknown` مقبولٌ مع كلِّ شيءٍ عمدًا («لم يُحدَّد بعد»). فالتركُ
+#      لم يكن حيادًا: كان **إجازةً صامتة**.
+#
+#   🔑 والحكمُ ههنا **صنفٌ لا بنية**: `Unit` ليس `Tuple` فيُرَدُّ الإسناد.
+#      وأنواعُ عناصرِ الصفِّ تبقى غيرَ مُواصَفةٍ كما كانت — فلا دعوى بأنّ
+#      عقدَ الصفوفِ اكتمل، ولا رقعةَ أوسعَ من علّتِها.
+# (EN) Unit accepts no composite value. `خالي س = (1، 2)` was ACCEPTED and
+#      printed `()` — a two-element tuple evaporating into a unit slot. The
+#      lesson is in the first patch's REASONING: leaving filled tuples uninferred
+#      was justified as "not widening the patch", which is right about restraint
+#      and wrong about consequence — "uninferred" is not "unjudged", it is
+#      "matches EVERY type", because Unknown is deliberately universal. The
+#      omission was not neutrality; it was a silent permit. Only the KIND is
+#      judged here; element types remain unspecified.
+# ============================================================
+
+خالي س = (1، 2)
+اطبع_سطر(نص(س))

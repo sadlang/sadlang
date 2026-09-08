@@ -80,7 +80,7 @@ namespace Sad
                 std::vector<SIRParameter> sirParams;
                 sirParams.push_back(SIRParameter(environmentParameterName(), SadTypeKind::Integer));
 
-                auto lambdaFunc = std::make_shared<SIRFunction>(lambdaName, SadTypeKind::Void);
+                auto lambdaFunc = std::make_shared<SIRFunction>(lambdaName, SadTypeKind::Unit);
                 lambdaFunc->addParameter(sirParams[0]);
 
                 auto savedCtx = b_.saveContext();
@@ -161,7 +161,7 @@ namespace Sad
 
                 FunctionInfo lambdaInfo;
                 lambdaInfo.name = lambdaName;
-                lambdaInfo.returnType = SadTypeKind::Void;
+                lambdaInfo.returnType = SadTypeKind::Unit;
                 lambdaInfo.parameters = sirParams;
                 b_.functionTable_[lambdaName] = lambdaInfo;
 
@@ -328,7 +328,7 @@ namespace Sad
                 std::string callResultReg = b_.newTempRegister();
                 SIRInstruction callInst;
                 callInst.opcode = SIROpcode::CLOSURE_CALL;
-                callInst.result = SIROperand::Register(callResultReg, SadTypeKind::Void);
+                callInst.result = SIROperand::Register(callResultReg, SadTypeKind::Unit);
                 callInst.operands.push_back(SIROperand::Register(closureReg, SadTypeKind::Function));
                 callInst.comment = "execute deferred closure";
                 b_.currentBlock_->addInstruction(callInst);

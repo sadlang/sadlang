@@ -332,7 +332,7 @@ namespace Sad
                 else if (op == "تخزين" || op == "store")
                 {
                     atomicInst.opcode = SIROpcode::AtomicStore;
-                    atomicInst.result = SIROperand::Register(resultReg, SadTypeKind::Void);
+                    atomicInst.result = SIROperand::Register(resultReg, SadTypeKind::Unit);
                     if (operandResults.size() >= 2)
                     {
                         atomicInst.operands.push_back(

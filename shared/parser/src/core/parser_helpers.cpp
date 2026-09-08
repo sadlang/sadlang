@@ -1553,7 +1553,7 @@ namespace Sad
                         // (EN) Two statements, not one: C++ argument evaluation order is
                         //      unspecified, and the name was read before the type was consumed.
                         const Types::SadTypeKind parsedParamType = parseType();
-                        paramType = rejectVoidAsSlotType(parsedParamType, current_.getValue());
+                        paramType = parsedParamType;
                         Types::SadTypeKind paramInnerTF = lastOptionalInner_;
                         // (AR) دعم استخدام الكلمات المفتاحية الناعمة كأسماء معاملات بعد النوع
                         // (EN) Support soft keywords as parameter names after type annotation
@@ -1673,7 +1673,7 @@ namespace Sad
                         Types::SadTypeKind paramInnerNF = Types::SadTypeKind::Unknown;
                         if (match(TT::COLON))
                         {
-                            paramType = rejectVoidAsSlotType(parseType(), paramName.getValue());
+                            paramType = parseType();
                             paramInnerNF = lastOptionalInner_;
                         }
 
@@ -1872,8 +1872,8 @@ namespace Sad
                 return Types::SadTypeKind::String;
             if (match(TT::TYPE_BOOLEAN))
                 return Types::SadTypeKind::Boolean;
-            if (match(TT::TYPE_VOID))
-                return Types::SadTypeKind::Void;
+            if (match(TT::TYPE_UNIT))
+                return Types::SadTypeKind::Unit;
             // (AR) ISSUE-113: «عدم» نوعٌ قائمٌ بذاته (type.null في types.yaml) لا مرادفٌ
             //      لـ«فراغ». وكان يُخفَّض هنا إلى Void فينهار المترجّم على استعمالٍ سليم:
             //      `متغير عدم س = لاشيء` ⇒ «Cannot create a null constant of that type!»
@@ -2006,7 +2006,7 @@ namespace Sad
                 return reg.getString();
             if (match(TT::TYPE_BOOLEAN))
                 return reg.getBoolean();
-            if (match(TT::TYPE_VOID))
+            if (match(TT::TYPE_UNIT))
                 return reg.getVoid();
             // (AR) ISSUE-113 — انظر التعليلَ في parseTypeCore أعلاه.
             if (match(TT::TYPE_NULL))
@@ -2087,10 +2087,14 @@ namespace Sad
                     resolved = reg.getByKind(wordKind);
                 }
 
-                if (name == "مضاعف")
+                if (const std::string replacement = Types::removedTypeReplacement(name);
+                    !replacement.empty())
                 {
-                    errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", "مضاعف"}, {"new", kw(TT::TYPE_DOUBLE)}, {"example", kw(TT::KEYWORD_VAR) + " س: " + kw(TT::TYPE_DOUBLE)}});
-                    resolved = reg.getFloat();
+                    errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX,
+                             {{"old", name},
+                              {"new", replacement},
+                              {"example", kw(TT::KEYWORD_VAR) + " " + replacement + " س"}});
+                    resolved = reg.getByKind(Types::sadTypeKindFromArabicName(replacement));
                 }
                 else if (wordKind == Types::SadTypeKind::Array)
                 {
@@ -2184,10 +2188,14 @@ namespace Sad
 
             // (AR) «مضاعف» لفظٌ **مُزالٌ** لا سطحيّ، فلا يعرفه المُولَّد عمدًا؛ ويبقى
             //      تشخيصُ SYN014 يدًا كي لا يُقرأ اسمَ صنفٍ فيُنصَح به متغيّرًا.
-            if (name == "مضاعف")
+            if (const std::string replacement = Types::removedTypeReplacement(name);
+                !replacement.empty())
             {
-                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", "مضاعف"}, {"new", kw(TT::TYPE_DOUBLE)}, {"example", kw(TT::KEYWORD_VAR) + " س: " + kw(TT::TYPE_DOUBLE)}});
-                return Types::SadTypeKind::Float; // recover
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX,
+                             {{"old", name},
+                              {"new", replacement},
+                              {"example", kw(TT::KEYWORD_VAR) + " " + replacement + " س"}});
+                return Types::sadTypeKindFromArabicName(replacement); // recover
             }
 
             // (AR) ⚠️ القيدُ أعلاه مُطبَّقٌ على **النوعِ الناتج** لا على اللفظ: مسارُ
@@ -2201,7 +2209,7 @@ namespace Sad
                 case Types::SadTypeKind::Float:
                 case Types::SadTypeKind::String:
                 case Types::SadTypeKind::Boolean:
-                case Types::SadTypeKind::Void:
+                case Types::SadTypeKind::Unit:
                     return resolved;
                 default:
                     return Types::SadTypeKind::Unknown;
@@ -2209,27 +2217,6 @@ namespace Sad
             }
 
             return resolved;
-        }
-
-        // (AR) ISSUE-113 — الشطرُ الثاني: بعدما فُصل «عدم» عن «فراغ» بقي الانهيارُ
-        //      قائمًا على «فراغ» صراحةً، وهو عيبٌ **مستقلٌّ كشفه الفصل** لا بقيّةٌ منه.
-        //      والحدُّ الدلاليُّ منصوصٌ في types.yaml نفسِه: «فراغ» نوعُ الإرجاعِ الفارغ
-        //      «لا قيمة» — فخانةٌ تحمله تناقضٌ في التعريف. يُرفَض هنا مرّةً واحدةً
-        //      لكِلا المحرّكَين، ويُتعافى بـUnknown كي يُكمِل التحليلُ فيُبلَّغ ما بعده.
-        // (EN) ISSUE-113, part two: with Null separated, the crash remained on Void
-        //      itself. types.yaml defines Void as «no value», so a slot holding it is a
-        //      contradiction. Rejected once, in the shared parser, for both engines.
-        Types::SadTypeKind ParserCore::rejectVoidAsSlotType(Types::SadTypeKind kind,
-                                                            const std::string &name)
-        {
-            using TT = TokenType;
-            if (kind != Types::SadTypeKind::Void)
-                return kind;
-            errorCatalog(Errors::ErrorCode::SEM_VOID_NOT_A_VALUE_TYPE,
-                         {{"name", name},
-                          {"void_word", kw(TT::TYPE_VOID)},
-                          {"null_word", kw(TT::TYPE_NULL)}});
-            return Types::SadTypeKind::Unknown; // (AR) تعافٍ: يُستنتَج من المُهيّئ
         }
 
         /**
@@ -2247,7 +2234,7 @@ namespace Sad
             // (EN) TYPE_* tokens (legacy support)
             if (tokenType == TT::TYPE_INTEGER || tokenType == TT::TYPE_DOUBLE ||
                 tokenType == TT::TYPE_STRING || tokenType == TT::TYPE_BOOLEAN ||
-                tokenType == TT::TYPE_VOID || tokenType == TT::TYPE_NULL ||
+                tokenType == TT::TYPE_UNIT || tokenType == TT::TYPE_NULL ||
                 tokenType == TT::TYPE_ARRAY || tokenType == TT::TYPE_MAP ||
                 tokenType == TT::TYPE_U64 || tokenType == TT::TYPE_U8 ||
                 tokenType == TT::TYPE_ANY)
@@ -2534,8 +2521,8 @@ namespace Sad
                 return Types::SadTypeKind::String;
             case TT::TYPE_BOOLEAN:
                 return Types::SadTypeKind::Boolean;
-            case TT::TYPE_VOID:
-                return Types::SadTypeKind::Void;
+            case TT::TYPE_UNIT:
+                return Types::SadTypeKind::Unit;
             // (AR) ISSUE-113 — انظر التعليلَ في parseTypeCore أعلاه.
             case TT::TYPE_NULL:
                 return Types::SadTypeKind::Null;

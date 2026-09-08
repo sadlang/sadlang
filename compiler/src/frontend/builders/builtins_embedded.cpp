@@ -56,7 +56,7 @@ namespace Sad
                 if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_0))
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_0, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_INIT);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -65,7 +65,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin تسلسلي_هيئ()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -75,7 +75,7 @@ namespace Sad
                 if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_1))
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_1, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_WRITE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -83,7 +83,7 @@ namespace Sad
                     {
                         b_.currentBlock_->instructions.push_back(inst);
                     }
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -135,7 +135,7 @@ namespace Sad
                 if (funcName == Bn::Kernel::GPIO_WRITE)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::GPIO_WRITE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_GPIO_WRITE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -144,7 +144,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin منفذ_رقمي_اكتب()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -175,7 +175,7 @@ namespace Sad
                 if (funcName == Bn::Kernel::GPIO_MODE)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::GPIO_MODE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_GPIO_MODE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -184,7 +184,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin حدد_وضع_منفذ()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -194,7 +194,7 @@ namespace Sad
                 if (funcName == Bn::CompilerEmbed::EMBED_4)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_4, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_TIMER_INIT);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -202,7 +202,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin مؤقت_هيئ()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -230,7 +230,7 @@ namespace Sad
                 if (funcName == Bn::Kernel::EMBED_TIMER_WAIT)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::EMBED_TIMER_WAIT, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_TIMER_WAIT);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -238,7 +238,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin مؤقت_انتظر()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -253,7 +253,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin اعد_تشغيل()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -306,7 +306,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin حاجز_ذاكرة()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -321,7 +321,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin حاجز_قراءة()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -336,7 +336,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin حاجز_كتابة()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -346,7 +346,7 @@ namespace Sad
                 if (funcName == Bn::CompilerEmbed::EMBED_5)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_5, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_DMA_INIT);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -355,7 +355,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin نقل_مباشر_هيئ()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ──────────────────────────────────────────────
@@ -365,7 +365,7 @@ namespace Sad
                 if (funcName == Bn::Kernel::DMA_START)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::DMA_START, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_DMA_START);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -373,7 +373,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin نقل_مباشر_ابدأ()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 return std::nullopt;

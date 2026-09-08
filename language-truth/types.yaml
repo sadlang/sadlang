@@ -37,11 +37,51 @@ description_en: "All Sad type kinds (49) — surface + internal, SoT for SadType
 #      المواضعُ البالغةُ كانت سبعةً لا ثلاثة (تُطلَب بالاسمِ لا بالرمز، إذ
 #      emittedByLexer=false)، والحاكمُ السابعُ خارجَ المحلِّل: fromValueType بلا
 #      حالةِ Null. ثمّ كشف الفصلُ عيبًا **مستقلًّا**: «فراغ» نفسُه كان يُقبَل خانةً
-#      فينهار المترجّم — فصار مرفوضًا بـSEM040 في المحلّلِ المشترك (لا في خلفيّةٍ
-#      بعينها) لأنّه بنصِّ هذا الملفّ «نوعُ الإرجاعِ الفارغ — لا قيمة».
-#      مقيسٌ باختبارَين سالبَين مزدوجَين (067، 068).
-# (EN) ISSUE-113 is closed: «عدم» no longer collapses into Void, and Void itself
-#      is now rejected as a slot type (SEM040) in the shared parser.
+#      فينهار المترجّم — فرُفِض حينَها بـSEM040.
+# (AR) 🔑 وقد **زالَ اللفظُ والقاعدةُ معًا (2026-09-07)**: حُذف «فراغ» من اللغةِ
+#      وحلَّ محلَّه «خالي» — نوعُ الوحدة، وهو الصفُّ الفارغُ نفسُه كما في رست.
+#      و«خالي» **نوعُ قيمةٍ كامل**، فالقاعدةُ التي كان يفرضُها SEM040 («الفراغُ
+#      ليس نوعَ قيمة») زالت بزوالِ موضوعِها، وكذلك SEM045 — وحُذف الرمزان.
+#      ولا يُشغَلُ رقماهما بغيرِهما: رقمٌ واحدٌ لا يعني شيئَين.
+# (EN) ISSUE-113 is closed: «عدم» no longer collapses into the unit kind. As of
+#      2026-09-07 «فراغ» (void) is deleted from the language and replaced by
+#      «خالي» (unit) — the empty tuple, a full value type as in Rust. SEM040 and
+#      SEM045 are deleted with it: their rule had no subject left.
+#
+# (AR) ✅ **سُدَّ الدَّينُ المُعلَنُ أعلاه — ودرسُ بلاه أهمُّ من سدِّه.**
+#
+#      كان ههنا **خمسُ دعاوى مقيسةٍ** عن أنّ «()» ليست قيمةَ وحدةٍ في المحرّك،
+#      وقد بَلِيَت **أربعٌ منها في يومٍ واحد**: `نوع([()، ()][0])` صارَ «خالي»
+#      لا «صف»، و`نص(())` صارَ «()» لا عنوانًا، و`أي د = ()` صارَ «خالي» لا
+#      «نص»، و`() == ()` صارَ «متساويتان» لا «مختلفان». والخامسةُ وحدَها بقيت:
+#      «()» لا إنتاجَ لها في `grammar/` وتُحلَّلُ `TupleExpr` بصفرِ عناصر.
+#
+#   ⚠️ **وهذه الفقرةُ كانت هي عينَ ما تنهى عنه القاعدةُ ⑤ في CLAUDE.md**:
+#      أرقامٌ ودعاوى **بلا أمرٍ يُعيدُ قياسَها**، فقرأها التالي «حالًا» وهي
+#      سِجِلُّ يومٍ مضى. ولذلك لا تُكتَبُ الدعاوى ههنا ثانيةً بل تُحال إلى
+#      **بذورٍ تُشغَّلُ في كلِّ شوط**، وهي المرجعُ لا هذا النصّ:
+#        · `rules_matrix/20_declarations/gr.decl.variable/basic/201_unit_inferred_slot.ص`
+#        · `rules_matrix/20_declarations/gr.decl.variable/basic/202_unit_is_singleton.ص`
+#        · `rules_matrix/40_expressions/gr.expr.equality/edge/200_unit_versus_other_type.ص`
+#        · `rules_matrix/30_oop/gr.oop.field/edge/200_unit_field_is_a_value.ص`
+#        · `rules_matrix/30_oop/gr.oop.method/edge/200_unit_method_return.ص`
+#        · `rules_matrix/40_expressions/gr.expr.lambda/edge/200_lambda_returns_unit.ص`
+#      **ودعوى «سُدَّ» تلزمُها بذرةٌ لا جملة**: البذرةُ تحمرُّ حين يبلى عقدُها،
+#      والجملةُ تبقى خضراءَ إلى الأبد.
+#
+#   📌 والباقي مُسمًّى: لا إنتاجَ نحويًّا لـ«()»، فهي تمرُّ عبرَ `TupleExpr`
+#      الفارغ. وإعلانُها قيمةً حرفيّةً في `grammar/` قرارُ سطحِ لغةٍ لم يُحسَم.
+# (EN) The debt declared above is closed — and why it ROTTED matters more than the
+#      fix. It held five measured claims that «()» was not a unit value; FOUR went
+#      stale within a single day (the array element, نص(()), «أي د = ()» and
+#      «() == ()» all now answer correctly). Only one survives: «()» still has no
+#      production in grammar/ and parses as an empty TupleExpr. This paragraph was
+#      exactly what rule ⑤ of CLAUDE.md forbids — claims with NO COMMAND to
+#      re-measure them, read by the next person as the present state when they were
+#      a record of one past day. So the claims are not rewritten here; they are
+#      delegated to seeds that run on every pass (listed above), which are the
+#      reference, not this text. A claim of "closed" needs a seed, not a sentence:
+#      a seed reddens when its contract rots, a sentence stays green forever.
 
 categories_ar:
   primitive:       "بدائية"
@@ -67,6 +107,16 @@ categories_ar:
 #      pointing at the replacement, so their presence must be declared here.
 # ============================================================================
 removed_type_words:
+  # (AR) 🔑 «فراغ» أُزيل في 2026-09-07 وحلَّ محلَّه «خالي» (نوعُ الوحدة، الصفُّ
+  #      الفارغُ نفسُه كما في رست). ووجودُه هنا **مقصودٌ لا انجراف**: بغيرِه
+  #      يسقطُ كلُّ برنامجٍ قديمٍ على «معرِّفٌ غيرُ معرَّف» الغامضة بدلَ أن
+  #      يُرشَدَ إلى بديلِه — وهو تدهورٌ لا تنظيف.
+  # (EN) «فراغ» (void) was removed on 2026-09-07 in favour of «خالي» (unit).
+  #      Listing it here is deliberate: otherwise old programs fail with the
+  #      opaque "undefined identifier" instead of being pointed at the successor.
+  - { word: فراغ, replacement: خالي, error_code: SYN_REMOVED_SYNTAX, since: "1.0.0",
+      description_ar: "أُزيل لصالح «خالي» — نوعُ الوحدة، وهو الصفُّ الفارغُ نفسُه وقيمتُه «()». و«خالي» نوعُ قيمةٍ كاملٌ بخلافِ «فراغ»",
+      description_en: "Removed in favour of «خالي» (unit) — the empty tuple, whose sole value is «()». Unlike void, unit is a full value type" }
   - { word: مضاعف, replacement: عشري, error_code: SYN_REMOVED_SYNTAX, since: "1.0.0",
       description_ar: "أُزيلت لصالح «عشري» (f64) — لا نوعَ عشريًّا مزدوجَ الدقّةِ منفصلًا في ص",
       description_en: "Removed in favour of «عشري» (f64) — Sad has no separate double type" }
@@ -77,7 +127,7 @@ removed_type_words:
 #      وُلد هذا الحقلُ من قياسٍ: كان `@حجم` **جدولَين مكتوبَين باليدِ** بسلاسلَ
 #      عربيّةٍ خامّة — `if/else if` في `expression_lowlevel.cpp` و`unordered_map`
 #      ساكنةً في `expression_evaluator_overloads.cpp` — فتباعدا في **٦ من ١١**
-#      نوعًا قِيست: خريطة ٤٨/٢٤ · بايت ٠/٨ · حرف ٠/١ · أي ٧٢/٨ · فراغ ٠/٨ ·
+#      نوعًا قِيست: خريطة ٤٨/٢٤ · بايت ٠/٨ · حرف ٠/١ · أي ٧٢/٨ · فراغ ٠/٨ (اللفظُ المُزال) ·
 #      عدم ٠/٨. و**افتراضاهما يكذبان كلاهما**: النوعُ المجهولُ يُخرِجُ ٠ في
 #      المفسّرِ و٨ في المترجّم، ولا يُشخَّصُ في أيٍّ منهما.
 #
@@ -118,7 +168,7 @@ removed_type_words:
 types:
 
   # ─── بدائية / Primitive ───
-  - { id: type.void,    kind: Void,    word: فراغ,   name_en: void,    category: primitive, value_semantics: copy, size_bytes: 0, surface: true,  token_type: TYPE_VOID,    can_be_identifier: true, default_init: not_a_slot, since: "1.0.0", status: stable, description_ar: "نوع الإرجاع الفارغ — لا قيمة. متمايز عن «عدم» (type.null): «فراغ» ما لم يُرجَع أصلاً (مفتاح غائب، بحثٌ بلا مطابقة)، و«عدم» قيمةُ لاشيء الصريحة. فحصُ أحدهما وحده يمرّ ناقصًا", description_en: "Empty return type — no value. Distinct from «عدم» (type.null): «فراغ» is what was never returned (missing key, no regex match), «عدم» is the explicit null value. Checking only one of them passes incompletely" }
+  - { id: type.unit,    kind: Unit,    word: خالي,   name_en: unit,    category: primitive, value_semantics: copy, size_bytes: 0, surface: true,  token_type: TYPE_UNIT,    can_be_identifier: true, default_init: unit_value, since: "1.0.0", status: stable, description_ar: "نوعُ الوحدة — الصفُّ الفارغُ نفسُه، وقيمتُه الوحيدةُ «()». وهو **نوعُ قيمةٍ كاملٌ** يُخزَّنُ في خانةٍ ويُمرَّرُ ويُرجَع، لا «لا قيمة»: نظيرُ «()» في رست حرفًا بحرف. والدالّةُ التي لا تُرجِعُ شيئًا تُرجِعُ «خالي». متمايزٌ عن «عدم» (type.null): «خالي» قيمةٌ واحدةٌ لا تحملُ معلومة، و«عدم» غيابُ القيمةِ الصريح", description_en: "Unit type — the empty tuple itself, whose sole value is «()». A FULL value type: it is stored in a slot, passed and returned — not an absence. Exactly Rust’s «()». A function that returns nothing returns unit. Distinct from «عدم» (type.null): unit is one value carrying no information, null is the explicit absence of a value" }
   - { id: type.integer, kind: Integer, word: رقم,    name_en: integer, category: primitive, value_semantics: copy, size_bytes: 8, numeric: signed, surface: true,  token_type: TYPE_INTEGER, can_be_identifier: true, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد صحيح (i64)", description_en: "64-bit integer" }
   - { id: type.float,   kind: Float,   word: عشري,   name_en: float,   category: primitive, value_semantics: copy, size_bytes: 8, numeric: float, surface: true,  token_type: TYPE_DOUBLE,  can_be_identifier: true, default_init: float_zero, since: "1.0.0", status: stable, description_ar: "عدد عشري (f64)", description_en: "64-bit float" }
   - { id: type.boolean, kind: Boolean, word: منطقي,  name_en: boolean, category: primitive, value_semantics: copy, size_bytes: 1, surface: true,  token_type: TYPE_BOOLEAN, can_be_identifier: true, default_init: bool_false, since: "1.0.0", status: stable, description_ar: "قيمة منطقية (صحيح/خطأ)", description_en: "Boolean (true/false)" }
@@ -263,7 +313,7 @@ types:
   - { id: type.mutable_ref, kind: MutableRef, word: مرجع_متغير,  name_en: mutable_ref, category: pointer, value_semantics: copy, size_bytes: 8, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "مرجع متغير &mut T", description_en: "Mutable reference &mut T" }
 
   # ─── خاصة / Special ───
-  - { id: type.any,     kind: Any,     word: أي,     name_en: any,     category: special, value_semantics: move, size_bytes: 16, surface: true,  token_type: TYPE_ANY, can_be_identifier: true, default_init: void, since: "1.0.0", status: stable, description_ar: "أي نوع (ديناميكي)", description_en: "Any type (dynamic)" }
+  - { id: type.any,     kind: Any,     word: أي,     name_en: any,     category: special, value_semantics: move, size_bytes: 16, surface: true,  token_type: TYPE_ANY, can_be_identifier: true, default_init: missing, since: "1.0.0", status: stable, description_ar: "أي نوع (ديناميكي)", description_en: "Any type (dynamic)" }
   - { id: type.never,   kind: Never,   word: أبدا,   name_en: never,   category: special, value_semantics: copy, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "أبداً — لا تُرجع", description_en: "Never returns" }
   - { id: type.unknown, kind: Unknown, word: مجهول,  name_en: unknown, category: special, value_semantics: copy, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "مجهول — يُستنتَج لاحقاً", description_en: "Unknown — inferred later" }
   - { id: type.error,   kind: Error,   word: خطأ,    name_en: error,   category: special, value_semantics: move, size_bytes: 8, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "نوع خطأ", description_en: "Error type" }
@@ -310,7 +360,7 @@ types:
   - { id: type.vector, kind: Vector, word: متجه, name_en: vector, category: simd, value_semantics: copy, surface: false, default_init: unspecified, since: "1.0.0", status: experimental, description_ar: "متجه SIMD <نوع_عنصر، عدد> — <N x T> في LLVM", description_en: "SIMD vector <elem, count> — <N x T> in LLVM" }
 
   # ─── العدم / Null (S-TS-P1) — مُلحَق بالنهاية للحفاظ على ترتيب القيم السابقة (ABI) ───
-  - { id: "type.null", kind: "Null", word: عدم, name_en: "null", category: special, value_semantics: copy, size_bytes: 8, surface: true, token_type: TYPE_NULL, can_be_identifier: true, default_init: null_value, since: "1.0.0", status: stable, description_ar: "العدم — غياب القيمة، متمايز عن فراغ (void). وتمثيلُه حارسٌ صحيحُ البتّات، فالحكمُ عليه يلزمُ أن يقومَ على وسمِ النوعِ لا على شكلِ التمثيل: مقارنةُ العدمِ بقيمةٍ من نوعٍ آخر تُحسَمُ بتطبيعِ الطرفِ الآخرِ إلى عرضِ الحارسِ ومقارنتِه به عدديًّا، فلا تُستدعى مقارنةُ نصوصٍ على الحارسِ أبدًا؛ و«عدم == عدم» صحيح. والوسمُ الساكنُ لا يكفي وحدَه ولا يمكنُ أن يكفي: خانةٌ نوعُها المُصرَّحُ «نصّ» تقبلُ نصًّا في موقعِ نداءٍ وعدمًا في آخر، فلا وسمَ ساكنًا واحدًا يصدُقُ على الاثنَين — والسؤالُ نفسُه سؤالُ زمنِ تشغيل. لذلكَ مقارنةُ النصوصِ آمنةٌ من العدمِ وقتَ التشغيل: يُفحَصُ الطرفانِ على الحارسِ قبلَ أيِّ قراءةِ ذاكرة، فالعدمُ يساوي العدمَ ولا يساوي نصًّا، ولا يُمرَّرُ الحارسُ إلى مقارنةِ نصوصٍ أبدًا", description_en: "Null — absence of value, distinct from void. Its representation is an integer sentinel, so judgements about it must rest on the type tag rather than on the shape of the representation: comparing null against a value of another type is decided by normalising the other side to the sentinel width and comparing numerically, so a string comparison is never invoked on the sentinel; and `null == null` is true. A static tag is not enough on its own and cannot be: a slot declared `string` accepts a string at one call site and null at another, so no single static tag is true of both — the question itself is a runtime one. String comparison is therefore null-safe at runtime: both sides are checked against the sentinel before any memory is read, so null equals null and never equals a string, and the sentinel is never handed to a string comparison" }
+  - { id: "type.null", kind: "Null", word: عدم, name_en: "null", category: special, value_semantics: copy, size_bytes: 8, surface: true, token_type: TYPE_NULL, can_be_identifier: true, default_init: null_value, since: "1.0.0", status: stable, description_ar: "العدم — غياب القيمة، متمايز عن «خالي» (unit): «خالي» قيمةٌ واحدةٌ لا تحملُ معلومة، والعدمُ غيابُ القيمة. وتمثيلُه حارسٌ صحيحُ البتّات، فالحكمُ عليه يلزمُ أن يقومَ على وسمِ النوعِ لا على شكلِ التمثيل: مقارنةُ العدمِ بقيمةٍ من نوعٍ آخر تُحسَمُ بتطبيعِ الطرفِ الآخرِ إلى عرضِ الحارسِ ومقارنتِه به عدديًّا، فلا تُستدعى مقارنةُ نصوصٍ على الحارسِ أبدًا؛ و«عدم == عدم» صحيح. والوسمُ الساكنُ لا يكفي وحدَه ولا يمكنُ أن يكفي: خانةٌ نوعُها المُصرَّحُ «نصّ» تقبلُ نصًّا في موقعِ نداءٍ وعدمًا في آخر، فلا وسمَ ساكنًا واحدًا يصدُقُ على الاثنَين — والسؤالُ نفسُه سؤالُ زمنِ تشغيل. لذلكَ مقارنةُ النصوصِ آمنةٌ من العدمِ وقتَ التشغيل: يُفحَصُ الطرفانِ على الحارسِ قبلَ أيِّ قراءةِ ذاكرة، فالعدمُ يساوي العدمَ ولا يساوي نصًّا، ولا يُمرَّرُ الحارسُ إلى مقارنةِ نصوصٍ أبدًا", description_en: "Null — absence of value, distinct from unit: unit is a single value carrying no information, null is the absence of a value. Its representation is an integer sentinel, so judgements about it must rest on the type tag rather than on the shape of the representation: comparing null against a value of another type is decided by normalising the other side to the sentinel width and comparing numerically, so a string comparison is never invoked on the sentinel; and `null == null` is true. A static tag is not enough on its own and cannot be: a slot declared `string` accepts a string at one call site and null at another, so no single static tag is true of both — the question itself is a runtime one. String comparison is therefore null-safe at runtime: both sides are checked against the sentinel before any memory is read, so null equals null and never equals a string, and the sentinel is never handed to a string comparison" }
 
   # ─── أنواع رسومات هندسية (S-TS-P11) — إثبات التوسّع: مُضافة من YAML فقط ثم مُولَّدة ───
   #     (مُلحَقة بالنهاية للحفاظ على ABI؛ surface:false = داخلية بلا كلمة سطحية بعد)

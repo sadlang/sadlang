@@ -2211,7 +2211,7 @@ namespace Sad
                     return "نص";
                 case Types::SadTypeKind::Boolean:
                     return "منطقي";
-                case Types::SadTypeKind::Void:
+                case Types::SadTypeKind::Unit:
                     return "لاشيء";
                 case Types::SadTypeKind::Array:
                     return "مصفوفة";

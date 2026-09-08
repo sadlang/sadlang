@@ -1,0 +1,22 @@
+# @rule: gr.expr.primary
+# @description: «خالي(5)» ⇒ يُرَدُّ — لا بانيَ لنوعِ الوحدةِ ولا قيمةَ ثانيةً تُصنَع
+# @priority: P0
+# @expect_compile_error: SEM004
+# @expect_error: SEM004
+
+# ============================================================
+# (AR) 🔑 نوعُ الوحدةِ **مفردٌ** (singleton): قيمتُه الوحيدةُ `()` ولا سبيلَ
+#      إلى صُنعِ ثانيةٍ. وأوّلُ بابٍ يُطرَقُ لصُنعِ قيمةٍ في لغةٍ هو النداءُ
+#      باسمِ النوع — كما `رقم(س)` و`نص(س)` — فالبذرةُ تحرسُ أنّ هذا البابَ
+#      **مغلق**.
+#      وكان مغلقًا حينَ قِيس (2026-09-07)، وتُثبِّتُه البذرةُ كي لا يُفتَحَ
+#      سهوًا يومَ يُضافُ محوِّلٌ باسمِ نوعٍ آخر: «خالي» لا محوِّلَ له لأنّ
+#      لا معلومةَ تُحوَّلُ إليه أصلًا.
+# (EN) Unit is a SINGLETON: `()` is its only value and no second can be made.
+#      The first door anyone tries is calling the type name — as with رقم(x) and
+#      نص(x) — so this seed pins that door shut. It was shut when measured; the
+#      seed keeps it shut when a converter is added for some other type later.
+# ============================================================
+
+متغير س = خالي(5)
+اطبع_سطر(نص(س))

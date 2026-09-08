@@ -376,7 +376,7 @@ public:
      * - "string" أو "نص"
      * - "boolean" أو "منطقي"
      * - "array" أو "مصفوفة"
-     * - "void" أو "فراغ"
+     * - "void" أو "خالي"
      * 
      * @details (EN)
      * Returns the type name of value as string:
@@ -385,7 +385,7 @@ public:
      * - "string" or "نص"
      * - "boolean" or "منطقي"
      * - "array" or "مصفوفة"
-     * - "void" or "فراغ"
+     * - "void" or "خالي"
      * 
      * @param args (AR) قائمة المعاملات تحتوي على قيمة واحدة للفحص
      * @param args (EN) Argument list containing one value to check

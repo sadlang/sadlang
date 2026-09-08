@@ -65,7 +65,7 @@ LLVMDropGlue::LLVMDropGlue(llvm::LLVMContext& context, llvm::Module& module)
         // أنواع أخرى / Other types
         "منطق", "bool",
         "حرف", "char",
-        "فراغ", "void",
+        "خالي", "void",
         "مؤشر_خام", "raw_ptr",
         
         // أنواع حجم / Size types

@@ -43,7 +43,7 @@ target_include_directories(sad_null_safety
 target_link_libraries(sad_null_safety
     PUBLIC
         sad_shared
-        sad_type_system
+
 )
 
 if(MSVC)

@@ -175,8 +175,7 @@ namespace Sad
                         //      in a %SadDyn slot — a raw i64 slot has no Void tag, so its zero
                         //      payload reads back as a lying number. Restricted to CONSTANT on
                         //      purpose: LABEL operands carry dataType=Void without being values.
-                        if (op.dataType == SadTypeKind::Void &&
-                            op.type == SIROperandType::CONSTANT)
+                        if (operandIsAbsenceConstant(op))
                             return true;
                         if (op.type != SIROperandType::REGISTER)
                             return false;
@@ -368,7 +367,7 @@ namespace Sad
                                     fn->returnType == SadTypeKind::Integer;
                                 if (inst.opcode == SIROpcode::RET && !inst.operands.empty() &&
                                     fn->returnType != SadTypeKind::Any &&
-                                    fn->returnType != SadTypeKind::Void &&
+                                    fn->returnType != SadTypeKind::Unit &&
                                     (!fn->returnTypeIsDeclared || declaredNumeric) &&
                                     valueIsDyn(inst.operands[0]))
                                 {
@@ -596,7 +595,7 @@ namespace Sad
                     auto *i8Ty = llvm::Type::getInt8Ty(*cg.context_);
                     llvm::Value *kindByte = dynKindByte(cg, v);
                     llvm::Value *isVoidK = cg.builder_->CreateICmpEQ(
-                        kindByte, llvm::ConstantInt::get(i8Ty, DynKind::Void),
+                        kindByte, llvm::ConstantInt::get(i8Ty, DynKind::Missing),
                         "arg.dyn.is.void");
                     llvm::Value *isNullK = cg.builder_->CreateICmpEQ(
                         kindByte, llvm::ConstantInt::get(i8Ty, DynKind::Null),
@@ -734,23 +733,31 @@ namespace Sad
                 kind = DynKind::Null;
                 break;
             // ════════════════════════════════════════════════════════════════
-            // (AR) 🔑 الفراغُ وسمٌ قائمٌ بذاته، لا يُستدَلُّ عليه من نوع LLVM
+            // (AR) 🔑 الغيابُ وسمٌ قائمٌ بذاته، لا يُستدَلُّ عليه من نوع LLVM
             // ════════════════════════════════════════════════════════════════
             //
-            // (AR) للعدمِ **شكلان** يفرّق بينهما المحرّكان في نصِّهما:
-            //        • خانةٌ صُرِّحت ولم تُهيَّأ  ⇒ `فراغ` (Void)
-            //        • خانةٌ هُيِّئت بـ«لاشيء»    ⇒ `عدم`  (Null)
+            // (AR) للغيابِ **شكلان** يفرّق بينهما المحرّكُ في نصِّهما:
+            //        • خانةٌ صُرِّحت ولم تُهيَّأ  ⇒ الوسمُ `Missing`
+            //        • خانةٌ هُيِّئت بـ«لاشيء»    ⇒ `عدم` (Null)
             //      وتوحيدُهما يجعل كلَّ تشخيصِ تصريحٍ مجرَّدٍ يكذبُ «عدم».
             //
-            //      وبلا هذه الذراعِ يسقط `Void` في `default` فيُستدَلَّ عليه من
+            //      وبلا هذه الذراعِ يسقط النوعُ في `default` فيُستدَلَّ عليه من
             //      **نوع LLVM**: حمولةُ الصفرِ i64 ⇒ `DynKind::Int` ⇒ `نوع()`
             //      يُجيب «رقم». أي أنّ الاستدلالَ من التمثيلِ يمحو تمييزًا
-            //      يحمله النوعُ الساكنُ وحدَه — والتمثيلُ لا يُميّز فراغًا من صفر.
-            // (EN) Void is a kind of its own, never inferred from the LLVM type: the
-            //      zero i64 payload would infer Int and نوع() would answer «رقم»,
-            //      erasing a distinction only the static type carries.
-            case SadTypeKind::Void:
-                kind = DynKind::Void;
+            //      يحمله النوعُ الساكنُ وحدَه.
+            //
+            // (AR) ✅ **الدَّينُ سُدَّ (2026-09-07)**: كانت هذه الذراعُ تَسِمُ نوعَ
+            //      الوحدةِ `Unit` («خالي») بوسمِ الغيابِ `Missing` — وهما شيئان،
+            //      فكان `نوع(خريطة_احصل(م، «غائب»))` يطبعُ «خالي» ⇒ **غيابُ المفتاحِ
+            //      لا يُميَّزُ عن قيمةِ الوحدة**. وكان يُدوَّنُ أنّ السدَّ يلزمُه «اسمٌ
+            //      سطحيٌّ في مصدرِ الحقيقة» — وذلك كان **خطأً في التشخيصِ نفسِه**:
+            //      الاسمُ مُعلَنٌ سلفًا («خالي» في `types.yaml`، و«()» عرضًا في
+            //      `value_repr.yaml`). فالناقصُ كان خانةَ وسمٍ لا قرارَ لغة.
+            // (EN) Debt closed: unit now carries its own tag instead of borrowing
+            //      the absence tag. The blocker was recorded as "needs a surface
+            //      name" — but the name already existed; only the tag slot didn't.
+            case SadTypeKind::Unit:
+                kind = DynKind::Unit;
                 break;
             case SadTypeKind::Array:
                 kind = DynKind::Array;
@@ -1086,16 +1093,29 @@ namespace Sad
                 llvm::BasicBlock::Create(ctx, "sem045.ok", curFunc);
             llvm::Value *kind = dynKindByte(cg, dynValue);
             llvm::Value *isVoid = b.CreateICmpEQ(
-                kind, b.getInt8(static_cast<uint8_t>(DynKind::Void)), "sem045.isvoid");
+                kind, b.getInt8(static_cast<uint8_t>(DynKind::Missing)), "sem045.isvoid");
             b.CreateCondBr(isVoid, failBB, contBB);
 
             b.SetInsertPoint(failBB);
-            const std::string tag = fatal ? "[خطأ نوع SEM045] " : "[تحذير نوع SEM045] ";
+            // (AR) ⚠️ **دَينٌ مُعلَنٌ بسببِه**: كان النصُّ يحملُ الرمزَ «SEM045»،
+            //      وقد حُذف ذلك الرمزُ من الكتالوجِ (2026-09-07) مع «فراغ». وطبعُ رمزٍ
+            //      لا وجودَ له في مصدرِ الحقيقةِ أسوأُ من طبعِ لا رمز: يُرسِلُ القارئَ
+            //      إلى كتالوجٍ لا يجدُه فيه. فنُزِع الرقمُ ولم يُشغَلْ بغيرِه — إعلانُ
+            //      رمزٍ جديدٍ قرارُ مصدرِ حقيقةٍ لا ترقيعُ خلفيّة.
+            //      🔑 وموضوعُ هذا الحارسِ **باقٍ**: وسمُ `Missing` الزمنيُّ (مفتاحُ
+            //      خريطةٍ غائب) يعبرُ إلى خانةٍ أعلنت نوعَها — وهو غيرُ «خالي» الذي
+            //      حلَّ محلَّ «فراغ». فالسلوكُ لم يُمَسّ، واللفظُ وحدَه صُحِّح.
+            // (EN) Declared debt: the text used to print «SEM045», a code deleted
+            //      from the catalog with «فراغ». Printing a code the SoT does not
+            //      contain is worse than printing none, so the number was dropped and
+            //      NOT replaced — declaring a new code is an SoT decision. The guard's
+            //      subject survives: the runtime Missing tag, not the unit type.
+            const std::string tag = fatal ? "[خطأ نوع] " : "[تحذير نوع] ";
             // (AR) اسم السجلّ يحمل بادئة % — تُجرَّد قبل العرض للمستخدم.
             const std::string bareName = cleanSlotName(slotName);
             const std::string msgText =
                 tag + "الخانة '" + bareName + "' من نوع '" + typeName +
-                "' أُسند إليها 'فراغ' وقت التشغيل — غيابُ نتيجةٍ لا قيمة، فلا يصلح حشوًا لخانةٍ أعلنت نوعَها\n";
+                "' أُسند إليها قيمةٌ مفقودةٌ وقت التشغيل — غيابُ نتيجةٍ لا قيمة، فلا يصلح حشوًا لخانةٍ أعلنت نوعَها\n";
             if (cg.freestanding_)
             {
                 // (AR) حرًّا لا printf — والتحذيرُ الحرّ يُسقَط (لا قناةَ تشخيصٍ غيرُ الهلع).
@@ -1285,7 +1305,7 @@ namespace Sad
             //      deliberately outside the guard: unmeasured yet (declared debt).
             {
                 auto *nullK = llvm::ConstantInt::get(i8, DynKind::Null);
-                auto *voidK = llvm::ConstantInt::get(i8, DynKind::Void);
+                auto *voidK = llvm::ConstantInt::get(i8, DynKind::Missing);
                 llvm::Value *lK = dynKindByte(cg, l);
                 llvm::Value *rK = dynKindByte(cg, r);
                 llvm::Value *lAbsent = b.CreateOr(
@@ -1771,7 +1791,7 @@ namespace Sad
             if (cmp != DynCmp::EQ && cmp != DynCmp::NE)
                 return phi;
 
-            llvm::Value *voidK = llvm::ConstantInt::get(i8, DynKind::Void);
+            llvm::Value *voidK = llvm::ConstantInt::get(i8, DynKind::Missing);
             llvm::Value *lVoid = b.CreateICmpEQ(lKind, voidK, "dyn.cmp.l.void");
             llvm::Value *rVoid = b.CreateICmpEQ(rKind, voidK, "dyn.cmp.r.void");
             llvm::Value *eitherVoid = b.CreateOr(lVoid, rVoid, "dyn.cmp.either.void");
@@ -1931,13 +1951,22 @@ namespace Sad
             //      (a compiled object has no runtime type header, so its class name
             //      is unreachable). No malloc, so the arm is freestanding-safe.
             llvm::BasicBlock *objBB = llvm::BasicBlock::Create(ctx, "dyn.ts.obj", parent);
+            // (AR) 🔑 قيمةُ الوحدة «خالي»: بلا ذراعِها يسقطُ وسمُها إلى `nullBB`
+            //      فيُعرَض «لاشيء» بينما `نوع()` يقولُ «خالي» — وهو عينُ التناقضِ
+            //      الداخليِّ الذي وُصِف في ذراعِ الخريطةِ أعلاه. والعرضُ «()» من
+            //      مصدرِ الحقيقة، وبلا malloc فالذراعُ صالحةٌ للوضعِ الحرِّ أيضًا.
+            // (EN) The unit value: without its arm the tag falls to nullBB and renders
+            //      «لاشيء» while typeof() says «خالي» — the same internal contradiction
+            //      described for the map arm. Display comes from the SoT; malloc-free.
+            llvm::BasicBlock *unitBB = llvm::BasicBlock::Create(ctx, "dyn.ts.unit", parent);
 
-            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, arrayBB ? 7 : 5);
+            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, arrayBB ? 8 : 6);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Int), intBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Float), floatBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Bool), boolBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Str), strBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Obj), objBB);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Unit), unitBB);
             if (arrayBB)
                 sw->addCase(llvm::ConstantInt::get(i8, DynKind::Array), arrayBB);
             if (mapBB)
@@ -2109,6 +2138,13 @@ namespace Sad
             b.CreateBr(mergeBB);
             objBB = b.GetInsertBlock();
 
+            // (AR) خالي: «()» من مصدرِ الحقيقة / (EN) unit: «()» from the SoT
+            b.SetInsertPoint(unitBB);
+            llvm::Value *unitRes = b.CreateGlobalStringPtr(
+                ::Sad::Types::repr::kUnitDisplay, "dyn.ts.unitstr");
+            b.CreateBr(mergeBB);
+            unitBB = b.GetInsertBlock();
+
             // (AR) عدم/غيره: لاشيء / (EN) null/other: لاشيء
             b.SetInsertPoint(nullBB);
             llvm::Value *nullRes = b.CreateGlobalStringPtr(
@@ -2117,13 +2153,14 @@ namespace Sad
             nullBB = b.GetInsertBlock();
 
             b.SetInsertPoint(mergeBB);
-            auto *phi = b.CreatePHI(ptrTy, arrayRes ? 10 : 6, "dyn.ts.result");
+            auto *phi = b.CreatePHI(ptrTy, arrayRes ? 11 : 7, "dyn.ts.result");
             phi->addIncoming(intRes, intBB);
             phi->addIncoming(floatRes, floatBB);
             phi->addIncoming(boolRes, boolBB);
             phi->addIncoming(strRes, strBB);
             phi->addIncoming(objRes, objBB);
             phi->addIncoming(nullRes, nullBB);
+            phi->addIncoming(unitRes, unitBB);
             if (arrayRes)
             {
                 phi->addIncoming(arrayRes, arrayOkBB);
@@ -2196,6 +2233,13 @@ namespace Sad
             // (EN) [card م-٠٠١] Void is distinguished from Null: an absent map key yields a
             //      Void value in the interpreter, so نوع() answers «فراغ», not «عدم».
             auto *voidBB = llvm::BasicBlock::Create(ctx, "dyn.tn.void", parent);
+            // (AR) 🔑 وذراعُ **قيمةِ الوحدة** «خالي» غيرُ ذراعِ الغياب — وكانتا
+            //      واحدةً: نوعُ الوحدةِ يُوسَمُ `Missing` فيرِثُ اسمَه، ثمّ لمّا زالَ
+            //      لفظُ «فراغ» ورِثَ الغيابُ اسمَ الوحدة. فصارَ الوسمانِ اثنَين
+            //      والاسمانِ اثنَين: «خالي» قيمةٌ، و«مفقود» لا‑قيمة.
+            // (EN) The unit arm is not the absence arm; both tag and name are now
+            //      distinct: «خالي» is a value, «مفقود» is the lack of one.
+            auto *unitBB = llvm::BasicBlock::Create(ctx, "dyn.tn.unit", parent);
             // (AR) وذراعُ الكائنِ تلزمُ منذُ صار `صنف`/`بنية` يُوسَمُ `Obj` في `toDyn`:
             //      ولولاها لسقطَ الوسمُ إلى `default` فأجابَ `نوع()` «مجهول» — أي لا يُستبدَلُ
             //      كذبٌ بصدقٍ بل بكذبٍ آخر. والاسمُ من SoT: `Class ⇒ typeof_ar: كائن`.
@@ -2206,8 +2250,9 @@ namespace Sad
             auto *adtBB = llvm::BasicBlock::Create(ctx, "dyn.tn.adt", parent);
             auto *mergeBB = llvm::BasicBlock::Create(ctx, "dyn.tn.merge", parent);
 
-            llvm::SwitchInst *sw = b.CreateSwitch(kind, defBB, 10);
-            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Void), voidBB);
+            llvm::SwitchInst *sw = b.CreateSwitch(kind, defBB, 11);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Missing), voidBB);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Unit), unitBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Int), intBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Float), floatBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Bool), boolBB);
@@ -2251,9 +2296,14 @@ namespace Sad
             b.CreateBr(mergeBB);
             mapBB = b.GetInsertBlock();
             b.SetInsertPoint(voidBB);
-            llvm::Value *rvoid = nameFor(SadTypeKind::Void);
+            llvm::Value *rvoid = b.CreateGlobalStringPtr(
+                ::Sad::Types::repr::kMissingTypeName, "dyn.tn.missing");
             b.CreateBr(mergeBB);
             voidBB = b.GetInsertBlock();
+            b.SetInsertPoint(unitBB);
+            llvm::Value *runit = nameFor(SadTypeKind::Unit);
+            b.CreateBr(mergeBB);
+            unitBB = b.GetInsertBlock();
             b.SetInsertPoint(objBB);
             llvm::Value *robj = nameFor(SadTypeKind::Class);
             b.CreateBr(mergeBB);
@@ -2270,8 +2320,9 @@ namespace Sad
             adtBB = b.GetInsertBlock();
 
             b.SetInsertPoint(mergeBB);
-            auto *phi = b.CreatePHI(ptrTy, 11, "dyn.tn.result");
+            auto *phi = b.CreatePHI(ptrTy, 12, "dyn.tn.result");
             phi->addIncoming(rvoid, voidBB);
+            phi->addIncoming(runit, unitBB);
             phi->addIncoming(ri, intBB);
             phi->addIncoming(rf, floatBB);
             phi->addIncoming(rb, boolBB);

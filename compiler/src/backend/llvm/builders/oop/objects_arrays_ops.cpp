@@ -1038,6 +1038,24 @@ namespace Sad
                                              SadTypeKind::Null);
                                 break;
                             }
+
+                            // (AR) 🔑 قيمةُ الوحدةِ الافتراضيّة — **والصفرُ الخامُّ لا يكفي**:
+                            //      الصفرُ في فضاءِ الأوسامِ غيابٌ لا وحدة، والكتابةُ ههنا
+                            //      تمرُّ بـ`toDyn` فتضعُ وسمَ الوحدةِ مكانَه. والتعليلُ
+                            //      كاملًا عند الذراعِ التوأمِ في `mem_alloca.cpp` — ولا
+                            //      يُنسَخُ ههنا ثانيةً: نصٌّ مكرَّرٌ يَنجرفُ كما تَنجرفُ الشفرة.
+                            // (EN) The unit's default value — a raw zero is not enough: zero
+                            //      in the TAG space is absence, not the unit, and this write
+                            //      goes through toDyn to stamp the unit tag over it. The full
+                            //      rationale lives at the twin arm in mem_alloca.cpp and is
+                            //      NOT copied here — duplicated prose drifts like duplicated code.
+                            case SadTypeKind::Unit:
+                            {
+                                storeDefault(llvm::ConstantInt::get(
+                                                 llvm::Type::getInt8Ty(*cg_.context_), 0),
+                                             SadTypeKind::Unit);
+                                break;
+                            }
                             default:
                                 break;
                             }

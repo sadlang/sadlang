@@ -17,7 +17,7 @@ namespace SIR {
 
 std::string PrimitiveType::toString() const {
     switch (type) {
-        case SadTypeKind::Void:     return "void";
+        case SadTypeKind::Unit:     return "void";
         case SadTypeKind::Integer:      return "i64";
         case SadTypeKind::Float:      return "f64";
         case SadTypeKind::Boolean:     return "bool";
@@ -28,7 +28,7 @@ std::string PrimitiveType::toString() const {
 
 size_t PrimitiveType::getSize() const {
     switch (type) {
-        case SadTypeKind::Void:     return 0;
+        case SadTypeKind::Unit:     return 0;
         case SadTypeKind::Integer:      return 8;
         case SadTypeKind::Float:      return 8;
         case SadTypeKind::Boolean:     return 1;
@@ -39,7 +39,7 @@ size_t PrimitiveType::getSize() const {
 
 size_t PrimitiveType::getAlignment() const {
     switch (type) {
-        case SadTypeKind::Void:     return 1;
+        case SadTypeKind::Unit:     return 1;
         case SadTypeKind::Integer:      return 8;
         case SadTypeKind::Float:      return 8;
         case SadTypeKind::Boolean:     return 1;
@@ -54,7 +54,7 @@ bool PrimitiveType::equals(const TypePtr& other) const {
     if (other->getBaseType() != SadTypeKind::Integer &&
         other->getBaseType() != SadTypeKind::Float &&
         other->getBaseType() != SadTypeKind::Boolean &&
-        other->getBaseType() != SadTypeKind::Void &&
+        other->getBaseType() != SadTypeKind::Unit &&
         other->getBaseType() != SadTypeKind::String) {
         return false;
     }
@@ -285,7 +285,7 @@ TypePtr FunctionType::clone() const {
 // ======================================================================
 
 SadTypeKind stringToSIRType(const std::string& str) {
-    if (str == "void") return SadTypeKind::Void;
+    if (str == "void") return SadTypeKind::Unit;
     if (str == "i64") return SadTypeKind::Integer;
     if (str == "f64") return SadTypeKind::Float;
     if (str == "bool") return SadTypeKind::Boolean;

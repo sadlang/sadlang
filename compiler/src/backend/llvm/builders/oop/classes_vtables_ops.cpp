@@ -185,7 +185,7 @@ namespace Sad
                         // (EN) SEM045 (safety net): a field kind left as Void (inferred from
                         //      a void initializer the promotion did not reach) gets a %SadDyn
                         //      slot, not raw i64 — the raw slot read back a silent «0».
-                        case SadTypeKind::Void:
+                        case SadTypeKind::Unit:
                             // (AR) ISSUE-076 (%SadDyn): حقلٌ ديناميّ (حمولة ADT غير منمّطة) ⇒ خانة
                             //      واصفة لذاتها %SadDyn = { i8 kind; i64 payload } بدل وسم البتّات.
                             // (EN) ISSUE-076 (%SadDyn): a dynamic field (untyped ADT payload) ⇒ the
@@ -443,8 +443,31 @@ namespace Sad
                 case SadTypeKind::Pointer:
                     llvmType = cg_.getInt8PtrType();
                     break;
-                case SadTypeKind::Void:
-                    llvmType = cg_.getVoidType();
+                case SadTypeKind::Unit:
+                    // (AR) 🔑 نوعُ الوحدة «خالي» **قيمةٌ تُخزَّن**، لا «لا نوع».
+                    //      وLLVM لا تقبلُ خانةً ولا متغيّرًا عامًّا نوعُه `void`
+                    //      (‏«Cannot create a null constant of that type»)، فكان
+                    //      `getVoidType()` ههنا يُصرِّعُ المترجّمَ على أبسطِ برنامج.
+                    //      وتمثيلُه `i8` **حاملٌ لا معلومةَ فيه**: قيمتُه الوحيدةُ
+                    //      صفرٌ دائمًا، ولا يقرؤه أحدٌ لأنّ النوعَ لا يحملُ خبرًا.
+                    //      و`@حجم(خالي)` يبقى **صفرًا** لأنّه يُقرَأ من
+                    //      `types.yaml ⇒ size_bytes: 0` لا من عرضِ خانةِ LLVM.
+                    //      ⚠️ ولا يُبدَّلُ هذا بـ`void` ثانيةً: `void` نوعُ إرجاعٍ
+                    //      في LLVM ولا يصلحُ خانةً — والموضعان مختلفان.
+                    // (EN) Unit IS a stored value, not an absence. LLVM rejects a
+                    //      global (or alloca) of type `void`, so getVoidType() here
+                    //      crashed the compiler on the simplest program. `i8` is a
+                    //      carrier holding no information: always zero, never read,
+                    //      because the type carries no news. @حجم stays 0 — it is
+                    //      read from types.yaml (size_bytes: 0), not from LLVM.
+                    //      Do not restore `void`: that is a RETURN type in LLVM and
+                    //      is not a slot type. The two positions are distinct.
+                    //      🔑 والعرضُ من سلطتِه الواحدةِ (`unitCarrierType`) لا مكتوبًا
+                    //      ههنا: هذا الموضعُ ونظيرُه المحلّيُّ كانا يكتبانِ `i8` كلٌّ
+                    //      على حدةٍ بينما المنتِجونَ يكتبونَ `i64` — والعرضُ الواحدُ
+                    //      يُشتقُّ ولا يُنسَخ.
+                    // (EN) The width comes from its single authority, not written here.
+                    llvmType = ::Sad::LLVM::unitCarrierType(*cg_.context_);
                     break;
                 default:
                     llvmType = cg_.getInt64Type(); // افتراضي / Default

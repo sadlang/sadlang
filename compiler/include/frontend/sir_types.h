@@ -53,7 +53,7 @@ namespace Sad
             {
                 switch (type)
                 {
-                case SadTypeKind::Void:
+                case SadTypeKind::Unit:
                     return "void";
                 case SadTypeKind::Integer:
                     return "i64";
@@ -1451,7 +1451,7 @@ namespace Sad
                 //      النصّيّة بـ%s بدل %lld. افتراضيّ Void ⇒ سلوك عدديّ (متوافق مع السابق).
                 // (EN) Array element type (for Array-typed operands) — used to print string arrays
                 //      via %s instead of %lld. Defaults to Void ⇒ integer behavior (back-compatible).
-                SadTypeKind elementType = SadTypeKind::Void;
+                SadTypeKind elementType = SadTypeKind::Unknown;
 
                 // (AR) 🔑 حضورٌ نصّيٌّ مثبَتٌ بنيويًّا — عقدُ «نص» غيرِ العدميّ:
                 //      قرارُ المالك (2026-08-23): متغيّرٌ من نوعِ «نص» لا يحمل عدمًا؛
@@ -1500,7 +1500,7 @@ namespace Sad
                  * @brief (AR) منشئ افتراضي
                  * @brief (EN) Default constructor
                  */
-                SIROperand() : type(SIROperandType::REGISTER), dataType(SadTypeKind::Void), intValue(0) {}
+                SIROperand() : type(SIROperandType::REGISTER), dataType(SadTypeKind::Unit), intValue(0) {}
 
                 /**
                  * @brief (AR) إنشاء سجل افتراضي
@@ -1575,7 +1575,7 @@ namespace Sad
                 {
                     SIROperand op;
                     op.type = SIROperandType::CONSTANT;
-                    op.dataType = SadTypeKind::Void;
+                    op.dataType = SadTypeKind::Unit;
                     op.intValue = 0;
                     return op;
                 }
@@ -1601,7 +1601,7 @@ namespace Sad
                 {
                     SIROperand op;
                     op.type = SIROperandType::LABEL;
-                    op.dataType = SadTypeKind::Void;
+                    op.dataType = SadTypeKind::Unit;
                     op.name = name;
                     return op;
                 }

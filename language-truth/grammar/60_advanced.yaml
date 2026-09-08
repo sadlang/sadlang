@@ -25,7 +25,7 @@ productions:
     lhs: { nonterminal: Type, name_ar: "نوع", name_en: type }
     ebnf: >
       Type = TypeCore [ '؟' | ( 'عدمي' | 'عدمية' ) Identifier<lookahead, same-line> ] ;
-      TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطقي' | 'فراغ' | 'عدم' | 'أي'
+      TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطقي' | 'خالي' | 'عدم' | 'أي'
                | ( 'مصفوفة' | 'خريطة' ) [ '<' Type [ ',' Type ] '>' ] | Identifier ;
     alternatives:
       - symbols:
@@ -35,7 +35,7 @@ productions:
               - { kind: terminal, ref: TYPE_DOUBLE, value: "عشري" }
               - { kind: terminal, ref: TYPE_STRING, value: "نص" }
               - { kind: terminal, ref: TYPE_BOOLEAN, value: "منطقي" }
-              - { kind: terminal, ref: TYPE_VOID, value: "فراغ" }
+              - { kind: terminal, ref: TYPE_UNIT, value: "خالي" }
               - { kind: terminal, ref: TYPE_ARRAY, value: "مصفوفة" }
               - { kind: terminal, ref: TYPE_MAP, value: "خريطة" }
               - { kind: terminal, ref: IDENTIFIER }

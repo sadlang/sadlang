@@ -67,7 +67,7 @@ const std::string& toStringRef() const; // STRING فقط (بلا نسخ) — ل�
 - **`getKind()`** = `getSadType()->getKind()` ← يُرجع `SadTypeKind` (النظام الموحَّد). **استخدمه** لتصنيف النوع.
 - **`setSadType(ptr)`** يَسِم القيمة بنوع موحَّد غنيّ مع الإبقاء على `type_` الصحيح لإرسال الطرق
   (مثلاً Future/Generator/Widget: `getKind()`=النوع الحقيقي بينما `type_`=OBJECT ليبقى `isObject()` سليماً).
-- **`makeNull()`** ينشئ قيمة `عدم` (Null) — **متمايزة عن `Void`** (فراغ) منذ توحيد الأنواع.
+- **`makeNull()`** ينشئ قيمة `عدم` (Null) — **متمايزة عن `Unit`** (خالي — نوع الوحدة) منذ توحيد الأنواع.
 - **تعارض ماكرو `VOID` مع Windows:** الملف يلغي تعريف `VOID` قبل استخدام `ValueType::Null`/`VOID`.
 
 ---

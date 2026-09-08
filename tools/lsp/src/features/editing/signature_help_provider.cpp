@@ -30,7 +30,7 @@ namespace lsp {
 //  (EN) Names hidden from the return arrow, sourced from the SoT (no magic).
 // ══════════════════════════════════════════════════════════════════════════════
 static const std::string SIG_RET_VOID =
-    Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Void); // فراغ
+    Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Unit); // خالي
 static const std::string SIG_RET_UNRESOLVED =
     "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf"; // غير_محدد
 

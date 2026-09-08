@@ -1,0 +1,42 @@
+# @rule: gr.stmt.while
+# @description: وحدةٌ في شرطِ «بينما» تُرفَض — الموضعُ الثاني لا نسخةٌ من الأوّل
+# @priority: P0
+# @expect_compile_error RUN033
+# @expect_error RUN033
+
+# ============================================================
+# (AR) 🔑 **بذرةٌ ثانيةٌ لحكمٍ واحدٍ — لأنّ المواضعَ اثنانِ في الشفرةِ لا واحد.**
+#
+#      شرطُ «اذا» وشرطُ «بينما» فحصانِ منفصلانِ في `type_checker`، فرقعةُ
+#      أحدِهما لا تُثبِتُ الآخر. وهذا نمطُ «التوأمِ» الذي كلَّفَ هذه الحملةَ
+#      مرارًا: قائمةُ سماحٍ في أربعِ نسخ · قيمةٌ افتراضيّةٌ في توأمَي بانٍ
+#      وبلا بانٍ · قارئا حقلٍ متطابقان. **وفي كلِّ مرّةٍ بَدَت الرقعةُ مُطبَّقةً
+#      وهي نصفُ مُطبَّقة، والسلوكُ يصيرُ متقطّعًا لا سليمًا.**
+#
+#   ⚠️ **والمتقطّعُ أسوأُ من المعطوبِ المطّرد**: المعطوبُ يُكتشَفُ بأوّلِ مِجَسّ،
+#      والمتقطّعُ يَخضَرُّ في نصفِ المجَسّاتِ فيُقرَأُ سليمًا ويُغلَقُ ملفُّه.
+#
+#      وكان `بينما (())` يُترجَمُ ولا يدخلُ الحلقةَ أبدًا بلا تشخيص — أي حلقةٌ
+#      كُتِبَت لتُنفَّذَ فلم تُنفَّذْ قطُّ، ورمزُ الخروجِ صفر.
+#
+#   والسطرُ «تمّ» ليس زينةً: لولاه لَجازَ أن يَخضَرَّ البرنامجُ بحلقةٍ لا تنتهي
+#   لو انقلبَ الحكمُ يومًا إلى «الوحدةُ صادقة».
+# (EN) A second seed for one verdict, because the sites are two, not one: the `if`
+#      and `while` condition checks are separate in type_checker, so patching one
+#      does not prove the other. This is the "twin" pattern that cost this campaign
+#      repeatedly — an allow-list in four copies, a default value in the
+#      constructor/no-constructor twins, two identical field readers. Every time,
+#      the patch looked applied while it was half applied, and behaviour became
+#      INTERMITTENT rather than correct. Intermittent is worse than uniformly
+#      broken: broken is caught by the first probe, intermittent passes half the
+#      probes, reads as fine, and gets its file closed. `while (())` compiled and
+#      never entered the loop, with no diagnostic and exit code 0 — a loop written
+#      to run that never ran. The trailing «تمّ» is not decoration: without it the
+#      program could pass with a non-terminating loop should the verdict ever flip
+#      to "the unit is truthy".
+# ============================================================
+
+بينما (())
+    اطبع_سطر("د")
+نهاية
+اطبع_سطر("تمّ")

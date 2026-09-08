@@ -260,7 +260,7 @@ namespace Sad
          * @brief (AR) الحصول على اسم النوع من kind مباشرة (عربي)
          * @brief (EN) Get type name from kind directly (Arabic)
          */
-        inline std::string kindToArabic(SadTypeKind kind) { return sadTypeKindToArabic(kind); }
+        inline std::string kindToArabic(SadTypeKind kind) { return sadTypeKindArabicName(kind); }
 
         /**
          * @brief (AR) الحصول على اسم النوع من kind مباشرة (إنجليزي)

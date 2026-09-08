@@ -1,0 +1,23 @@
+# @rule: gr.expr.postfix
+# @description: الوصولُ إلى عضوٍ على قيمةِ وحدةٍ ⇒ يُرَدُّ — لا بياناتَ فيها
+# @priority: P0
+# @expect_compile_error: SEM050
+# @expect_error: SEM050
+
+# ============================================================
+# (AR) 🔑 قيمةُ الوحدةِ **لا تحملُ معلومة** — وهذا تعريفُها لا وصفُها:
+#      `@حجم(خالي)` صفرٌ في `types.yaml` (مقيسٌ: يطبعُ `0`). فما لا حجمَ
+#      له لا حقلَ فيه، والوصولُ إليه يُرَدُّ.
+#      والرمزُ `SEM050` لا رمزٌ خاصٌّ بالوحدة: هو «تعذّرَ ربطُ المستقبِلِ
+#      بصنف» — وذلك **صادقٌ** ههنا، فالوحدةُ ليست صنفًا ولا كائنًا.
+#      ⚠️ وقُصِدَ ألّا يُخترَعَ لها رمزٌ ثانٍ: رمزٌ جديدٌ لحالةٍ يصفُها رمزٌ
+#      قائمٌ وصفًا صادقًا زيادةٌ في سطحِ اللغةِ بلا زيادةِ معنًى.
+# (EN) A unit value carries NO information — that is its definition, not a
+#      description: types.yaml declares size 0 (measured: prints 0). What has no
+#      size has no field. SEM050 ("could not bind the receiver to a class") is
+#      not unit-specific and is TRUE here — unit is neither class nor object.
+#      Deliberately no second code invented for a case an existing one describes.
+# ============================================================
+
+خالي س = ()
+اطبع_سطر(نص(س.حقل))

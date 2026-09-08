@@ -358,7 +358,7 @@ namespace Sad
                     return cg_.builder_->CreateICmpEQ(
                         kind, llvm::ConstantInt::get(i8Ty, k), nm);
                 };
-                llvm::Value *isAbsent = kindIs(Sad::LLVM::DynKind::Void, "foreach.abs.is.void");
+                llvm::Value *isAbsent = kindIs(Sad::LLVM::DynKind::Missing, "foreach.abs.is.void");
                 isAbsent = cg_.builder_->CreateOr(
                     isAbsent, kindIs(Sad::LLVM::DynKind::Null, "foreach.abs.is.null"),
                     "foreach.abs.or.null");
@@ -1055,7 +1055,7 @@ namespace Sad
                     //      أخرى، فلها وسمُها المميَّزُ ٥ لا تسويةٌ مع العدم.
                     // (EN) And Void: the result of reading an absent key gets stored into another
                     //      map, so it keeps its own tag 5 rather than being flattened into Null.
-                    llvm::Value *isVoidKind = kindIs(Sad::LLVM::DynKind::Void, "mset.dyn.is.void");
+                    llvm::Value *isVoidKind = kindIs(Sad::LLVM::DynKind::Missing, "mset.dyn.is.void");
                     llvm::Value *isMapKind = kindIs(Sad::LLVM::DynKind::Map, "mset.dyn.is.map");
                     llvm::Value *isArrayKind = kindIs(Sad::LLVM::DynKind::Array, "mset.dyn.is.array");
                     // (AR) [ISSUE-047] والكائنُ صار له وسمُه المستقلُّ (٨) بعد فكِّ
@@ -1352,6 +1352,7 @@ namespace Sad
                     llvm::Value *isBool = tagIs(kMapValueTagBoolean, "mgetd.is.bool");
                     llvm::Value *isNullTag = tagIs(kMapValueTagNull, "mgetd.is.null");
                     llvm::Value *isVoidTag = tagIs(kMapValueTagVoid, "mgetd.is.void");
+                    llvm::Value *isUnitTag = tagIs(kMapValueTagUnit, "mgetd.is.unit");
                     llvm::Value *isMapTag = tagIs(kMapValueTagMap, "mgetd.is.map");
                     llvm::Value *isArrayTag = tagIs(kMapValueTagArray, "mgetd.is.array");
                     llvm::Value *isObjTag = tagIs(kMapValueTagObject, "mgetd.is.obj");
@@ -1368,7 +1369,11 @@ namespace Sad
                     kind = cg_.builder_->CreateSelect(
                         isNullTag, llvm::ConstantInt::get(i8Ty, DynKind::Null), kind, "mgetd.k.null");
                     kind = cg_.builder_->CreateSelect(
-                        isVoidTag, llvm::ConstantInt::get(i8Ty, DynKind::Void), kind, "mgetd.k.void");
+                        isVoidTag, llvm::ConstantInt::get(i8Ty, DynKind::Missing), kind, "mgetd.k.void");
+                    // (AR) وذراعُ الوحدةِ غيرُ ذراعِ الغياب — والفضاءانِ يتّفقان
+                    // (EN) The unit arm is not the absence arm; the two tag spaces agree
+                    kind = cg_.builder_->CreateSelect(
+                        isUnitTag, llvm::ConstantInt::get(i8Ty, DynKind::Unit), kind, "mgetd.k.unit");
                     kind = cg_.builder_->CreateSelect(
                         isMapTag, llvm::ConstantInt::get(i8Ty, DynKind::Map), kind, "mgetd.k.map");
                     kind = cg_.builder_->CreateSelect(
@@ -1376,7 +1381,7 @@ namespace Sad
                     kind = cg_.builder_->CreateSelect(
                         isObjTag, llvm::ConstantInt::get(i8Ty, DynKind::Obj), kind, "mgetd.k.obj");
                     kind = cg_.builder_->CreateSelect(
-                        isPresent, kind, llvm::ConstantInt::get(i8Ty, DynKind::Void), "mgetd.k.final");
+                        isPresent, kind, llvm::ConstantInt::get(i8Ty, DynKind::Missing), "mgetd.k.final");
 
                     llvm::Value *payload = cg_.builder_->CreateSelect(
                         isPresent, valI64, llvm::ConstantInt::get(i64Ty, 0), "mgetd.payload");
@@ -1612,12 +1617,25 @@ namespace Sad
                     llvm::Value *nullText = cg_.builder_->CreateGlobalStringPtr(
                         ::Sad::Types::repr::kNullDisplay, "mget.nulltext");
 
+                    // (AR) 🔑 و«خالي» عرضُه `kUnitDisplay` من مصدرِ الحقيقةِ نفسِه، لا
+                    //      «لاشيء» ولا `%lld` على حمولةٍ صفريّة. وكان يسقطُ إلى ذراعِ
+                    //      الصحيحِ فيُطبَعُ **«0»** — وهو نوعٌ آخرُ يُعرَضُ بلفظِ نوعٍ آخر.
+                    // (EN) Unit renders as kUnitDisplay from the same source of truth —
+                    //      not «null», and not %lld on a zero payload. It fell to the
+                    //      integer arm and printed "0".
+                    llvm::Value *isUnitTag = cg_.builder_->CreateICmpEQ(
+                        typeTag, llvm::ConstantInt::get(i64Ty, kMapValueTagUnit), "mget.is.unit");
+                    llvm::Value *unitText = cg_.builder_->CreateGlobalStringPtr(
+                        ::Sad::Types::repr::kUnitDisplay, "mget.unittext");
+
                     // (AR) اختيار: نص أصلي أو الرقم المُحوّل (صحيحًا أو عشريًّا) أو «لاشيء»
                     // (EN) Select: the original string, the converted number (int or float), or «لاشيء»
                     llvm::Value *numericText =
                         cg_.builder_->CreateSelect(isFloatTag, floatBuf, buf, "mget.numeric");
                     llvm::Value *nonStringText = cg_.builder_->CreateSelect(
                         isNullTagText, nullText, numericText, "mget.nonstring");
+                    nonStringText = cg_.builder_->CreateSelect(
+                        isUnitTag, unitText, nonStringText, "mget.nonstring.unit");
                     llvm::Value *result = cg_.builder_->CreateSelect(isString, strPtr, nonStringText, "mget.result");
 
                     if (inst->result.has_value())
@@ -2536,8 +2554,20 @@ namespace Sad
                                       llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Null),
                                       elemKind, "elem.k.null");
             elemKind = b.CreateSelect(mapTagIs(Sad::Compiler::kMapValueTagVoid, "t.is.void"),
-                                      llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Void),
+                                      llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Missing),
                                       elemKind, "elem.k.void");
+            // (AR) 🔑 وذراعُ الوحدةِ كانت **مفقودةً من هذا السُّلَّمِ وحدَه**، والكاتبُ
+            //      يكتبُ وسمَها فعلًا (`mapValueTagFor`). فكانت قيمةُ وحدةٍ في خريطةٍ
+            //      تسقطُ إلى الابتدائيِّ `Str` ⇒ تُقرَأُ **نصًّا** بحمولةِ صفرٍ فيُطبَعُ
+            //      «لاشيء» ويُجيبُ سؤالُ النوعِ «نصّ». وذلك **جوابٌ خاطئٌ صامتٌ**
+            //      يمحو التمييزَ الذي قامت عليه الحملةُ كلُّها — لا انهيارَ يُنبِّهُ إليه.
+            // (EN) The unit arm was missing from this ladder alone while the writer does
+            //      emit its tag, so a unit map value fell to the Str default: read as
+            //      text with a zero payload, printed «null» and typed «string» — a silent
+            //      wrong answer that erases the very distinction this campaign is about.
+            elemKind = b.CreateSelect(mapTagIs(Sad::Compiler::kMapValueTagUnit, "t.is.unit"),
+                                      llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Unit),
+                                      elemKind, "elem.k.unit");
             elemKind = b.CreateSelect(mapTagIs(Sad::Compiler::kMapValueTagMap, "t.is.map"),
                                       llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Map),
                                       elemKind, "elem.k.map");

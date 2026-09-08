@@ -1747,12 +1747,14 @@ namespace Sad
                              {{"name", name.getValue()}});
             }
 
-            // (AR) ISSUE-113: «فراغ» نوعُ إرجاعٍ لا نوعُ خانة. البوّابةُ هنا لا عند كلِّ
-            //      موضعِ إسنادٍ للنوعِ لأنّ المسارات الثلاثةَ (نوعٌ أوّلًا، «: نوع» بعد
-            //      الاسم، و«: نوع» بعد بادئةِ جملةٍ) تلتقي هنا وحدَها — والاسمُ معروفٌ
-            //      عندئذٍ فيُسمّيه التشخيصُ بدل أن يشير إلى موضعٍ مبهم.
-            // (EN) All three declaration forms converge here, and the name is known.
-            varType = rejectVoidAsSlotType(varType, name.getValue());
+            // (AR) 🔑 كانت ههنا بوّابةُ ISSUE-113 (`rejectVoidAsSlotType`) ترفضُ «فراغ»
+            //      خانةً بـSEM040. وقد حُذف «فراغ» من اللغةِ (2026-09-07) وحلَّ محلَّه
+            //      «خالي» — نوعُ الوحدة، وهو نوعُ قيمةٍ كاملٌ تحملُه الخانة — فزالَ
+            //      موضوعُ البوّابة. ولا يُترَكُ مكانَها إسنادٌ إلى الذات: سطرٌ لا أثرَ
+            //      له يُقرَأُ بوّابةً باقيةً وليس منها شيء.
+            // (EN) The ISSUE-113 gate lived here; it lost its subject with «فراغ».
+            //      No self-assignment is left in its place: a no-op line reads as a
+            //      surviving gate when none survives.
 
             // ═══════════════════════════════════════════════════════════════════
             // (AR) 🔑 الإنشاءُ الضمنيُّ للصنف — قرارُ مالكٍ (2026-08-15):
@@ -1885,10 +1887,9 @@ namespace Sad
                         }
                     }
 
-                    // (AR) ISSUE-113: البوّابةُ نفسُها على بقيّةِ السلسلة — «متغير أ = 1،
-                    //      ب: فراغ = لاشيء» يجب ألّا يمرَّ لأنّه الثاني.
-                    // (EN) Same gate for the rest of the chain, not just the first.
-                    nextType = rejectVoidAsSlotType(nextType, nextName.getValue());
+                    // (AR) 🔑 وبوّابةُ بقيّةِ السلسلةِ زالت مع أختِها أعلاه — لا موضوعَ
+                    //      لها بعدَ حذفِ «فراغ» من اللغة.
+                    // (EN) The chain-tail gate went with its sibling above.
 
                     // ════════════════════════════════════════════════════════════
                     // (AR) 🔑 نوعُ التصريحِ يسري على السلسلةِ كلِّها (ع-٨)
@@ -2064,7 +2065,7 @@ namespace Sad
                     return true;
                 // (AR) أنواع مدمجة (TYPE_*) / (EN) Built-in types
                 if (tt == TT::TYPE_INTEGER || tt == TT::TYPE_DOUBLE || tt == TT::TYPE_STRING ||
-                    tt == TT::TYPE_BOOLEAN || tt == TT::TYPE_VOID || tt == TT::TYPE_NULL ||
+                    tt == TT::TYPE_BOOLEAN || tt == TT::TYPE_UNIT || tt == TT::TYPE_NULL ||
                     tt == TT::TYPE_ARRAY || tt == TT::TYPE_MAP)
                     return true;
                 // (AR) كلمات محجوزة مسموح بها كأعضاء تعداد (ليست بنيوية)
@@ -2793,7 +2794,17 @@ namespace Sad
                     }
                     (void)methodIsAbstract; // (AR) جميع دوال السمة مجردة ضمنياً إن لم يكن لها جسم
                     // (AR) نوع الإرجاع (اختياري قبل الاسم)
-                    Types::SadTypeKind returnType = Types::SadTypeKind::Void;
+                    // (AR) 🔑 والافتراضُ **`Unknown` لا `Unit`**: عائدٌ غيرُ مذكورٍ معناه
+                    //      «لم يُصرَّحْ»، وهو غيرُ «صُرِّحَ خالي». وخلطُهما يُبطِلُ عقدَ
+                    //      العائدِ للطرائقِ خاصّةً: «صنف أ / دالة خالي م() ارجع 5» كانت
+                    //      تمرُّ **صامتةً** بينما نظيرتُها الحرّةُ تُرَدُّ بـSEM055 — إذ لا
+                    //      يتمايزُ التصريحُ من غيابِه. والتصريحُ الصريحُ «خالي» يُضبَطُ
+                    //      أدناه حين يُذكَر.
+                    // (EN) Unknown, not Unit: an unmentioned return type means "not declared",
+                    //      which is not "declared unit". Conflating them voided the return
+                    //      contract for methods — a declared-unit method returning a value
+                    //      passed silently while its free-function peer was rejected.
+                    Types::SadTypeKind returnType = Types::SadTypeKind::Unknown;
                     std::string returnTypeName; // (AR) [Phase 5e] لأنواع الأصناف المُعرَّفة من المستخدم
 
                     // (AR) التحقق من نوع الإرجاع (دعم الأنواع كمُعرّفات مدمجة)

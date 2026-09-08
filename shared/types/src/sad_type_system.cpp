@@ -14,7 +14,7 @@
 #include "value.h" // (AR) نحتاج ValueType الفعلي هنا
 
 // ═══════════════════════════════════════════════════════════════════════════════════
-// (AR) إلغاء تعريف ERROR الخاص بويندوز لتجنب التعارض مع ::Sad::Types::SadTypeKind::Void إلخ
+// (AR) إلغاء تعريف ERROR الخاص بويندوز لتجنب التعارض مع ::Sad::Types::SadTypeKind::Unit إلخ
 // ═══════════════════════════════════════════════════════════════════════════════════
 #ifdef VOID
 #undef VOID
@@ -37,7 +37,7 @@ namespace Sad
             auto &reg = SadTypeRegistry::instance();
             switch (vt)
             {
-            case VT::Void:
+            case VT::Unit:
                 return reg.getVoid();
             case VT::Integer:
                 return reg.getInteger();
@@ -88,6 +88,31 @@ namespace Sad
             //      Void — the same silent default that previously caught Any/Optional.
             case VT::Null:
                 return reg.getNull();
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 **ووقعَ العيبُ نفسُه رابعةً — وهذه المرّةُ أخطرُها.**
+            //      `Unknown` معناه «لم يُصرَّحْ نوعُه»، وكان يسقطُ في الفرعِ
+            //      الافتراضيِّ أدناه فيصيرُ **«خالي»** — أي أنّ «لا أعرف» تنقلبُ
+            //      **يقينًا كاذبًا**. وكان ذلك بلا أثرٍ يومَ كان «فراغ» غيرَ
+            //      مُصنَّفٍ في `isClassified`؛ فلمّا صارَ «خالي» نوعًا مُعلَنًا
+            //      صارَ الحارسُ يحكمُ عليه، فيُرَدُّ **برنامجٌ صحيحٌ**:
+            //      «قالب <نوع ت>» ثمّ «دالة ضاعف(س) ارجع س * 2» تُرفَضُ بـSEM054
+            //      «العامل '*' لا يقبل 'خالي' مع 'رقم'» (مقيس).
+            //      ⚠️ **وهو الموضعُ الذي أبطلَ إصلاحَ المحلّلِ كلَّه**: أُصلِحَت
+            //      خمسةُ مواضعَ هناك لتُنتِجَ `Unknown`، فأعادَها هذا السطرُ
+            //      «خالي» — وهو حرفيًّا ما يقولُه تعليقُ ISSUE-113 أعلاه عن
+            //      نفسِه: «مهما أُصلح المحلّل». والدرسُ المكتوبُ ثلاثَ مرّاتٍ في
+            //      هذا الملفِّ لم يُطبَّقْ على الحالةِ الرابعة: **فرعٌ افتراضيٌّ
+            //      يُخمّنُ بدل أن يكسر**.
+            // (EN) The same defect a FOURTH time, and the worst of the four. Unknown
+            //      means "no type was declared" and fell to the default below,
+            //      becoming Unit — turning "don't know" into a FALSE CERTAINTY. That
+            //      was inert while Void was unclassified; once Unit became a declared
+            //      kind the operand-domain guard began judging it and rejected CORRECT
+            //      programs. This is the line that nullified the five parser fixes —
+            //      exactly what the ISSUE-113 comment above says about itself.
+            // ════════════════════════════════════════════════════════════════
+            case VT::Unknown:
+                return reg.getUnknown();
             }
             // (AR) 🔑 وقعَ العيبُ نفسُه ثالثةً: فُتحت ثمانيةُ ألفاظٍ عدديّةٍ في
             //      types.yaml (رقم8..رقم، طبيعي16/32، عشري32/64) فبلغَ نوعُها
@@ -103,7 +128,29 @@ namespace Sad
             {
                 return numeric;
             }
-            return reg.getVoid();
+            // ════════════════════════════════════════════════
+            // (AR) 🔑 **وهذا آخرُ موضعٍ يُخمِّنُ في الدالّة — وقد زال.**
+            //      كان `getVoid()`، فكلُ نوعٍ مُعلَنٍ في `types.yaml` بلا حالةٍ
+            //      أعلاهُ ولا عُضوٍ عدديٍّ مُفهرَسٍ — بنيةٌ · تعدادٌ · سمةٌ ·
+            //      مُغلَقٌ · اتِّحادٌ · مُعمَّمٌ · خطأٌ · أبدًا · مؤشِّرٌ · أنواعُ
+            //      الرسومّيات — ينقلِبُ **«خالي»**، وهو نوعٌ مُصنَّفٌ يحكمُ
+            //      عليهِ حارسُ نطاقاتِ المعامِلات. وتلكَ عينُ الآليّةِ
+            //      الموصوفةِ فوقَ أربعَ مرّاتٍ في هذا الملفّ: «لا أعرف» تنقلِبُ
+            //      يقينًا كاذبًا. والدرسُ كانَ مكتوبًا ولم يُطبَّق على
+            //      السقوطِ نفسِهِ — إنّما على حالاتِهِ واحدةً واحدة.
+            //      فصارَ السقوطُ `getUnknown()`: **إعلانُ جهلٍ لا ادِّعاءُ علم**،
+            //      والمجهولُ يمرُّ بلا حكمٍ في `violates()`.
+            //      أمرُ القياس: `python scripts/codegen/measure_type_layer_bridges.py`.
+            // (EN) The last guessing fallback in this function. It returned Void,
+            //      so every kind declared in types.yaml without a case above and
+            //      without an indexed numeric member (Struct, Enum, Trait, Closure,
+            //      Union, Generic, Error, Never, Pointer, the graphics kinds) became
+            //      Unit — a CLASSIFIED type the operand-domain guard judges. That is
+            //      the very mechanism this file documents four times over. The
+            //      fallback is now getUnknown(): an admission of ignorance, and
+            //      Unknown passes violates() unjudged.
+            // ════════════════════════════════════════════════
+            return reg.getUnknown();
         }
 
 

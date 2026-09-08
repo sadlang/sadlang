@@ -60,7 +60,7 @@ struct TraitMethodInfo {
     /// (EN) Default body AST — shared ownership with trait AST
     std::shared_ptr<AST::BlockStmt> defaultBody;
     
-    TraitMethodInfo() : returnType(Types::SadTypeKind::Void), hasDefaultImpl(false) {}
+    TraitMethodInfo() : returnType(Types::SadTypeKind::Unit), hasDefaultImpl(false) {}
     TraitMethodInfo(const std::string& n, Types::SadTypeKind ret, bool hasDef = false)
         : name(n), returnType(ret), hasDefaultImpl(hasDef) {}
     TraitMethodInfo(TraitMethodInfo&&) = default;
@@ -181,7 +181,7 @@ public:
      * مثال:
      * ```cpp
      * auto personClass = std::make_unique<ClassType>("شخص");
-     * personClass->addField("الاسم", stringType, PUBLIC);
+     * personClass->addField("الاسم", PUBLIC);
      * 
      * if (!manager->registerClass(std::move(personClass))) {
      *     std::cerr << "فشل التسجيل - الاسم موجود مسبقاً" << std::endl;

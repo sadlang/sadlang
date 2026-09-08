@@ -58,6 +58,42 @@ namespace Sad
             //      to remove duplication: both build the closure pointer first, then build
             //      arguments and emit CLOSURE_CALL with an Integer result type. Behavior is
             //      byte-for-byte identical to the two prior inline copies.
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 **تجسيدُ قيمةِ الوحدةِ — مخرَجٌ واحدٌ لا مخرَجٌ من ستّة.**
+            //      نداءٌ نتيجتُه وحدةٌ لا يملكُ سِجِلًّا يُقرَأ، فيُبنى له سِجِلٌّ
+            //      يحملُ القيمةَ الوحيدة. وكان هذا يجري **في ذيلِ مسارِ الدالّةِ
+            //      المُعرَّفةِ وحدَه**، وموزِّعُ المدمَجاتِ يخرجُ قبلَه بـ`return`
+            //      من خمسةِ مواضع — فيُجيبُ «نوع(أ)» عن `متغير أ = اطبع("س")`
+            //      بغيرِ ما يُجيبُ عن `متغير ب = فراغية()`: **شكلٌ واحدٌ وجوابان**،
+            //      والفارقُ أنّ أحدَهما مدمَجٌ.
+            //      ⚠️ ولا يُجسَّدُ ما لا كتلةَ له: بلا كتلةٍ نشطةٍ لا سِجِلَّ،
+            //      فتبقى النتيجةُ **غائبةً** كما هي ولا يُسلَّمُ اسمٌ لا مُعرِّفَ له.
+            // (EN) One exit for unit materialization, not one of six. A unit-returning
+            //      call owns no readable register, so one is built holding the type's
+            //      single value. This ran only at the tail of the user-function path
+            //      while the builtin dispatchers returned earlier from five sites, so
+            //      one program shape got two answers from typeof() depending on whether
+            //      the callee was a builtin. With no active block the result stays
+            //      ABSENT rather than naming an undefined register.
+            // ════════════════════════════════════════════════════════════════
+            BuildResult CallBuilder::materializeUnitResult(BuildResult result)
+            {
+                // (AR) لا يُمَسُّ ما ليس وحدةً، ولا قيمةُ وحدةٍ مجسَّدةٌ سلفًا.
+                // (EN) Non-units and already-materialized unit values are untouched.
+                if (result.isAbsentValue() && b_.currentBlock_)
+                {
+                    std::string unitReg = b_.newTempRegister();
+                    SIRInstruction unitInst(SIROpcode::MOVE);
+                    unitInst.result = SIROperand::Register(unitReg, SadTypeKind::Unit);
+                    unitInst.operands.push_back(SIROperand::ConstantI64(0));
+                    b_.currentBlock_->instructions.push_back(unitInst);
+                    result.registerName = unitReg;
+                    result.isConstant = false;
+                    result.constantValue.clear();
+                }
+                return result;
+            }
+
             BuildResult CallBuilder::emitClosureCallFromCallee(const BuildResult &closureResult,
                                                                Sad::AST::CallExpr *call,
                                                                const std::string &comment)
@@ -675,7 +711,7 @@ namespace Sad
                     std::cerr << "[SIR-DBG] buildFunctionCall: handled by BuiltinCore! type="
                               << static_cast<int>(builtinResult.value().type) << std::endl;
 #endif
-                    return builtinResult.value();
+                    return materializeUnitResult(builtinResult.value());
                 }
                 builtinResult = b_.buildBuiltinCallSystem(funcName, isUserDefinedFunction, argResults, argOperands);
                 if (builtinResult.has_value())
@@ -684,7 +720,7 @@ namespace Sad
                     std::cerr << "[SIR-DBG] buildFunctionCall: handled by BuiltinSystem! type="
                               << static_cast<int>(builtinResult.value().type) << std::endl;
 #endif
-                    return builtinResult.value();
+                    return materializeUnitResult(builtinResult.value());
                 }
 
                 // ========================================================================
@@ -700,7 +736,7 @@ namespace Sad
                     std::cerr << "[SIR-DBG] buildFunctionCall: handled by BuiltinNetwork! type="
                               << static_cast<int>(builtinResult.value().type) << std::endl;
 #endif
-                    return builtinResult.value();
+                    return materializeUnitResult(builtinResult.value());
                 }
 
                 // ========================================================================
@@ -715,7 +751,7 @@ namespace Sad
                     std::cerr << "[SIR-DBG] buildFunctionCall: handled by BuiltinProcesses! type="
                               << static_cast<int>(builtinResult.value().type) << std::endl;
 #endif
-                    return builtinResult.value();
+                    return materializeUnitResult(builtinResult.value());
                 }
 
                 // ========================================================================
@@ -791,7 +827,7 @@ namespace Sad
                 // المصدر: sir_builder.h:719 - b_.functionTable_
                 // المصدر: sir_builder.h:162-175 - FunctionInfo struct
                 // ========================================================================
-                SadTypeKind returnType = SadTypeKind::Void; // (AR) افتراضياً void
+                SadTypeKind returnType = SadTypeKind::Unit; // (AR) افتراضياً void
 
                 auto it = b_.functionTable_.find(funcName);
                 if (it != b_.functionTable_.end())
@@ -1383,7 +1419,51 @@ namespace Sad
                                 closureRetType = lambdaIt->second.returnType;
                             }
                         }
-                        if (closureRetType == SadTypeKind::Void)
+                        // ════════════════════════════════════════════════════
+                        // (AR) 🔑 `Unit` ⇐ «لا أعرف» — الموضعُ **الخامسُ** في هذه
+                        //      الحملة، وآخرُ حلقةٍ في سلسلةِ اللامدا.
+                        //
+                        //      كان السطرُ يُبدِّلُ كلَّ عائدِ وحدةٍ عددًا صحيحًا،
+                        //      وحجّتُه المُدوَّنةُ أعلاه أنّ «الإغلاقاتِ ليست في
+                        //      `functionTable_` فقد يكونُ `returnType` فراغًا
+                        //      **خطأً**» — وكان ذلك صحيحًا يومَ كانت الكلمةُ تعني
+                        //      الفراغ. فلمّا صارت `خالي` نوعَ قيمةٍ انقلبَ الحارسُ
+                        //      من احتياطٍ إلى **مُتلِف**.
+                        //
+                        //      والتصحيحُ لا يُسقِطُ الاحتياط: يبقى العددُ بديلًا
+                        //      حينَ **يعجزُ** البحثُ عن اللامدا (لا اسمَ مربوطًا أو
+                        //      لا مدخلَ في الجدول)، ويُحترَمُ `Unit` حينَ يكونُ
+                        //      **جوابَ الجدولِ نفسِه** — أي حينَ يكون معلومةً لا
+                        //      غيابَ معلومة. وهو المِعيارُ ذاتُه المستعمَلُ في
+                        //      المواضعِ الأربعةِ قبلَه.
+                        //
+                        //   ⚠️ ولم يُبلَغْ هذا الموضعُ إلّا بعدَ **ثلاثِ رقعاتٍ
+                        //      متتاليةٍ في السلسلةِ نفسِها** (نوعُ عائدِ اللامدا،
+                        //      ثمّ تبنّي نوعِ جسمِها، ثمّ هذا)، وكلٌّ منها بَدَت
+                        //      كافيةً حتّى قِيسَت. والسلسلةُ لا تُقطَعُ بأقوى
+                        //      حلقاتِها بل بأضعفِها، وأضعفُها آخرُها.
+                        // (EN) Unit as "don't know" — the FIFTH site in this campaign and
+                        //      the last link in the lambda chain. The line replaced every
+                        //      unit return with an integer, and the comment above justifies
+                        //      it: closures are absent from functionTable_, so returnType
+                        //      "might wrongly be Void". That was true while the word meant
+                        //      void; once خالي became a value type the guard turned from a
+                        //      fallback into a destroyer. The fallback is kept where the
+                        //      LOOKUP FAILS (no bound lambda name, or no table entry) and
+                        //      Unit is honoured when it is the table's own answer — an
+                        //      information, not an absence of one. Three consecutive patches
+                        //      in this same chain each looked sufficient until measured: a
+                        //      chain breaks at its weakest link, and the weakest is the last.
+                        // ════════════════════════════════════════════════════
+                        bool closureRetIsKnownUnit = false;
+                        if (!varInfo->closureLambdaName.empty())
+                        {
+                            auto knownIt = b_.functionTable_.find(varInfo->closureLambdaName);
+                            closureRetIsKnownUnit =
+                                knownIt != b_.functionTable_.end() &&
+                                knownIt->second.returnType == SadTypeKind::Unit;
+                        }
+                        if (closureRetType == SadTypeKind::Unit && !closureRetIsKnownUnit)
                         {
                             closureRetType = SadTypeKind::Integer;
                         }
@@ -1605,7 +1685,7 @@ namespace Sad
                                         auto lambdaIt = b_.functionTable_.find(argVarInfo->closureLambdaName);
                                         if (lambdaIt != b_.functionTable_.end() &&
                                             lambdaIt->second.returnType != SadTypeKind::Integer &&
-                                            lambdaIt->second.returnType != SadTypeKind::Void)
+                                            lambdaIt->second.returnType != SadTypeKind::Unit)
                                         {
                                             returnType = lambdaIt->second.returnType;
 #ifndef NDEBUG
@@ -1767,7 +1847,7 @@ namespace Sad
                 //      integer. returnElementType is populated in buildReturnStatement (sibling
                 //      of returnClassName).
                 if (it != b_.functionTable_.end() &&
-                    it->second.returnElementType != SadTypeKind::Void)
+                    it->second.returnElementType != SadTypeKind::Unknown)
                 {
                     result.elementType = it->second.returnElementType;
                 }
@@ -1840,7 +1920,28 @@ namespace Sad
                     }
                 }
 
-                return result;
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 نداءٌ عائدُه «خالي» — **القيمةُ تُعادُ بناؤها ولا تُنقَل.**
+                //      نوعُ الوحدةِ له قيمةٌ واحدةٌ لا تحملُ خبرًا، فنقلُها عبر حدِّ
+                //      النداءِ عبثٌ: الدالّةُ تُخفَّضُ إلى `void` في LLVM (وهو الصوابُ
+                //      في موضعِ الإرجاع)، فيقرأُ موضعُ النداءِ سجلًّا لا قيمةَ فيه.
+                //      ومقيسٌ (2026-09-07) أنّ ذلك كان يُعطي **ثلاثةَ أجوبةٍ لشيءٍ
+                //      واحد**: «نوع(و())» يقول «صف»، وفاحصُ الأنواعِ يقول «رقم»،
+                //      والمُصرَّحُ «خالي» — وأخطرُها الثاني، إذ يَرُدُّ برنامجًا صحيحًا
+                //      («خالي ن = و()») برسالةِ عدمِ تطابقٍ كاذبة.
+                //      فيُبنى ثابتُ الوحدةِ ههنا بعدَ النداء: أثرُ النداءِ الجانبيُّ
+                //      باقٍ، والقيمةُ صحيحةٌ بالبناءِ لا بالنقل. وهذا ما تفعلُه
+                //      المترجّماتُ بالأنواعِ عديمةِ الحجم.
+                // (EN) A call returning unit — the value is RECONSTRUCTED, never
+                //      transferred. Unit has one value carrying no information, so moving
+                //      it across a call boundary is pointless: the function lowers to LLVM
+                //      `void` (correct in return position) and the call site reads a
+                //      value-less register. Measured: this gave THREE answers for one
+                //      thing — نوع() said «صف», the type checker said «رقم», the
+                //      declaration said «خالي» — the second REJECTING a correct program.
+                //      The call's side effect stands; the value is right by construction.
+                // ════════════════════════════════════════════════════════════════
+                return materializeUnitResult(result);
             }
 
             // ================================================================
