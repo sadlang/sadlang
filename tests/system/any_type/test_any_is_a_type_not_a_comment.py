@@ -89,9 +89,27 @@ pytestmark = pytest.mark.skipif(
 TYPE_CHECK = "--فحص-الأنواع"
 STRICT_TYPES = "--أنواع-صارمة"
 
-# (AR) شاهدُ الرفض: نصُّ عدمِ التطابقِ كما يبنيه `recordTypeError`. يُطابَق على
-#      جزءٍ ثابتٍ منه لا على السطرِ كلِّه — السطرُ يحمل مسارًا وسطرًا وعمودًا.
-MISMATCH_MARK = "عدم تطابق الأنواع"
+# ════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **شاهدُ الرفضِ رمزٌ لا نثر** (٢٠٢٦-٠٩-٠٨). كان `"عدم تطابق الأنواع"`
+#      — نصًّا حرًّا يبنيه `recordTypeError`. وقد نُقِلَ ذلك التشخيصُ إلى
+#      الكتالوجِ فصارَ `[SEM056] الخانة 'س' من نوع 'رقم' وأُسند إليها 'نص'`،
+#      **فانكسرَ الاختبارُ مع أنّ الرفضَ صحيحٌ تمامًا** — أي أنّه أحمرَّ على
+#      تحسينٍ لا على انحدار.
+#      ⚠️ **ومرسًى على نصِّ رسالةٍ يكسرُ مرّتَين**: يحمرُّ حين يُصحَّحُ النصُّ،
+#      **ويخضرُّ على رسالةٍ أخرى** تصادفُ أن تحملَ العبارةَ نفسَها. والرمزُ
+#      مُعلَنٌ في `shared/errors` ويحرسُه `check_retired_error_codes.py`، فهو
+#      المرسى الذي يبقى.
+#      والمُطابَقةُ على جزءٍ ثابتٍ لا على السطرِ كلِّه — السطرُ يحملُ مسارًا
+#      وسطرًا وعمودًا وألوانَ طرفيّة.
+# (EN) The rejection witness is a CODE, not prose. It used to be the free text
+#      built by recordTypeError; that diagnostic moved into the catalog and now
+#      renders as [SEM056] …, so this test broke on an IMPROVEMENT rather than a
+#      regression. Anchoring on message text fails twice over: it reddens when
+#      the text is corrected, and it greens on any other message that happens to
+#      contain the same phrase. The code is declared in shared/errors and guarded
+#      by check_retired_error_codes.py — that is the anchor that survives.
+# ════════════════════════════════════════════════════════════════════════
+MISMATCH_MARK = "SEM056"
 
 
 def _check(source: str) -> tuple[int, str]:
