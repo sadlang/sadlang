@@ -1,0 +1,39 @@
+# @rule: gr.expr.map_literal
+# @description: وحدةٌ كُتِبَت في خريطةٍ ≠ مفتاحٌ لم يُكتَبْ قطُّ — سؤالانِ وجوابان
+# @priority: P0
+# @expected خالي\nخالي\nمفقود
+
+# ============================================================
+# (AR) 🔑 التمييزُ الذي أُعلِنَ مسدودًا وكان مفتوحًا — كذّبتْه مراجعةٌ خصميّة.
+#
+#      `value_repr.yaml` كان يُعلِنُ أنّ وسمَ `kDynKindUnit` ردَّ التمييزَ بين
+#      «قيمةِ وحدةٍ حقيقيّة» و«مفتاحٍ غائب». والمقيسُ أنّ الخرائطَ **ما زالت
+#      تخلطُهما**: `خ["ب"] = ()` و`خ["ج"]` كلاهما يُجيبُ «مفقود».
+#      والسببُ أنّ **فضاءَ الأوسامِ اثنانِ لا واحد**: وسمُ القيمةِ الزمنيِّ
+#      (`DynKind`) ووسمُ قيمةِ الخريطةِ (`kMapValueTag*`) — وسُدَّ الأوّلُ
+#      وحدَه. فوسمٌ في فضاءٍ بلا نظيرٍ في الآخرِ **يضيعُ عندَ القراءة**.
+#
+#   ⚠️ **ودرسُ الدعوى أهمُّ من درسِ العطب**: كُتِبَ في مصدرِ الحقيقةِ أنّ
+#      العلّةَ سُدَّت، وكان الكاتبُ صادقًا فيما قاسَ — قاسَ الفضاءَ الذي
+#      عالجَه ولم يقِسِ الفضاءَ الآخر. **فدعوى «سُدَّ» تلزمُها بذرةٌ لا نصّ**،
+#      وإلّا صارت الوثيقةُ تشهدُ لنفسِها.
+#
+#   وتقيسُ البذرةُ ثلاثةَ مواضعَ لأنّ الثلاثةَ مسالكُ مختلفةٌ في الشفرة:
+#   الحرفيّةُ `{"ك": ()}` · والإسنادُ المفهرسُ `خ["ب"] = ()` · والغيابُ.
+# (EN) A distinction DECLARED closed that was open — falsified by adversarial
+#      review. The SoT claimed the new kDynKindUnit tag restored the difference
+#      between a real unit value and an absent key; measured, maps still conflated
+#      them. There are TWO tag spaces — the runtime DynKind and the map value tag —
+#      and only the first had been fixed; a tag with no counterpart in the other is
+#      lost on read. The lesson about the CLAIM outweighs the one about the defect:
+#      the writer measured truthfully, but only the space he had touched.
+#      A claim of "closed" needs a seed, not a sentence.
+# ============================================================
+
+متغير أ = {"ك": ()}
+اطبع_سطر(نوع(أ["ك"]))
+
+متغير خ = {"أ": 1}
+خ["ب"] = ()
+اطبع_سطر(نوع(خ["ب"]))
+اطبع_سطر(نوع(خ["ج"]))

@@ -151,7 +151,7 @@ namespace Sad
         // Constructors / المُنشئات
         // ========================================
 
-        Value::Value() : sadType_(reg().getVoid()), type_(::Sad::Types::SadTypeKind::Void), data_(std::monostate{}) {}
+        Value::Value() : sadType_(reg().getVoid()), type_(::Sad::Types::SadTypeKind::Unit), data_(std::monostate{}) {}
 
         // (AR) عدم (Null) — قيمة متمايزة عن فراغ (Void) — S-TS-P1
         // (EN) Null — a value distinct from void — S-TS-P1
@@ -368,7 +368,7 @@ namespace Sad
                 }
             }
 
-            case ::Sad::Types::SadTypeKind::Void:
+            case ::Sad::Types::SadTypeKind::Unit:
                 throwInvalidType("toInt - cannot convert void to integer");
             }
             return 0;
@@ -399,7 +399,7 @@ namespace Sad
                 }
             }
 
-            case ::Sad::Types::SadTypeKind::Void:
+            case ::Sad::Types::SadTypeKind::Unit:
                 throwInvalidType("toInt64 - cannot convert void to integer");
             }
             return 0;
@@ -430,7 +430,7 @@ namespace Sad
                 }
             }
 
-            case ::Sad::Types::SadTypeKind::Void:
+            case ::Sad::Types::SadTypeKind::Unit:
                 throwInvalidType("toDouble - cannot convert void to double");
             }
             return 0.0;
@@ -608,9 +608,18 @@ namespace Sad
             // (AR) \u0639\u062f\u0645 (Null) \u064a\u0637\u0627\u0628\u0642 \u0641\u0631\u0627\u063a (Void) \u0646\u0635\u0651\u064a\u064b\u0651\u0627 \u00ab\u0644\u0627\u0634\u064a\u0621\u00bb \u0644\u064a\u062a\u0651\u0633\u0642 \u062f\u0645\u062c \u0627\u0644\u0646\u0635\u0651
             //      \u0645\u0639 \u0637\u0628\u0627\u0639\u0629 \u0627\u0644\u0642\u064a\u0645\u0629 \u0648\u0645\u0639 \u0627\u0644\u0645\u062a\u0631\u062c\u0645 \u2014 \u0643\u0627\u0646 Null \u0628\u0644\u0627 \u062d\u0627\u0644\u0629 \u064a\u0633\u0642\u0637 \u0625\u0644\u0649 \u00ab\u00bb
             //      \u0641\u064a\u0646\u062a\u062c \u062a\u0628\u0627\u0639\u064f\u062f 097 (\u0646\u0635 + \u0644\u0627\u0634\u064a\u0621 \u21d2 \u0641\u0631\u0627\u063a \u0628\u062f\u0644 \u00ab\u0644\u0627\u0634\u064a\u0621\u00bb).
-            case ::Sad::Types::SadTypeKind::Void:
+            // (AR) 🔑 و«خالي» يُعرَضُ «()» لا «لاشيء». كان جمعُهما صوابًا يومَ كان
+            //      «فراغ» و«عدم» شيئًا واحدًا (ISSUE-097)؛ وقد افترقا في هذه الحملةِ
+            //      وصارَ لكلٍّ عرضُه في مصدرِ الحقيقةِ نفسِه، والخلفيّةُ تطبعُ «()»
+            //      بينما بقيت هذه الطبقةُ تقولُ «لاشيء» — **طبقتانِ تتباعدانِ على
+            //      حقلٍ مُعلَن**، وهو عينُ الانجرافِ الذي قامت الحملةُ على سدِّه.
+            // (EN) Unit displays as «()», not «null». Merging them was right while the
+            //      two were one type; they split in this campaign and each has its own
+            //      display in the SoT, yet the backend printed «()» while this layer
+            //      still said «null» — two layers drifting on one declared field.
+            case ::Sad::Types::SadTypeKind::Unit:
+                return ::Sad::Types::repr::kUnitDisplay;
             case ::Sad::Types::SadTypeKind::Null:
-                // (AR) عرضٌ من مصدرِ الحقيقة الموحَّد (value_repr.yaml) — «لاشيء» لـNull وVoid معًا (ISSUE-097).
                 return ::Sad::Types::repr::kNullDisplay;
             }
             return "";
@@ -654,7 +663,7 @@ namespace Sad
                 // (EN) Function reference is always truthy (like Python — bool(func) = True)
                 return true;
 
-            case ::Sad::Types::SadTypeKind::Void:
+            case ::Sad::Types::SadTypeKind::Unit:
                 return false;
 
             // (AR) العدمُ كاذبٌ **بقرارٍ مُعلَنٍ** لا بسقوطٍ في احتياطِ الدالّة:
@@ -1297,7 +1306,7 @@ namespace Sad
             case ::Sad::Types::SadTypeKind::Boolean:
                 return Value(std::get<bool>(data_) == std::get<bool>(other.data_));
 
-            case ::Sad::Types::SadTypeKind::Void:
+            case ::Sad::Types::SadTypeKind::Unit:
                 return Value(true);
 
             // (AR) عدم == عدم ⇐ صحيح (قيمة وحيدة) — متمايزة عن فراغ لكن متساوية مع نفسها (S-TS-P1)
@@ -1586,7 +1595,7 @@ namespace Sad
         {
             switch (type_)
             {
-            case ::Sad::Types::SadTypeKind::Void:
+            case ::Sad::Types::SadTypeKind::Unit:
                 return "VOID";
             case Types::SadTypeKind::Null:
                 return "NULL";
@@ -1960,13 +1969,13 @@ namespace Sad
             // (EN) Update type_ cache from sadType_
             if (!sadType_)
             {
-                type_ = ::Sad::Types::SadTypeKind::Void;
+                type_ = ::Sad::Types::SadTypeKind::Unit;
                 return;
             }
             switch (sadType_->getKind())
             {
-            case SadTypeKind::Void:
-                type_ = ::Sad::Types::SadTypeKind::Void;
+            case SadTypeKind::Unit:
+                type_ = ::Sad::Types::SadTypeKind::Unit;
                 break;
             case SadTypeKind::Integer:
                 type_ = ::Sad::Types::SadTypeKind::Integer;
@@ -2012,7 +2021,7 @@ namespace Sad
                 type_ = ::Sad::Types::SadTypeKind::Class;
                 break;
             default:
-                type_ = ::Sad::Types::SadTypeKind::Void;
+                type_ = ::Sad::Types::SadTypeKind::Unit;
                 break;
             }
         }

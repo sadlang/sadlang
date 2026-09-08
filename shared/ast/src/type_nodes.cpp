@@ -67,7 +67,7 @@ bool SimpleTypeNode::isCompatibleWith(const TypeNode& other) const {
 std::string SimpleTypeNode::kindToString(Types::SadTypeKind type) {
     // تحويل Types::SadTypeKind إلى نص / Convert Types::SadTypeKind to string
     switch (type) {
-        case Types::SadTypeKind::Void:      return "فراغ";     // void/none
+        case Types::SadTypeKind::Unit:      return "خالي";     // void/none
         case Types::SadTypeKind::Integer:   return "رقم";      // number (int)
         case Types::SadTypeKind::Float:     return "عشري";     // decimal/float
         case Types::SadTypeKind::Boolean:   return "منطقي";    // boolean
@@ -90,8 +90,8 @@ Types::SadTypeKind SimpleTypeNode::stringToKind(const std::string& name) {
     // دعم العربية والإنجليزية / Support Arabic and English
     
     // العربية / Arabic
-    if (name == "فراغ" || name == "لاشيء" || name == "void" || name == "none")
-        return Types::SadTypeKind::Void;
+    if (name == "خالي" || name == "لاشيء" || name == "void" || name == "none")
+        return Types::SadTypeKind::Unit;
     if (name == "رقم" || name == "صحيح" || name == "integer" || name == "int") 
         return Types::SadTypeKind::Integer;
     if (name == "عشري" || name == "مضاعف" || name == "float" || name == "double") 

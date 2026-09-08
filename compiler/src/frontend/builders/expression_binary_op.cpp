@@ -1307,7 +1307,7 @@ namespace Sad
                     b_.currentBlock_ = bodyBlock;
 
                     // (AR) تحديد نوع العنصر من نوع عناصر المصفوفة أو من نوع المعامل الأيسر
-                    SadTypeKind inElemType = (rightResult.elementType != SadTypeKind::Void)
+                    SadTypeKind inElemType = (rightResult.elementType != SadTypeKind::Unknown)
                                                  ? rightResult.elementType
                                                  : leftResult.type;
 
@@ -1713,7 +1713,7 @@ namespace Sad
                     // (EN) scalar-taggable: mirrors the literal builder's `isBoxableScalar`
                     //      lambda (expression_collections.cpp:63) + benign empty (Void).
                     auto tagScalarOk = [](SadTypeKind t) {
-                        return t == SadTypeKind::Void || t == SadTypeKind::Integer ||
+                        return t == SadTypeKind::Unit || t == SadTypeKind::Integer ||
                                t == SadTypeKind::Float || t == SadTypeKind::String ||
                                t == SadTypeKind::Boolean || t == SadTypeKind::UInt8 ||
                                t == SadTypeKind::UInt64 || t == SadTypeKind::Null ||
@@ -1723,8 +1723,13 @@ namespace Sad
                     const SadTypeKind re = rightResult.elementType;
                     const bool lAny = (le == SadTypeKind::Any);
                     const bool rAny = (re == SadTypeKind::Any);
+                    // (AR) 🔑 وحارسُ «لا أعرفُ عنصرَها» صارَ `Unknown` (بنّاءُ
+                    //      `BuildResult` وحرفيُّ المصفوفةِ الفارغة)، وبقيَ الاختبارُ
+                    //      ههنا على `Unit` فصارَ `bothKnown` صادقًا دائمًا.
+                    // (EN) The "element unknown" sentinel moved to Unknown while this
+                    //      test still read Unit, so bothKnown was always true.
                     const bool bothKnown =
-                        (le != SadTypeKind::Void && re != SadTypeKind::Void);
+                        (le != SadTypeKind::Unknown && re != SadTypeKind::Unknown);
                     const bool heterogeneous = lAny || rAny || (bothKnown && le != re);
                     concatTagged =
                         heterogeneous && tagScalarOk(le) && tagScalarOk(re);
@@ -1847,7 +1852,7 @@ namespace Sad
                     }
                     else if (lAny != rAny)
                     {
-                        binResult.elementType = SadTypeKind::Void;
+                        binResult.elementType = SadTypeKind::Unknown;
                     }
                     else
                     {
@@ -1865,14 +1870,21 @@ namespace Sad
                         //      policy: don't claim Array/Map on a mixed result the nested
                         //      matcher would trust and deref a scalar as a pointer (latent
                         //      segfault). Homogeneous non-scalar (array+array) inherits truly.
-                        if (le == SadTypeKind::Void)
+                        // (AR) 🔑 والذراعُ «الفارغةُ ترثُ نوعَ الأخرى» كانت **لا
+                        //      تُنفَّذُ أبدًا** بعدَ انتقالِ الحارس: وصلُ مصفوفةٍ فارغةٍ
+                        //      بمصفوفةِ نصوصٍ يفقدُ نوعَ العنصرِ فتُطبَعُ العناوينُ
+                        //      أعدادًا.
+                        // (EN) The "empty side inherits the other" arm never fired after
+                        //      the sentinel moved: concatenating an empty array lost the
+                        //      element type.
+                        if (le == SadTypeKind::Unknown)
                             binResult.elementType = re;
-                        else if (re == SadTypeKind::Void)
+                        else if (re == SadTypeKind::Unknown)
                             binResult.elementType = le;
                         else if (le == re)
                             binResult.elementType = le;
                         else
-                            binResult.elementType = SadTypeKind::Void;
+                            binResult.elementType = SadTypeKind::Unknown;
                     }
                 }
                 return binResult;

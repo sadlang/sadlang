@@ -81,10 +81,8 @@ void testAddFields() {
         
         // (AR) إضافة حقل "الاسم"
         // (EN) Add "name" field
-        static Type stringType("string");
         bool added1 = personClass->addField(
             "الاسم",
-            &stringType,
             Visibility::PUBLIC,
             false,
             Value("غير معروف")
@@ -94,10 +92,8 @@ void testAddFields() {
         
         // (AR) إضافة حقل "العمر"
         // (EN) Add "age" field
-        static Type intType("int");
         bool added2 = personClass->addField(
             "العمر",
-            &intType,
             Visibility::PUBLIC,
             false,
             Value(0)
@@ -110,7 +106,6 @@ void testAddFields() {
         // (EN) Test duplicate field rejection
         bool added3 = personClass->addField(
             "الاسم",
-            &stringType,
             Visibility::PUBLIC,
             false,
             Value()
@@ -138,12 +133,10 @@ void testAddMethods() {
         
         // (AR) إنشاء دالة "عرف"
         // (EN) Create "introduce" method
-        static Type stringType("string");
         std::vector<Sad::AST::Parameter> params;
         std::unique_ptr<Sad::AST::BlockStmt> body = nullptr;
         
-        bool added = personClass->addMethod("عرف", Visibility::PUBLIC, 
-                                            &stringType, params, std::move(body),
+        bool added = personClass->addMethod("عرف", Visibility::PUBLIC, params, std::move(body),
                                             false, false);
         
         assert(added == true);
@@ -223,8 +216,7 @@ void testObjectCreation() {
         // (EN) Create and register "Car" class
         auto carClass = std::make_unique<ClassType>("سيارة");
         
-        static Type stringType("string");
-        carClass->addField("الموديل", &stringType, Visibility::PUBLIC, false, Value("غير معروف"));
+        carClass->addField("الموديل", Visibility::PUBLIC, false, Value("غير معروف"));
         
         classMgr->registerClass(std::move(carClass));
         
@@ -272,11 +264,9 @@ void testFieldAccess() {
         // (EN) Create class with fields
         auto bookClass = std::make_unique<ClassType>("كتاب");
         
-        static Type stringType("string");
-        static Type intType("int");
         
-        bookClass->addField("العنوان", &stringType, Visibility::PUBLIC, false, Value("بدون عنوان"));
-        bookClass->addField("الصفحات", &intType, Visibility::PUBLIC, false, Value(0));
+        bookClass->addField("العنوان", Visibility::PUBLIC, false, Value("بدون عنوان"));
+        bookClass->addField("الصفحات", Visibility::PUBLIC, false, Value(0));
         
         classMgr->registerClass(std::move(bookClass));
         
@@ -327,8 +317,7 @@ void testInheritance() {
         // (EN) Create base class "Creature"
         auto creatureClass = std::make_unique<ClassType>("مخلوق");
         
-        static Type stringType("string");
-        creatureClass->addField("الاسم", &stringType, Visibility::PUBLIC, false, Value());
+        creatureClass->addField("الاسم", Visibility::PUBLIC, false, Value());
         
         ClassType* creaturePtr = creatureClass.get();
         mgr->registerClass(std::move(creatureClass));
@@ -338,8 +327,7 @@ void testInheritance() {
         auto humanClass = std::make_unique<ClassType>("إنسان");
         humanClass->baseClass = creaturePtr;
         
-        static Type intType("int");
-        humanClass->addField("العمر", &intType, Visibility::PUBLIC, false, Value(0));
+        humanClass->addField("العمر", Visibility::PUBLIC, false, Value(0));
         
         mgr->registerClass(std::move(humanClass));
         

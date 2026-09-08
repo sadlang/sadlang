@@ -1628,29 +1628,14 @@ namespace Sad
             Types::SadTypeKind resolveTypeWordName(const std::string &name,
                                                   bool primitivesOnly = false);
 
-            /**
-             * @brief (AR) يرفض «فراغ» في موضعِ **نوعِ خانةٍ تُخزَّن** — متغيّرًا أو معامِلًا.
-             *        (EN) Rejects «فراغ» where a *stored slot* type is expected.
-             *
-             * (AR) مصدرُ الحقيقةِ يعرّف «فراغ» بأنّه «ما لم يُرجَع أصلًا»، فهو نوعُ
-             *      إرجاعٍ لا نوعُ قيمة. وقبولُه خانةً لم يكن تسامحًا بل انهيارًا:
-             *      `متغير فراغ س = لاشيء` كان يُسقِط المترجّم
-             *      («Cannot create a null constant of that type! UNREACHABLE») لأنّ
-             *      Void يُنزَل إلى `void` في LLVM ولا ثابتَ صفريَّ له، بينما يقبله
-             *      المفسّرُ ويحذّر تحذيرًا كاذبًا ⇒ تباعُدُ محرّكَين وانهيارٌ معًا.
-             *      🔑 والرفضُ يقع في **المحلّلِ المشترك** لا في خلفيّةٍ بعينها، فيتّفق
-             *      المحرّكان بالبناءِ لا بالمصادفة — ولذلك لم يُرقَّع موضعُ الانهيار
-             *      في `classes_vtables_ops.cpp`: ترقيعُه يُسكِت الأثرَ ويُبقي القبول.
-             * (EN) The rejection lives in the shared parser, so both engines agree by
-             *      construction; patching the LLVM crash site would silence the symptom
-             *      and keep the acceptance.
-             *
-             * @param kind (AR) النوعُ المُحلَّل (EN) the parsed kind
-             * @param name (AR) اسمُ الخانة إن عُرف بعد (EN) slot name if already known
-             * @return (AR) النوعُ نفسُه، أو Unknown تعافيًا إن كان فراغًا
-             */
-            Types::SadTypeKind rejectVoidAsSlotType(Types::SadTypeKind kind,
-                                                    const std::string &name = {});
+            // (AR) 🔑 حُذفت هنا `rejectVoidAsSlotType` (2026-09-07) مع النوعِ الذي كانت
+            //      تحرسُه. كانت ترفضُ «فراغ» خانةً بـSEM040 لأنّ types.yaml يصفُه
+            //      «لا قيمة»؛ وقد حُذف «فراغ» من اللغةِ وحلَّ محلَّه «خالي» — نوعُ
+            //      الوحدة، وهو **نوعُ قيمةٍ كاملٌ تحملُه الخانة** كما في رست.
+            //      فالحارسُ لم يُخفَّفْ بل زالَ موضوعُه، وحُذف SEM040 وSEM045 معه.
+            // (EN) rejectVoidAsSlotType was deleted (2026-09-07) together with the type
+            //      it policed: «فراغ» (void) is gone and «خالي» (unit) IS a value a slot
+            //      can hold. The guard lost its subject; SEM040/SEM045 went with it.
 
             /**
              * @brief (AR) هل الرمزُ الحاليُّ صفةَ «عدمي/عدمية» لاحقةً للنوع؟ (لا يستهلك)

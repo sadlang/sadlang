@@ -244,7 +244,7 @@ Data::Value TypeFunctions::type(const std::vector<Data::Value>& args) {
     } else if (typeName == "ARRAY") {
         return Data::Value("array");    // يمكن أن يكون "مصفوفة" أيضاً
     } else if (typeName == "VOID") {
-        return Data::Value("void");     // يمكن أن يكون "فراغ" أيضاً
+        return Data::Value("void");     // يمكن أن يكون "خالي" أيضاً
     } else if (typeName == "MAP") {
         return Data::Value("map");      // يمكن أن يكون "خريطة" أيضاً
     } else if (typeName == "OBJECT") {

@@ -441,7 +441,7 @@ namespace Sad
                         "cmp.str.eq");
                 }
 
-                case Types::SadTypeKind::Void:
+                case Types::SadTypeKind::Unit:
                 {
                     // (AR) مقارنة مع null
                     // (EN) Null comparison

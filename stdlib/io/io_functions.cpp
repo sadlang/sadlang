@@ -27,7 +27,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
-// Windows.h defines VOID macro which conflicts with ::Sad::Types::SadTypeKind::Void
+// Windows.h defines VOID macro which conflicts with ::Sad::Types::SadTypeKind::Unit
 #ifdef VOID
 #undef VOID
 #endif
@@ -289,7 +289,7 @@ namespace Sad
                 switch (value.getKind())
                 {
                 case VT::Null: // S-TS-P1
-                case VT::Void:
+                case VT::Unit:
                     return "\u0644\u0627\u0634\u064a\u0621"; // لاشيء
 
                 case VT::Integer:

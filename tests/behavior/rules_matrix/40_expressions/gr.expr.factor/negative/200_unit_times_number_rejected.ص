@@ -1,0 +1,18 @@
+# @rule: gr.expr.factor
+# @description: ضربُ وحدةٍ في رقمٍ ⇒ يُرَدُّ بـSEM054
+# @priority: P0
+# @expect_compile_error: SEM054
+# @expect_error: SEM054
+
+# ============================================================
+# (AR) توأمُ بذرةِ الجمعِ، وغرضُه أن يُقاسَ الطرفُ **المختلط**: وحدةٌ مع
+#      رقم. فالحكمُ لا يقعُ إلّا حين يكونُ الطرفانِ مصنَّفَينِ كلاهما،
+#      فلو صُنِّفَ «خالي» ولم يُصنَّفْ نظيرُه لمرَّ. والمقيسُ قبلَ السدّ:
+#      `() * 5` يُترجَمُ ويطبعُ `()` — أي أنّ الرقمَ **يُبتلَع** بلا أثر.
+# (EN) Twin of the addition seed, measuring the MIXED pair: a verdict requires
+#      both operands classified. Measured before the fix: `() * 5` compiled and
+#      printed `()` — the number was swallowed without trace.
+# ============================================================
+
+خالي أ = ()
+اطبع_سطر(نص(أ * 5))

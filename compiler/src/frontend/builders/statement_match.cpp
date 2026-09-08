@@ -417,16 +417,25 @@ namespace Sad
                             //      Integer، فالمقارنة النازلة `ن == "س"` ترى النوع الصحيح
                             //      (نصّ ⇒ STRING_CMP محتوًى لا مقارنة بتّات مؤشّر). نظير المسار
                             //      أ′ للحمولة وعامل `في` القائم. مصفوفة مختلطة/مجهولة
-                            //      (elementType=Void) ⇒ تراجُع Integer آمن (لا انحدار؛
+                            //      (elementType=Unknown) ⇒ تراجُع Integer آمن (لا انحدار؛
                             //      المختلطة عضو عائلة «لا وسوم نوع تشغيليّة» ISSUE-070/080).
                             // (EN) [ISSUE-082, list-element path] Pass the statically-tracked
                             //      array element type instead of hardcoding Integer, so the
                             //      downstream comparison sees the real type (string ⇒ content
                             //      STRING_CMP, not pointer-bit compare). Mirrors the payload a′
                             //      path and the existing `في` operator. Mixed/unknown array
-                            //      (elementType=Void) ⇒ safe Integer fallback (no regression).
+                            //      (elementType=Unknown) ⇒ safe Integer fallback (no regression).
+                            // (AR) ⚠️ والحارسُ `Unknown` لا `Unit` (2026-09-08): كانَ
+                            //      يُقارَنُ بـ`Unit` — حارسَ «فراغ» القديمَ بعدَ
+                            //      إعادةِ تسميتِه — ومُورِدُهُ (`matchResult.elementType`
+                            //      في السطر 119) صارَ يُعطي `Unknown`، فلم يكنِ
+                            //      التراجُعُ إلى Integer يقعُ أبدًا — والتعليقُ فوقَهُ
+                            //      يزعمُ أنّهُ يقع.
+                            // (EN) The sentinel is Unknown, not Unit: its producer (line 119)
+                            //      now yields Unknown, so the documented Integer fallback had
+                            //      stopped firing while the comment above still claimed it did.
                             SadTypeKind elemType =
-                                (matchValueElementType != SadTypeKind::Void)
+                                (matchValueElementType != SadTypeKind::Unknown)
                                     ? matchValueElementType
                                     : SadTypeKind::Integer;
                             getInst.result = SIROperand::Register(elemReg, elemType);

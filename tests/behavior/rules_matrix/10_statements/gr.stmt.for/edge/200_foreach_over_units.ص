@@ -1,0 +1,39 @@
+# @rule: gr.stmt.for
+# @description: المرورُ على مصفوفةِ وحداتٍ — يُنهي ويقرأُ النوعَ صادقًا
+# @priority: P0
+# @timeout: 10
+# @expected خالي\nخالي\nتمّ
+
+# ============================================================
+# (AR) 🔑 هذه البذرةُ تحرسُ **ألّا يعلَقَ البرنامج** — وهو عطبٌ أحدثتْه رقعةٌ
+#      صحيحةٌ في نيّتِها ووقعَ في أثنائها (2026-09-07).
+#
+#      قناةُ `elementType` كانت تستعملُ نوعَ الوحدةِ حارسًا لـ«لا أعرفُ نوعَ
+#      العنصر» في ٢٨ موضعًا. فبُدِّلَ الحارسُ إلى `Unknown` — وهو الصوابُ —
+#      فصارَ عنصرُ الوحدةِ يُعرَفُ حقًّا، فخُصِّصت **خانةُ متغيّرِ الحلقةِ
+#      بنوعِ الوحدة** (حاملُ `i8`) بينما آلةُ الحلقةِ تعملُ على عرضٍ واحد
+#      ⇒ **دورانٌ إلى ما لا نهاية**.
+#
+#   ⚠️ **والعطبُ الصامتُ الدائرُ أسوأُ من الانهيارِ في القياسِ خاصّة**:
+#      الانهيارُ يُعطي رمزَ خروجٍ يراه العدّاء، والدورانُ يبدو «بطئًا»؛
+#      ولولا مهلةٌ في المسبارِ لقُرِئَ «يعمل». ولذلك تحملُ البذرةُ `@timeout`
+#      و«تمّ» في آخرِها: **البرهانُ أنّ الحلقةَ انتهت**، لا أنّ نوعَها صحّ.
+#
+#   🔑 والعلاجُ فصلُ **خانةِ التخزين** عن **النوعِ المُعلَن**: الوحدةُ لا
+#      تحملُ معلومةً فتُخزَّنُ في خانةٍ عاديّة، ويبقى `نوع(ع)` «خالي».
+# (EN) This seed guards that the program TERMINATES — a defect introduced by a
+#      correct patch while it was being applied. The elementType channel used the
+#      unit kind as its "element type unknown" sentinel in 28 places; flipping it
+#      to Unknown was right, and it made unit elements genuinely known — so the
+#      loop variable's SLOT was allocated as a unit (an i8 carrier) while the loop
+#      machinery runs at one width ⇒ an infinite spin. A silent spin is worse than
+#      a crash to MEASURE: a crash yields an exit code the runner sees, a spin just
+#      looks slow. Hence @timeout and the trailing «تمّ»: the proof is that the
+#      loop ended, not that its type was right.
+# ============================================================
+
+متغير م = [()، ()]
+لكل ع في م
+    اطبع_سطر(نوع(ع))
+نهاية
+اطبع_سطر("تمّ")

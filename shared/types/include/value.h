@@ -300,7 +300,7 @@ namespace Sad
             // (AR) عدم (Null) نوع متمايز تمامًا عن فراغ (Void) — S-TS-P1.
             // (EN) Null is a fully distinct kind from Void — S-TS-P1.
             bool isNull() const { return type_ == Types::SadTypeKind::Null; }
-            bool isVoid() const { return type_ == ::Sad::Types::SadTypeKind::Void; }
+            bool isVoid() const { return type_ == ::Sad::Types::SadTypeKind::Unit; }
             bool isInteger() const { return type_ == ::Sad::Types::SadTypeKind::Integer; }
             bool isDouble() const { return type_ == ::Sad::Types::SadTypeKind::Float; }
             bool isString() const { return type_ == ::Sad::Types::SadTypeKind::String; }

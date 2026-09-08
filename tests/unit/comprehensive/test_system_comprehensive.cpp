@@ -27,12 +27,12 @@ int main() {
 
     SAD_TEST("platform returns Value", {
         auto result = SystemFunctions::platform();
-        SAD_ASSERT_TRUE(result.getType() != ::Sad::Types::SadTypeKind::Void);
+        SAD_ASSERT_TRUE(result.getType() != ::Sad::Types::SadTypeKind::Unit);
     });
 
     SAD_TEST("osName returns Value", {
         auto result = SystemFunctions::osName();
-        SAD_ASSERT_TRUE(result.getType() != ::Sad::Types::SadTypeKind::Void);
+        SAD_ASSERT_TRUE(result.getType() != ::Sad::Types::SadTypeKind::Unit);
     });
 
     // ================================================================

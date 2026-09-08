@@ -209,7 +209,7 @@ ANY_WORD_RE = re.compile(
 )
 
 # (AR) ونظيرُها على طرفِ النوع: KIND_RE مقيَّدةٌ بـ`resolved =`/`return` فلا ترى
-#      مدخلَ قاموسٍ `{"عدم"، SadTypeKind::Void}` ولا إسنادًا إلى حقلٍ. وفي وضعِ
+#      مدخلَ قاموسٍ `{"عدم"، SadTypeKind::Unit}` ولا إسنادًا إلى حقلٍ. وفي وضعِ
 #      «صفرِ الجداول» القيدُ ضررٌ محض: أيُّ ذكرٍ لنوعٍ بجوارِ لفظٍ هو الربطُ المُحرَّم.
 # (EN) The kind side, unanchored: a map entry binds a word to a kind just as an
 #      assignment does, and where zero tables are declared any binding is the violation.

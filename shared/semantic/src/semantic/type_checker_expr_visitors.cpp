@@ -14,9 +14,7 @@
 #include "semantic/type_checker.h"
 #include "token.h"
 #include "class_nodes.h"
-#include "types/composite_type_classes.h"
-#include "types/enum_types.h"
-#include "types/struct_types.h"
+
 #include "sad_type_utils.h" // (AR) kindToArabic لرسالة حارس SEM045 / (EN) Arabic kind name for the SEM045 guard
 
 #include <iostream>
@@ -28,14 +26,14 @@ namespace Sad
     namespace Semantic
     {
 
-        using namespace TypeSystem;
+        using namespace Sad::Types;
         using TT = Lexer::TokenType;
 
         void TypeChecker::visitIndexExpr(AST::IndexExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr objType = inferExprType(expr.object.get());
-            TypePtr idxType = inferExprType(expr.index.get());
+            Sad::Types::SadTypePtr objType = inferExprType(expr.object.get());
+            Sad::Types::SadTypePtr idxType = inferExprType(expr.index.get());
 
             if (objType && objType->isArray())
             {
@@ -48,27 +46,26 @@ namespace Sad
                 // (AR) استرجاع نوع العنصر من نوع المصفوفة / (EN) Retrieve element type from array type
                 if (objType->getKind() == SadTypeKind::Array)
                 {
-                    auto *arrType = static_cast<ArrayType *>(objType.get());
-                    TypePtr elemType = arrType->getElementType();
-                    lastInferredType_ = elemType ? elemType : registry_.getUnknownType();
+                    auto *arrType = static_cast<const Sad::Types::SadArrayType *>(objType.get());
+                    Sad::Types::SadTypePtr elemType = arrType->getElementType();
+                    lastInferredType_ = elemType ? elemType : registry_.getUnknown();
                     return;
                 }
             }
             // (AR) إذا كان كائن به عملية فهرسة / (EN) Object with subscript operation
             if (objType && (objType->getKind() == SadTypeKind::Map || objType->isString()))
             {
-                lastInferredType_ = objType->isString() ? registry_.getStringType() : registry_.getAnyType();
+                lastInferredType_ = objType->isString() ? registry_.getString() : registry_.getAny();
                 return;
             }
-            lastInferredType_ = registry_.getUnknownType();
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitMemberExpr(AST::MemberExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr objType = inferExprType(expr.object.get());
+            Sad::Types::SadTypePtr objType = inferExprType(expr.object.get());
 
-            // (AR) البحث عن نوع العضو من StructRegistry / (EN) Look up member type from StructRegistry
             if (objType && (objType->getKind() == SadTypeKind::Class))
             {
                 std::string className;
@@ -76,37 +73,31 @@ namespace Sad
                 {
                     className = newExpr->className;
                 }
-                if (!className.empty())
-                {
-                    auto structType = StructRegistry::instance().findStruct(className);
-                    if (structType)
-                    {
-                        auto field = structType->findField(expr.member);
-                        if (field)
-                        {
-                            lastInferredType_ = field->getType() ? field->getType() : registry_.getUnknownType();
-                            return;
-                        }
-                    }
-                }
+            //      السجلَّ **لا يملؤه أحدٌ في المستودعِ كلِّه**: `registerStruct`
+            //      لا مُنادِيَ له إلّا `StructBuilder::build()` — وهو نفسُه بلا
+            //      مُنادٍ. أمرُ القياس (⇒ لا شيءَ خارجَ الملفِّ الميّت):
+            //        grep -rn "registerStruct" shared compiler apps tools tests
+            //      فكان الحارسُ **كاذبًا أبدًا** والكتلةُ داخلَه لا تُنفَّذُ قطُّ.
+            //      فحُذِفَت هي والسجلُّ معًا — الميّتُ يُحذَفُ ولا يُنقَل.
+            //      guard on it was permanently false and its body dead code.
             }
             // (AR) للنصوص: خصائص مثل الطول / (EN) For strings: properties like length
             if (objType && objType->isString())
             {
                 if (expr.member == "الطول" || expr.member == "length")
                 {
-                    lastInferredType_ = registry_.getIntegerType();
+                    lastInferredType_ = registry_.getInteger();
                     return;
                 }
             }
-            lastInferredType_ = registry_.getUnknownType();
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitMemberAssignExpr(AST::MemberAssignExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr objType = inferExprType(expr.object.get());
-            TypePtr valType = inferExprType(expr.value.get());
+            Sad::Types::SadTypePtr objType = inferExprType(expr.object.get());
+            Sad::Types::SadTypePtr valType = inferExprType(expr.value.get());
 
             // ════════════════════════════════════════════════════════════════
             // (AR) SEM045 (عقد الغياب — حقول الأصناف): «فراغ» ناتجُ نداءٍ لا يعبر
@@ -123,7 +114,7 @@ namespace Sad
             //      interpreter's runtime guard (declared limit). A bare field is a
             //      dynamic slot and accepts Void — never rejected.
             // ════════════════════════════════════════════════════════════════
-            if (valType && valType->getKind() == SadTypeKind::Void &&
+            if (valType && valType->getKind() == SadTypeKind::Unit &&
                 dynamic_cast<AST::CallExpr *>(expr.value.get()) != nullptr)
             {
                 std::string voidClassName;
@@ -148,7 +139,7 @@ namespace Sad
                         if (fieldIt != classIt->second.end() &&
                             fieldIt->second != SadTypeKind::Unknown &&
                             fieldIt->second != SadTypeKind::Any &&
-                            fieldIt->second != SadTypeKind::Void &&
+                            fieldIt->second != SadTypeKind::Unit &&
                             fieldIt->second != SadTypeKind::Null)
                         {
                             recordTypeError(expr.member,
@@ -169,35 +160,115 @@ namespace Sad
                 {
                     className = newExpr->className;
                 }
-                if (!className.empty())
-                {
-                    auto structType = StructRegistry::instance().findStruct(className);
-                    if (structType)
-                    {
-                        auto field = structType->findField(expr.member);
-                        if (field && field->getType() && valType && !valType->isUnknown())
-                        {
-                            TypePtr fieldType = field->getType();
-                            if (!fieldType->isUnknown() && !areTypesCompatible(fieldType, valType))
-                            {
-                                recordTypeError(expr.member, fieldType->toString(), valType->toString(), &expr,
-                                                "Member assignment type mismatch");
-                            }
-                        }
-                    }
-                }
+            //      السجلَّ **لا يملؤه أحدٌ في المستودعِ كلِّه**: `registerStruct`
+            //      لا مُنادِيَ له إلّا `StructBuilder::build()` — وهو نفسُه بلا
+            //      مُنادٍ. أمرُ القياس (⇒ لا شيءَ خارجَ الملفِّ الميّت):
+            //        grep -rn "registerStruct" shared compiler apps tools tests
+            //      فكان الحارسُ **كاذبًا أبدًا** والكتلةُ داخلَه لا تُنفَّذُ قطُّ.
+            //      فحُذِفَت هي والسجلُّ معًا — الميّتُ يُحذَفُ ولا يُنقَل.
+            //      guard on it was permanently false and its body dead code.
             }
             lastInferredType_ = valType;
+        }
+
+        // ====================================================================
+        // (AR) الصفُّ الفارغُ ‎()‎ ⇒ قيمةُ الوحدة «خالي»
+        // ====================================================================
+        //
+        // (AR) 🔑 وهذا الزائرُ لم يكن موجودًا أصلًا: الفاحصُ يرِثُ زائرًا فارغًا
+        //      من `ASTVisitor`، فيبقى `lastInferredType_` صفرًا، فيتراجعُ
+        //      `inferExprType` إلى `expr->getTypeKind()` ويُرجِعُ `Unknown`.
+        //      و`areTypesCompatible` تُرجِعُ **صادقًا** لكلِّ `Unknown` عمدًا
+        //      («لم يُحدَّد بعد») — فكانَ `()` يوافقُ كلَّ نوعٍ في اللغة.
+        //
+        //      والأثرُ مقيسٌ (2026-09-07) ولم يكن انهيارًا بل **اختلاقَ قيمة**:
+        //        `رقم س = ()`  ⇒ يُقبَل ويطبعُ **0**
+        //        `نص س = ()`   ⇒ يُقبَل ويطبعُ **«لاشيء»**
+        //        `إذا (س)`     ⇒ يُقبَل ويُقرَأُ كاذبًا
+        //      أي أنّ خانةً مكتوبةَ النوعِ تحملُ ما ليس من نوعِها، ثمّ تُقرَأُ
+        //      قيمةً معقولةَ المظهرِ لا أثرَ فيها للخطأ. ⚠️ وهو أخطرُ من الرفضِ
+        //      الكاذبِ ومن الانهيارِ معًا: كلاهما يُرى، وهذا لا يُرى.
+        //
+        //      🔑 والذراعُ **للفارغِ وحدَه**. والصفُّ المملوءُ يبقى بلا استنتاجٍ
+        //      كما كان: عقدُه مشروعٌ مستقلٌّ (مقيسٌ أنّ «رقم س = (1، 2)» يطبعُ
+        //      عنوانًا في الذاكرة)، وإصلاحُه ههنا رقعةٌ أوسعُ من علّتِها — وقد
+        //      كسرَتْ رقعةٌ كهذه المولِّدَ في هذا الملفِّ عينِه قبلَ يومَين.
+        // (EN) This visitor did not exist: the checker inherited an empty one, so
+        //      lastInferredType_ stayed null, inferExprType fell back to Unknown,
+        //      and areTypesCompatible returns true for Unknown by design — so `()`
+        //      matched EVERY type. Measured: «رقم س = ()» was accepted and printed
+        //      0; «نص س = ()» printed «لاشيء». Not a crash but a FABRICATED VALUE,
+        //      which is worse than either a false rejection or a crash: both are
+        //      visible. The arm covers the EMPTY tuple only — a filled tuple's
+        //      contract is a separate project, deliberately untouched.
+        void TypeChecker::visitTupleExpr(AST::TupleExpr &expr)
+        {
+            currentResult_.totalExpressions++;
+
+            if (expr.elements.empty())
+            {
+                lastInferredType_ = registry_.getVoid();
+                return;
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 والصفُّ المملوءُ **يُصنَّفُ صفًّا** — وكان يُترَكُ بلا استنتاج
+            //      (2026-09-07، الرقعةُ الأولى) بحجّةِ أنّ عقدَ الصفوفِ مشروعٌ
+            //      مستقلٌّ لا يُدَسُّ في رقعةِ نوعِ الوحدة. **والحجّةُ كانت أوسعَ
+            //      من موضعِها**: تركُه بلا استنتاجٍ لا يعني «لا عقدَ له» بل
+            //      «يوافقُ **كلَّ** نوع» — إذ `Unknown` مقبولٌ مع كلِّ شيءٍ عمدًا.
+            //      فبقيَ `خالي س = (1، 2)` مقبولًا يطبعُ `()` — أي أنّ صفًّا من
+            //      عنصرَين **يتبخّرُ** في خانةِ وحدة.
+            //
+            //      🔑 وصنفُ الصفِّ وحدَه يكفي لهذا الحكم: `Unit` ليس `Tuple`
+            //      فيُرَدُّ الإسناد. أمّا أنواعُ **عناصرِه** فتبقى غيرَ مُواصَفةٍ
+            //      كما كانت — فالبذرةُ ههنا حكمُ صنفٍ لا حكمُ بنية، ولا دعوى
+            //      بأنّ عقدَ الصفوفِ اكتمل.
+            //
+            //      ⚠️ وكسبٌ لم يكن مقصودًا وقِيسَ: `رقم س = (1، 2)` كان يُقبَلُ
+            //      ويطبعُ **عنوانًا في الذاكرة** (مقيس: 2465587550624) — أي
+            //      تسريبَ مؤشّرٍ في خانةٍ رقميّة. وهو من صنفِ «اختلاقِ القيمة»
+            //      نفسِه، وأشدُّ منه: القيمةُ ليست صفرًا معقولًا بل عنوانًا.
+            // (EN) A filled tuple is classified as Tuple. The first patch left it
+            //      uninferred, arguing the tuple contract is a separate project —
+            //      but "uninferred" does not mean "unjudged", it means "matches
+            //      EVERY type", since Unknown is deliberately compatible with all.
+            //      So `خالي س = (1، 2)` stayed accepted and printed `()`: a
+            //      two-element tuple evaporating into a unit slot. Only the KIND is
+            //      claimed here; element types stay unspecified as before.
+            //      Unintended, measured gain: `رقم س = (1، 2)` used to be accepted
+            //      and print a HEAP ADDRESS — a pointer leaking into a numeric slot.
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 وعناصرُ الصفِّ **تُحمَل** لا تُلقى: كان يُردُّ
+            //      `TupleType(TypeList{})` — صنفٌ صحيحٌ بعناصرَ فارغةٍ مهما كان
+            //      عددُها، فيقرأُ كلُّ مستهلكٍ صفرَ عناصر. ولا مستهلكَ اليومَ في
+            //      هذه الطبقة، فهو **فخُّ فهرسٍ لأوّلِ مَن يُكتَب** — والأنواعُ
+            //      مستنتَجةٌ أصلًا في الحلقةِ نفسِها، فحملُها لا يكلّفُ مرورًا ثانيًا.
+            // (EN) The tuple's element types are CARRIED, not discarded: it returned
+            //      TupleType(TypeList{}) — a correct kind with empty elements however
+            //      many there are — so every consumer reads zero. There is none today,
+            //      making it an index trap for the first one written; the types are
+            //      already inferred in this very loop.
+            std::vector<Sad::Types::SadTypePtr> tupleElements;
+            tupleElements.reserve(expr.elements.size());
+            for (auto &elem : expr.elements)
+            {
+                auto elemType = inferExprType(elem.get());
+                tupleElements.push_back(elemType ? elemType
+                                                 : sadKindToTypePtr(Types::SadTypeKind::Unknown));
+            }
+
+            lastInferredType_ = registry_.makeTuple(tupleElements);
         }
 
         void TypeChecker::visitArrayExpr(AST::ArrayExpr &expr)
         {
             currentResult_.totalExpressions++;
 
-            TypePtr elementType = nullptr;
+            Sad::Types::SadTypePtr elementType = nullptr;
             for (auto &elem : expr.elements)
             {
-                TypePtr et = inferExprType(elem.get());
+                Sad::Types::SadTypePtr et = inferExprType(elem.get());
                 if (!elementType)
                 {
                     elementType = et;
@@ -217,40 +288,49 @@ namespace Sad
             // (EN) Create actual ArrayType with element type
             if (elementType)
             {
-                lastInferredType_ = std::make_shared<ArrayType>(
-                    elementType,
-                    expr.elements.empty() ? std::nullopt : std::optional<size_t>(expr.elements.size()));
+                // (AR) 🔑 وكان يُمرَّرُ ههنا **حجمٌ ثابتٌ** ثانيًا
+                //      (`std::optional<size_t>`) يحملُه `ArrayType` في الهرمِ
+                //      الثاني. وقِيسَ أنّ قارئَه `getFixedSize()` **بلا مُنادٍ
+                //      واحدٍ في المستودعِ كلِّه**:
+                //        grep -rn "getFixedSize" shared compiler tools apps ⇒ صفر
+                //      فكان الحجمُ يُكتَبُ ولا يُقرَأ — حقلٌ لا عقدَ له.
+                //      وهرمُ الأنواعِ الواحدُ لا يحملُه، فسقوطُه **مقيسُ الأثر**
+                //      لا مسكوتٌ عنه. ⚠️ وهذا فرقُ تمثيلٍ يُبلَّغُ به المالك.
+                // (EN) A fixed-size argument used to ride along here; its only
+                //      reader, getFixedSize(), has zero callers tree-wide, so the
+                //      value was written and never read. Reported, not decided.
+                lastInferredType_ = registry_.makeArray(elementType);
             }
             else
             {
-                lastInferredType_ = std::make_shared<ArrayType>(registry_.getAnyType());
+                lastInferredType_ = registry_.makeArray(registry_.getAny());
             }
         }
 
         void TypeChecker::visitMapExpr(AST::MapExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr keyType = nullptr;
-            TypePtr valType = nullptr;
+            Sad::Types::SadTypePtr keyType = nullptr;
+            Sad::Types::SadTypePtr valType = nullptr;
             for (auto &pair : expr.pairs)
             {
-                TypePtr kt = inferExprType(pair.key.get());
-                TypePtr vt = inferExprType(pair.value.get());
+                Sad::Types::SadTypePtr kt = inferExprType(pair.key.get());
+                Sad::Types::SadTypePtr vt = inferExprType(pair.value.get());
                 if (!keyType)
                     keyType = kt;
                 if (!valType)
                     valType = vt;
             }
             // (AR) إنشاء نوع القاموس مع نوع المفتاح والقيمة
-            lastInferredType_ = std::make_shared<DictionaryType>(
-                keyType ? keyType : registry_.getAnyType(),
-                valType ? valType : registry_.getAnyType());
+            lastInferredType_ = registry_.makeMap(
+                keyType ? keyType : registry_.getAny(),
+                valType ? valType : registry_.getAny());
         }
 
         void TypeChecker::visitWalrusExpr(AST::WalrusExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr valType = inferExprType(expr.value.get());
+            Sad::Types::SadTypePtr valType = inferExprType(expr.value.get());
             declareVariable(expr.variable, valType);
             lastInferredType_ = valType;
         }
@@ -262,22 +342,22 @@ namespace Sad
             enterScope();
 
             // Register parameters and collect param types
-            TypeList paramTypes;
+            std::vector<Sad::Types::SadTypePtr> paramTypes;
             for (auto &param : expr.parameters)
             {
-                TypePtr paramType = dataTypeToTypePtr(param.type);
+                Sad::Types::SadTypePtr paramType = sadKindToTypePtr(param.type);
                 declareVariable(param.name, paramType);
                 paramTypes.push_back(paramType);
             }
 
             // Infer body type
-            TypePtr bodyType = inferExprType(expr.body.get());
+            Sad::Types::SadTypePtr bodyType = inferExprType(expr.body.get());
 
             exitScope();
 
             // (AR) إنشاء نوع الدالة مع المعاملات ونوع الإرجاع
-            lastInferredType_ = std::make_shared<FunctionType>(
-                std::move(paramTypes), bodyType ? bodyType : registry_.getVoidType());
+            lastInferredType_ = registry_.makeFunction(
+                std::move(paramTypes), bodyType ? bodyType : registry_.getVoid());
         }
 
         void TypeChecker::visitListComprehensionExpr(AST::ListComprehensionExpr &expr)
@@ -285,15 +365,15 @@ namespace Sad
             currentResult_.totalExpressions++;
 
             enterScope();
-            TypePtr iterType = inferExprType(expr.iterable.get());
-            declareVariable(expr.variable, registry_.getUnknownType());
-            TypePtr elemType = inferExprType(expr.element.get());
+            Sad::Types::SadTypePtr iterType = inferExprType(expr.iterable.get());
+            declareVariable(expr.variable, registry_.getUnknown());
+            Sad::Types::SadTypePtr elemType = inferExprType(expr.element.get());
             if (expr.condition)
                 inferExprType(expr.condition.get());
             exitScope();
 
             // (AR) نوع المصفوفة الناتجة من الاستيعاب
-            lastInferredType_ = std::make_shared<ArrayType>(elemType ? elemType : registry_.getAnyType());
+            lastInferredType_ = registry_.makeArray(elemType ? elemType : registry_.getAny());
         }
 
         void TypeChecker::visitDictComprehensionExpr(AST::DictComprehensionExpr &expr)
@@ -302,17 +382,17 @@ namespace Sad
 
             enterScope();
             inferExprType(expr.iterable.get());
-            declareVariable(expr.variable, registry_.getUnknownType());
-            TypePtr keyType = inferExprType(expr.key.get());
-            TypePtr valType = inferExprType(expr.value.get());
+            declareVariable(expr.variable, registry_.getUnknown());
+            Sad::Types::SadTypePtr keyType = inferExprType(expr.key.get());
+            Sad::Types::SadTypePtr valType = inferExprType(expr.value.get());
             if (expr.condition)
                 inferExprType(expr.condition.get());
             exitScope();
 
             // (AR) نوع القاموس الناتج من الاستيعاب
-            lastInferredType_ = std::make_shared<DictionaryType>(
-                keyType ? keyType : registry_.getAnyType(),
-                valType ? valType : registry_.getAnyType());
+            lastInferredType_ = registry_.makeMap(
+                keyType ? keyType : registry_.getAny(),
+                valType ? valType : registry_.getAny());
         }
 
         void TypeChecker::visitSetComprehensionExpr(AST::SetComprehensionExpr &expr)
@@ -321,14 +401,14 @@ namespace Sad
 
             enterScope();
             inferExprType(expr.iterable.get());
-            declareVariable(expr.variable, registry_.getUnknownType());
-            TypePtr setElemType = inferExprType(expr.expression.get());
+            declareVariable(expr.variable, registry_.getUnknown());
+            Sad::Types::SadTypePtr setElemType = inferExprType(expr.expression.get());
             if (expr.condition)
                 inferExprType(expr.condition.get());
             exitScope();
 
             // (AR) نوع المجموعة الناتجة من الاستيعاب
-            lastInferredType_ = std::make_shared<ArrayType>(setElemType ? setElemType : registry_.getAnyType());
+            lastInferredType_ = registry_.makeArray(setElemType ? setElemType : registry_.getAny());
         }
 
         void TypeChecker::visitGeneratorExpr(AST::GeneratorExpr &expr)
@@ -337,13 +417,13 @@ namespace Sad
 
             enterScope();
             inferExprType(expr.iterable.get());
-            declareVariable(expr.variable, registry_.getUnknownType());
+            declareVariable(expr.variable, registry_.getUnknown());
             inferExprType(expr.element.get());
             if (expr.condition)
                 inferExprType(expr.condition.get());
             exitScope();
 
-            lastInferredType_ = registry_.getAnyType();
+            lastInferredType_ = registry_.getAny();
         }
 
         void TypeChecker::visitDecoratorExpr(AST::DecoratorExpr &expr)
@@ -354,7 +434,7 @@ namespace Sad
                 if (arg)
                     inferExprType(arg.get());
             }
-            lastInferredType_ = registry_.getUnknownType();
+            lastInferredType_ = registry_.getUnknown();
         }
 
         // ============================================================================
@@ -369,26 +449,21 @@ namespace Sad
                 if (arg)
                     inferExprType(arg.get());
             }
-            // (AR) البحث عن نوع الصنف في StructRegistry
-            auto structType = StructRegistry::instance().findStruct(expr.className);
-            if (structType)
-            {
-                // (AR) الصنف موجود — إرجاع نوع Class
-                lastInferredType_ = registry_.internPrimitiveType(SadTypeKind::Class);
-            }
-            else
-            {
-                // (AR) صنف غير معروف — تحذير
-                lastInferredType_ = registry_.getUnknownType();
-            }
+            //      السجلَّ **لا يملؤه أحدٌ في المستودعِ كلِّه**: `registerStruct`
+            //      لا مُنادِيَ له إلّا `StructBuilder::build()` — وهو نفسُه بلا
+            //      مُنادٍ. أمرُ القياس (⇒ لا شيءَ خارجَ الملفِّ الميّت):
+            //        grep -rn "registerStruct" shared compiler apps tools tests
+            //      فكان الحارسُ **كاذبًا أبدًا** والكتلةُ داخلَه لا تُنفَّذُ قطُّ.
+            //      فحُذِفَت هي والسجلُّ معًا — الميّتُ يُحذَفُ ولا يُنقَل.
+            //      guard on it was permanently false and its body dead code.
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitMemberAccessExpr(AST::MemberAccessExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr objType = inferExprType(expr.object.get());
+            Sad::Types::SadTypePtr objType = inferExprType(expr.object.get());
 
-            // (AR) البحث عن نوع الحقل من StructRegistry / (EN) Look up field type from StructRegistry
             if (objType && (objType->getKind() == SadTypeKind::Class))
             {
                 // (AR) محاولة تحديد اسم الصنف / (EN) Try to identify class name
@@ -402,36 +477,30 @@ namespace Sad
                     (void)thisExpr;
                     className = currentFunction_;
                 }
-                if (!className.empty())
-                {
-                    auto structType = StructRegistry::instance().findStruct(className);
-                    if (structType)
-                    {
-                        auto field = structType->findField(expr.memberName);
-                        if (field && field->getType())
-                        {
-                            lastInferredType_ = field->getType();
-                            return;
-                        }
-                    }
-                }
+            //      السجلَّ **لا يملؤه أحدٌ في المستودعِ كلِّه**: `registerStruct`
+            //      لا مُنادِيَ له إلّا `StructBuilder::build()` — وهو نفسُه بلا
+            //      مُنادٍ. أمرُ القياس (⇒ لا شيءَ خارجَ الملفِّ الميّت):
+            //        grep -rn "registerStruct" shared compiler apps tools tests
+            //      فكان الحارسُ **كاذبًا أبدًا** والكتلةُ داخلَه لا تُنفَّذُ قطُّ.
+            //      فحُذِفَت هي والسجلُّ معًا — الميّتُ يُحذَفُ ولا يُنقَل.
+            //      guard on it was permanently false and its body dead code.
             }
             // (AR) خصائص النص / (EN) String properties
             if (objType && objType->isString())
             {
                 if (expr.memberName == "الطول" || expr.memberName == "length")
                 {
-                    lastInferredType_ = registry_.getIntegerType();
+                    lastInferredType_ = registry_.getInteger();
                     return;
                 }
             }
-            lastInferredType_ = registry_.getUnknownType();
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitMethodCallExpr(AST::MethodCallExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr objType = inferExprType(expr.object.get());
+            Sad::Types::SadTypePtr objType = inferExprType(expr.object.get());
             for (auto &arg : expr.arguments)
             {
                 if (arg)
@@ -444,14 +513,14 @@ namespace Sad
                 const std::string &method = expr.methodName;
                 if (method == "الطول" || method == "length")
                 {
-                    lastInferredType_ = registry_.getIntegerType();
+                    lastInferredType_ = registry_.getInteger();
                     return;
                 }
                 if (method == "يحتوي" || method == "contains" ||
                     method == "يبدأ_بـ" || method == "startsWith" ||
                     method == "ينتهي_بـ" || method == "endsWith")
                 {
-                    lastInferredType_ = registry_.getBooleanType();
+                    lastInferredType_ = registry_.getBoolean();
                     return;
                 }
                 if (method == "قطع" || method == "slice" ||
@@ -459,7 +528,7 @@ namespace Sad
                     method == "حروف_كبيرة" || method == "toUpperCase" ||
                     method == "حروف_صغيرة" || method == "toLowerCase")
                 {
-                    lastInferredType_ = registry_.getStringType();
+                    lastInferredType_ = registry_.getString();
                     return;
                 }
             }
@@ -469,52 +538,50 @@ namespace Sad
                 const std::string &method = expr.methodName;
                 if (method == "الطول" || method == "length" || method == "حجم" || method == "size")
                 {
-                    lastInferredType_ = registry_.getIntegerType();
+                    lastInferredType_ = registry_.getInteger();
                     return;
                 }
                 if (method == "أضف" || method == "push" || method == "ادفع")
                 {
-                    lastInferredType_ = registry_.getVoidType();
+                    lastInferredType_ = registry_.getVoid();
                     return;
                 }
             }
-            lastInferredType_ = registry_.getUnknownType();
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitThisExpr(AST::ThisExpr &expr)
         {
             currentResult_.totalExpressions++;
             // (AR) البحث عن نوع الصنف الحالي
-            if (!currentFunction_.empty())
-            {
-                auto classType = StructRegistry::instance().findStruct(currentFunction_);
-                if (classType)
-                {
-                    lastInferredType_ = registry_.internPrimitiveType(SadTypeKind::Class);
-                    return;
-                }
-            }
-            lastInferredType_ = registry_.getUnknownType();
+            //      السجلَّ **لا يملؤه أحدٌ في المستودعِ كلِّه**: `registerStruct`
+            //      لا مُنادِيَ له إلّا `StructBuilder::build()` — وهو نفسُه بلا
+            //      مُنادٍ. أمرُ القياس (⇒ لا شيءَ خارجَ الملفِّ الميّت):
+            //        grep -rn "registerStruct" shared compiler apps tools tests
+            //      فكان الحارسُ **كاذبًا أبدًا** والكتلةُ داخلَه لا تُنفَّذُ قطُّ.
+            //      فحُذِفَت هي والسجلُّ معًا — الميّتُ يُحذَفُ ولا يُنقَل.
+            //      guard on it was permanently false and its body dead code.
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitSuperExpr(AST::SuperExpr &expr)
         {
             currentResult_.totalExpressions++;
             // (AR) super يشير للصنف الأب — يعتمد على السياق
-            lastInferredType_ = registry_.getUnknownType();
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitBorrowExpr(AST::BorrowExpr &expr)
         {
             currentResult_.totalExpressions++;
             auto type = lookupVariable(expr.variableName);
-            lastInferredType_ = type ? type : registry_.getUnknownType();
+            lastInferredType_ = type ? type : registry_.getUnknown();
         }
 
         void TypeChecker::visitInlineAsmExpr(AST::InlineAsmExpr &expr)
         {
             currentResult_.totalExpressions++;
-            lastInferredType_ = registry_.getUnknownType();
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitRangeExpr(AST::RangeExpr &expr)
@@ -526,7 +593,7 @@ namespace Sad
                 inferExprType(expr.start.get());
             if (expr.end)
                 inferExprType(expr.end.get());
-            lastInferredType_ = registry_.getUnknownType();
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitOptionalChainExpr(AST::OptionalChainExpr &expr)
@@ -536,29 +603,23 @@ namespace Sad
             currentResult_.totalExpressions++;
             if (expr.object)
             {
-                TypePtr objType = inferExprType(expr.object.get());
+                Sad::Types::SadTypePtr objType = inferExprType(expr.object.get());
                 // (AR) البحث عن نوع العضو إذا كان الكائن بنية/صنف
                 // (EN) Look up member type if object is a struct/class
                 if (objType && objType->getKind() == SadTypeKind::Class)
                 {
-                    if (auto *newExpr = dynamic_cast<AST::NewExpr *>(expr.object.get()))
-                    {
-                        auto structType = StructRegistry::instance().findStruct(newExpr->className);
-                        if (structType)
-                        {
-                            auto field = structType->findField(expr.member);
-                            if (field && field->getType())
-                            {
-                                lastInferredType_ = field->getType();
-                                return;
-                            }
-                        }
-                    }
+            //      السجلَّ **لا يملؤه أحدٌ في المستودعِ كلِّه**: `registerStruct`
+            //      لا مُنادِيَ له إلّا `StructBuilder::build()` — وهو نفسُه بلا
+            //      مُنادٍ. أمرُ القياس (⇒ لا شيءَ خارجَ الملفِّ الميّت):
+            //        grep -rn "registerStruct" shared compiler apps tools tests
+            //      فكان الحارسُ **كاذبًا أبدًا** والكتلةُ داخلَه لا تُنفَّذُ قطُّ.
+            //      فحُذِفَت هي والسجلُّ معًا — الميّتُ يُحذَفُ ولا يُنقَل.
+            //      guard on it was permanently false and its body dead code.
                 }
             }
             // (AR) لا نعرف النوع — يمكن أن يكون لاشيء
             // (EN) Unknown type — could be null
-            lastInferredType_ = registry_.getUnknownType();
+            lastInferredType_ = registry_.getUnknown();
         }
 
         void TypeChecker::visitNullCoalesceExpr(AST::NullCoalesceExpr &expr)
@@ -566,8 +627,8 @@ namespace Sad
             // (AR) تجميع فارغ ?? — نوع النتيجة هو نوع الأيمن (البديل)
             // (EN) Null coalescing ?? — result type is the right (fallback) type
             currentResult_.totalExpressions++;
-            TypePtr leftType = nullptr;
-            TypePtr rightType = nullptr;
+            Sad::Types::SadTypePtr leftType = nullptr;
+            Sad::Types::SadTypePtr rightType = nullptr;
 
             if (expr.left)
             {
@@ -590,7 +651,7 @@ namespace Sad
             }
             else
             {
-                lastInferredType_ = registry_.getUnknownType();
+                lastInferredType_ = registry_.getUnknown();
             }
         }
 
@@ -650,14 +711,13 @@ namespace Sad
             }
             else
             {
-                lastInferredType_ = registry_.getUnknownType();
+                lastInferredType_ = registry_.getUnknown();
             }
         }
 
         // ============================================================================
         // زيارة العبارات / Visit Statements
         // ============================================================================
-
 
     } // namespace Semantic
 } // namespace Sad

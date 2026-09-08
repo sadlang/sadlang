@@ -249,8 +249,17 @@ namespace Sad
                             }
                         }
                     }
-                    else if (valueResult.type == SadTypeKind::Void)
+                    else if (valueResult.isAbsentValue())
                     {
+                        // (AR) 🔑 الشرطُ **سجلٌّ معدوم** لا «النوعُ خالي» — نظيرُ مسارِ
+                        //      التصريحِ أدناه، وبالعلّةِ نفسِها: «()» قيمةٌ لها سجلٌّ
+                        //      حقيقيّ، وإلقاؤها ووضعُ حارسِ الغيابِ مكانَها يجعلُ
+                        //      «س = ()» يكتبُ غيرَ ما أُمِر. وإصلاحُ التصريحِ وحدَه
+                        //      كان يترك نصفَ العطبِ حيًّا في الإسناد.
+                        // (EN) Condition on «no register», not on the type — mirror of the
+                        //      declaration path and the same defect: «()» has a real
+                        //      register, and discarding it for the absence sentinel makes
+                        //      «س = ()» write something other than what was asked.
                         // (AR) SEM045 (دَين الخانة المجرَّدة): إسنادُ ناتجِ دالّةٍ بلا قيمةٍ —
                         //      سجلُّ الفراغِ لا يقابله شيءٌ في LLVM، فيُخزَّن ثابتُ الفراغِ
                         //      وتُوسَم الخانةُ الديناميّةُ Void (نظيرُ مسارِ التصريح).
@@ -311,24 +320,17 @@ namespace Sad
                     //      Without this: varInfo->type stays Integer, print outputs pointer address
                     //      as number instead of string content.
                     // ================================================================
-                    if (valueResult.type != SadTypeKind::Void &&
-                        valueResult.type != SadTypeKind::Unknown &&
+                    // (AR) 🔑 و`Unit` **ليس** مستثنًى (2026-09-07): كان يُستثنى حين
+                    //      كان «فراغ» يعني **غيابَ نوع**، فيُساقُ إلى `Any` في الذراعِ
+                    //      التي تحتَه. واليومَ «خالي» نوعُ قيمةٍ كاملٌ كسائرِ الأنواع،
+                    //      والحارسُ الوحيدُ لـ«لا أعرف» هو `Unknown`.
+                    // (EN) Unit is no longer excluded: it used to mean "absence of a
+                    //      type" and was routed to Any below. `Unknown` is now the sole
+                    //      "don't know" sentinel.
+                    if (valueResult.type != SadTypeKind::Unknown &&
                         valueResult.type != varInfo->type)
                     {
                         varInfo->type = valueResult.type;
-                    }
-                    // (AR) SEM045 (دَين الخانة المجرَّدة): إسنادُ فراغٍ يجعل الخانةَ ديناميّةً —
-                    //      بلا هذا يبقى النوعُ السابقُ (رقمًا مثلًا) فتقرأ الطباعةُ حمولةَ
-                    //      الفراغِ صفرًا كاذبًا بدل «لاشيء» (مقيس). الشرطُ أعلاه يستثني
-                    //      Void عمدًا لعلّةِ elementType، فالتحويلُ إلى Any هنا لا هناك.
-                    // (EN) SEM045 (bare-slot debt): a Void assignment makes the slot dynamic —
-                    //      otherwise the stale type (e.g. Integer) makes print read the Void
-                    //      payload as a lying 0 instead of «لاشيء» (measured). The condition
-                    //      above excludes Void for elementType reasons; the Any switch lives here.
-                    else if (valueResult.type == SadTypeKind::Void &&
-                             varInfo->type != SadTypeKind::Any)
-                    {
-                        varInfo->type = SadTypeKind::Any;
                     }
 
                     // (AR) حدّث وسم «مرجع دالّة مولّدة» عند إعادة الإسناد (بلا شرط، ليُصفَّر
@@ -365,7 +367,7 @@ namespace Sad
                     //      unknown — mirrors the declaration path (buildLocalVariable). The
                     //      interpreter is dynamic and always agrees; this restores binary parity.
                     // ================================================================
-                    if (valueResult.elementType != SadTypeKind::Void &&
+                    if (valueResult.elementType != SadTypeKind::Unknown &&
                         valueResult.elementType != varInfo->elementType)
                     {
                         varInfo->elementType = valueResult.elementType;
@@ -634,7 +636,9 @@ namespace Sad
                 //      dynamic; it is defaulted to VOID below.
                 // ════════════════════════════════════════════════════════════════
                 varType = b_.resolveBareSlotStorageKind(
-                    varDecl->type, varDecl->initializer != nullptr, varType);
+                    varDecl->type, varDecl->initializer != nullptr, varType,
+                    SIRBuilder::initializerYieldsValueSyntactically(varDecl->initializer.get(),
+                                                                    varType));
 
                 // (AR) إنشاء معلومات المتغير (sir_builder.h:139 - VariableInfo)
                 // (EN) Create variable info
@@ -692,8 +696,14 @@ namespace Sad
                         // (EN) SEM045 (bare-slot debt): inference goes through the storage
                         //      authority — a Void initializer (value-less call) ⇒ a dynamic
                         //      Any slot, never a Void slot (measured ISSUE-138 contract).
+                        // (AR) الوسيطُ الرابع يفصلُ «قيمةَ وحدةٍ لها سجلّ» عن «نداءٍ
+                        //      لا يُنتِجُ قيمةً» — والنوعُ وحدَه لا يفصلُهما.
+                        // (EN) The fourth argument separates a unit VALUE (has a register)
+                        //      from a value-less call; the type alone cannot.
                         varType = b_.resolveBareSlotStorageKind(
-                            varDecl->type, /*hasInitializer=*/true, initResult.type);
+                            varDecl->type, /*hasInitializer=*/true, initResult.type,
+                            /*initializerYieldsValue=*/!initResult.registerName.empty() ||
+                                initResult.isConstant);
                         varInfo.type = varType;
 
                         // ================================================================
@@ -770,7 +780,7 @@ namespace Sad
 
                     // (AR) نقل نوع عنصر المصفوفة إلى VariableInfo لدعم foreach
                     // (EN) Propagate array element type to VariableInfo for foreach support
-                    if (initResult.elementType != SadTypeKind::Void)
+                    if (initResult.elementType != SadTypeKind::Unknown)
                     {
                         varInfo.elementType = initResult.elementType;
                     }
@@ -1025,17 +1035,29 @@ namespace Sad
                             break;
                         }
                     }
-                    else if (initResult.type == SadTypeKind::Void)
+                    else if (initResult.isAbsentValue())
                     {
-                        // (AR) SEM045 (دَين الخانة المجرَّدة): نداءٌ بلا قيمةٍ لا يملك سجلًّا
-                        //      يُقرأ — سجلُّه لا يقابله شيءٌ في LLVM. النداءُ نفسُه صدر أعلاه
-                        //      (أثرُه الجانبيُّ باقٍ)، والمخزونُ ثابتُ الفراغِ فتُوسَم الخانةُ
-                        //      الديناميّةُ Void — فتطبع «لاشيء» و«نوع()» فراغًا كالمفسّر.
-                        // (EN) SEM045 (bare-slot debt): a value-less call has no readable
-                        //      result register in LLVM. The call itself was emitted above
-                        //      (side effect preserved); store the Void constant so the
-                        //      dynamic slot is tagged Void — printing «لاشيء» and نوع()
-                        //      «فراغ», matching the interpreter.
+                        // (AR) 🔑 الشرطُ **سجلٌّ معدومٌ** لا «النوعُ خالي» — والفرقُ جوهريّ.
+                        //      نداءٌ لا يُنتِجُ قيمةً لا يملكُ سجلًّا يُقرَأ، فتُوسَمُ الخانةُ
+                        //      الديناميّةُ بحارسِ الغيابِ ويبقى الأثرُ الجانبيُّ للنداء.
+                        //      أمّا «()» فقيمةٌ **لها سجلٌّ حقيقيّ**، فتُخزَّنُ كسائرِ القيم.
+                        //      ⚠️ وكان الشرطُ على النوعِ وحدَه: صحيحًا يومَ كان «فراغ» يعني
+                        //      «لا قيمة»، وخطأً صامتًا يومَ صارَ «خالي» قيمةً — فكان
+                        //      «متغير ف = ()» يُلقي القيمةَ ويضعُ مكانَها حارسَ الغياب،
+                        //      فيُرفَض «طول(ف)» زمنيًّا بـRUN033 «النوع NULL غير مدعوم»
+                        //      بينما «خالي ف = ()» يعملُ (مقيسٌ 2026-09-07 على
+                        //      `073_tuples.ص`). أي أنّ **التصريحَ المُنمَّطَ يعملُ والمستنبَطَ
+                        //      يكذب** — وهو أخطرُ من عطبٍ يعمُّ الاثنَين، إذ يبدو نصفُه سليمًا.
+                        // (EN) The condition is «no register», NOT «type is unit». A call
+                        //      that yields no value has no readable register, so the dynamic
+                        //      slot is tagged with the absence sentinel and the call's side
+                        //      effect stands. But «()» IS a value with a real register and is
+                        //      stored like any other. Testing the TYPE alone was right while
+                        //      «فراغ» meant "no value" and became a silent bug once «خالي»
+                        //      became a value: the initializer was discarded and replaced by
+                        //      the absence sentinel, so طول(ف) was rejected with RUN033 while
+                        //      the explicitly-typed form worked. The typed path told the
+                        //      truth and the inferred path lied — worse than failing in both.
                         storeInst.operands.push_back(SIROperand::ConstantVoid());
                     }
                     else
@@ -1265,7 +1287,7 @@ namespace Sad
                         // (EN) A bare `أي` slot is VOID — not zero, not null. It used to
                         //      fall through with no store at all, so نوع() answered three
                         //      different things depending on position, none of them «فراغ».
-                        case Sad::Types::SadDefaultInit::Void:
+                        case Sad::Types::SadDefaultInit::Missing:
                             defaultValue = SIROperand::ConstantVoid();
                             break;
                         // ════════════════════════════════════════════════════
@@ -1293,14 +1315,23 @@ namespace Sad
                         //      النوع (مصفوفةٌ وخريطةٌ اليوم) ⇒ لا تخزين، كما كان.
                         // (EN) Undeclared: the SoT decides no default (array/map today).
                         case Sad::Types::SadDefaultInit::Unspecified:
-                        // (AR) لا خانةَ تحمله — مرفوضٌ في المحلّلِ المشترك
-                        //      (SEM040) قبلَ بلوغِ البناء. ذراعٌ دفاعيّةٌ مُعلَنة،
-                        //      ولا تُدمَج مع Unspecified: تلك دَينٌ وهذه استحالة.
-                        // (EN) No slot can hold it — rejected in the shared parser
-                        //      before building. Declared defensive arm; kept apart
-                        //      from Unspecified, which is a debt rather than an
-                        //      impossibility.
-                        case Sad::Types::SadDefaultInit::NotASlot:
+                        // (AR) 🔑 «خالي» — نوعُ الوحدة. قيمتُه الوحيدةُ «()» **لا تحمل
+                        //      معلومةً**، وخانتُه في LLVM حاملٌ `i8` لا يقرؤه أحد؛
+                        //      فتخزينُ الافتراضيِّ وتركُه غيرَ مخزَّنٍ لا يفترقان في
+                        //      أيِّ قراءةٍ ممكنة، و`نوع()` يُجيب «خالي» من النوعِ
+                        //      المصرَّحِ لا من محتوى الخانة (مقيسٌ: `خالي س` وحدَها
+                        //      تطبعُ «خالي»). فالذراعُ بلا تخزينٍ **عمدًا**.
+                        //      ⚠️ وكان التعليقُ ههنا يقول «لا خانةَ تحمله — مرفوضٌ
+                        //      بـSEM040»: نصٌّ يصفُ قاعدةً مقلوبةً ورمزًا محذوفًا،
+                        //      وهو أخطرُ من غيابِ التعليق لأنّه يوجّهُ الإصلاحَ عكسَ
+                        //      وجهتِه.
+                        // (EN) Unit: its sole value carries no information and its LLVM
+                        //      slot is an unread `i8` carrier, so storing the default and
+                        //      not storing it are indistinguishable to every possible
+                        //      read; نوع() answers from the declared type (measured).
+                        //      Deliberately no store. The previous comment here described
+                        //      the INVERTED rule and a deleted code (SEM040).
+                        case Sad::Types::SadDefaultInit::UnitValue:
                             break;
                         }
                     }

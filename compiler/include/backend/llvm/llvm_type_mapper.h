@@ -44,55 +44,6 @@ namespace Sad
     {
 
         // ============================================================================
-        // تعريف نوع Sad المبسط / Simplified Sad Type Definition
-        // ============================================================================
-
-        /**
-         * فئة Type تمثل نوع البيانات في لغة Sad
-         * Type class represents a data type in Sad language
-         *
-         * ملاحظة: هذه نسخة مبسطة، النسخة الكاملة في typed_ast.h
-         * Note: This is a simplified version, full version is in typed_ast.h
-         */
-        class Type
-        {
-        public:
-            // منشئ افتراضي / Default constructor
-            Type() = default;
-
-            // مدمر افتراضي / Default destructor
-            virtual ~Type() = default;
-
-            // استعلامات النوع / Type queries
-            virtual bool isVoid() const { return false; }     // نوع فارغ / Void type
-            virtual bool isInteger() const { return false; }  // عدد صحيح / Integer
-            virtual bool isFloat() const { return false; }    // عدد عشري / Float
-            virtual bool isBoolean() const { return false; }  // منطقي / Boolean
-            virtual bool isString() const { return false; }   // نص / String
-            virtual bool isPointer() const { return false; }  // مؤشر / Pointer
-            virtual bool isArray() const { return false; }    // مصفوفة / Array
-            virtual bool isFunction() const { return false; } // دالة / Function
-            virtual bool isClass() const { return false; }    // صنف / Class
-
-            // حجم البتات للأعداد الصحيحة / Bit width for integers
-            virtual int getBitWidth() const { return 64; } // افتراضي 64-bit / Default 64-bit
-
-            // نوع float أم double / float or double type
-            virtual bool isFloat32() const { return false; } // float (32-bit)
-            virtual bool isFloat64() const { return true; }  // double (64-bit) - default
-
-            // للمؤشرات: نوع البيانات المشار إليه / For pointers: pointee type
-            virtual std::shared_ptr<Type> getPointeeType() const { return nullptr; }
-
-            // للمصفوفات: نوع العنصر والحجم / For arrays: element type and size
-            virtual std::shared_ptr<Type> getElementType() const { return nullptr; }
-            virtual size_t getArraySize() const { return 0; }
-
-            // تحويل إلى نص / Convert to string
-            virtual std::string toString() const { return "Type"; }
-        };
-
-        // ============================================================================
         // فئة محول الأنواع / Type Mapper Class
         // ============================================================================
 
@@ -144,28 +95,6 @@ namespace Sad
             // تحويل أنواع Sad / Sad Type Conversion
             // ========================================================================
 
-            /**
-             * تحويل نوع Sad إلى نوع LLVM
-             * Convert Sad type to LLVM type
-             *
-             * @param sadType نوع Sad المطلوب تحويله / Sad type to convert
-             * @return نوع LLVM المقابل / Corresponding LLVM type
-             */
-            llvm::Type *mapSadType(std::shared_ptr<Type> sadType);
-
-            /**
-             * تحويل نوع دالة Sad إلى نوع دالة LLVM
-             * Convert Sad function type to LLVM function type
-             *
-             * @param returnType نوع الرجوع / Return type
-             * @param paramTypes أنواع المعاملات / Parameter types
-             * @param isVarArg هل الدالة تقبل عدد متغير من المعاملات؟ / Is function variadic?
-             * @return نوع دالة LLVM / LLVM function type
-             */
-            llvm::FunctionType *mapFunctionType(
-                std::shared_ptr<Type> returnType,
-                const std::vector<std::shared_ptr<Type>> &paramTypes,
-                bool isVarArg = false);
 
             // ========================================================================
             // تحويل أنواع SIR / SIR Type Conversion
@@ -352,20 +281,6 @@ namespace Sad
             // دوال مساعدة خاصة / Private Helper Functions
             // ========================================================================
 
-            /**
-             * تحويل نوع مصفوفة Sad / Convert Sad array type
-             */
-            llvm::Type *mapArrayType(std::shared_ptr<Type> sadType);
-
-            /**
-             * تحويل نوع مؤشر Sad / Convert Sad pointer type
-             */
-            llvm::Type *mapPointerType(std::shared_ptr<Type> sadType);
-
-            /**
-             * تحويل نوع صنف Sad / Convert Sad class type
-             */
-            llvm::Type *mapClassType(std::shared_ptr<Type> sadType);
 
             /**
              * الحصول على نوع من التخزين المؤقت / Get type from cache

@@ -55,6 +55,12 @@ namespace Sad
                 return kind == SadTypeKind::String;
             }
 
+            /// (AR) صنف «unit» — من operand_classes في مصدر الحقيقة.
+            inline constexpr bool inClass_unit(SadTypeKind kind)
+            {
+                return kind == SadTypeKind::Unit;
+            }
+
             /// (AR) أَلِهذا النوعِ صنفٌ مُعلَن؟ وما لا صنفَ له لا يُحكَمُ عليه.
             /// (EN) Is this kind classified at all? Unclassified kinds are never judged.
             inline constexpr bool isClassified(SadTypeKind kind)
@@ -63,7 +69,8 @@ namespace Sad
                        || inClass_mapping(kind)
                        || inClass_numeric(kind)
                        || inClass_sequence(kind)
-                       || inClass_textual(kind);
+                       || inClass_textual(kind)
+                       || inClass_unit(kind);
             }
 
             /// (AR) أللعاملِ نطاقٌ مُعلَنٌ في مصدرِ الحقيقة؟ فما لا نطاقَ له لا حارسَ له.

@@ -51,8 +51,14 @@ namespace Sad
                 /// (EN) A type the compiler cannot resolve statically.
                 inline bool isUndecidedAtCompileTime(SadTypeKind kind)
                 {
-                    return kind == SadTypeKind::Any || kind == SadTypeKind::Unknown ||
-                           kind == SadTypeKind::Void;
+                    // (AR) 🔑 و«خالي» **محسومٌ تمامًا** بعدَ هذه الحملة: نوعُ قيمةٍ
+                    //      واحدةٍ معلومةٍ سكونيًّا. وكان مذكورًا ههنا يومَ كان «فراغ»
+                    //      يعني «لا أعرف»، و`Unknown` مذكورٌ سلفًا لذلك المعنى —
+                    //      فبقاؤه يسوقُ قيمةً معلومةً إلى مسارِ وقتِ التشغيل.
+                    // (EN) Unit is fully decided after this campaign — a single
+                    //      statically known value. It was listed here when Void meant
+                    //      "don't know", a meaning Unknown already covers.
+                    return kind == SadTypeKind::Any || kind == SadTypeKind::Unknown;
                 }
 
                 // ══════════════════════════════════════════════════════════════

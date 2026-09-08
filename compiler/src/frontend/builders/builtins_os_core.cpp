@@ -89,13 +89,13 @@ namespace Sad
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_3)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_3, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_WRITE_MSR);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_4)
                 {
@@ -112,23 +112,23 @@ namespace Sad
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_5)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_5, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_WRITE_CR);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::KernelCpu::CPU_7)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_7, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_INVLPG);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_6)
                 {
@@ -162,24 +162,24 @@ namespace Sad
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_7)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_7, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_8)
                 {
                     // (AR) وسيط اختياريّ: مؤشّر واصف الجدول (limit+base). في الوضع
                     //      الحرّ يلزم لإصدار lgdt؛ المستضاف يتجاهله (sad_ll_gdt_load).
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_8, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_LOAD);
                     if (!argResults.empty())
                         inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 // (AR) [RFC 0059] حمل_سجل_المهمة (ltr): منتقي واصفِ TSS إلزاميّ —
                 //      نظيرُ lgdt/lidt لكن معاملُه منتقٍ 16-بتّيّ لا مؤشّرُ واصف.
@@ -189,7 +189,7 @@ namespace Sad
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_21)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_21, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     // (AR) بوّابةُ الوضع: `ltr` تعليمةُ حلقةٍ صفريّةٍ تُصدرها الخلفيّةُ
                     //      أسمبليًّا خامًّا بلا ذراعٍ مستضافةٍ (خلافَ lgdt/lidt اللتين
                     //      تنادِيان رمزَ وقتِ تشغيلٍ مستضافًا). فإصدارُها في وحدةِ
@@ -208,13 +208,13 @@ namespace Sad
                         b_.errors_.push_back(
                             Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
                                 Sad::Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT, ltrCtx));
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     }
                     SIRInstruction inst(SIROpcode::LOWLEVEL_TASK_REGISTER_LOAD);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_9)
                 {
@@ -232,17 +232,17 @@ namespace Sad
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_10)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_10, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_11)
                 {
                     // (AR) الوسيط الثالث (الأعلام) اختياريٌّ معلَن ⇒ المدى [2, 3].
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_11, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_MAP);
                     inst.operands.push_back(argOperands[0]); // virtual address
                     inst.operands.push_back(argOperands[1]); // physical address
@@ -250,26 +250,26 @@ namespace Sad
                         inst.operands.push_back(argOperands[2]); // flags
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_12)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_12, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_UNMAP);
                     inst.operands.push_back(argOperands[0]); // virtual address
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_13)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_13, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_FLUSH_TLB);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_14)
                 {
@@ -287,45 +287,45 @@ namespace Sad
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_15)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_15, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_16)
                 {
                     // (AR) وسيط اختياريّ: مؤشّر واصف الجدول (limit+base). في الوضع
                     //      الحرّ يلزم لإصدار lidt؛ المستضاف يتجاهله (sad_ll_idt_load).
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_16, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_LOAD);
                     if (!argResults.empty())
                         inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_17)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_17, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_REGISTER_ISR);
                     inst.operands.push_back(argOperands[0]); // ISR number
                     inst.operands.push_back(argOperands[1]); // handler function ptr
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_18)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_18, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_ENABLE_IRQ);
                     inst.operands.push_back(argOperands[0]); // IRQ number
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_19)
                 {

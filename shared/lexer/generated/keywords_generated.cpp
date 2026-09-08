@@ -110,7 +110,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "عشري", TokenType::TYPE_DOUBLE, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "double" },
         { "نص", TokenType::TYPE_STRING, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "string" },
         { "منطقي", TokenType::TYPE_BOOLEAN, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "boolean" },
-        { "فراغ", TokenType::TYPE_VOID, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "void" },
+        { "خالي", TokenType::TYPE_UNIT, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "unit" },
         { "عدم", TokenType::TYPE_NULL, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "null" },
         { "مصفوفة", TokenType::TYPE_ARRAY, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "array" },
         { "خريطة", TokenType::TYPE_MAP, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "map" },

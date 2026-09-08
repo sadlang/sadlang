@@ -241,8 +241,8 @@ namespace Sad
                     std::string superResultReg = b_.newTempRegister();
                     SIRInstruction callInst;
                     callInst.opcode = SIROpcode::CALL;
-                    callInst.result = SIROperand::Register(superResultReg, SadTypeKind::Void);
-                    callInst.operands.push_back(SIROperand::Register(parentCtorName, SadTypeKind::Void));
+                    callInst.result = SIROperand::Register(superResultReg, SadTypeKind::Unit);
+                    callInst.operands.push_back(SIROperand::Register(parentCtorName, SadTypeKind::Unit));
                     for (auto &op : superArgs)
                     {
                         callInst.operands.push_back(op);
@@ -250,7 +250,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->addInstruction(callInst);
 
-                    return BuildResult(superResultReg, SadTypeKind::Void);
+                    return BuildResult(superResultReg, SadTypeKind::Unit);
                 }
 
                 // (AR) لا يوجد صنف أب — نتجاهل ونُرجع نتيجة فارغة

@@ -34,7 +34,7 @@ int main() {
                 token.getType() != TokenType::TYPE_DOUBLE &&
                 token.getType() != TokenType::TYPE_STRING &&
                 token.getType() != TokenType::TYPE_BOOLEAN &&
-                token.getType() != TokenType::TYPE_VOID &&
+                token.getType() != TokenType::TYPE_UNIT &&
                 token.getType() != TokenType::END_OF_FILE) {
                 allTypesFound = false;
                 break;
@@ -65,7 +65,7 @@ int main() {
                 token.getType() != TokenType::TYPE_DOUBLE &&
                 token.getType() != TokenType::TYPE_STRING &&
                 token.getType() != TokenType::TYPE_BOOLEAN &&
-                token.getType() != TokenType::TYPE_VOID &&
+                token.getType() != TokenType::TYPE_UNIT &&
                 token.getType() != TokenType::END_OF_FILE) {
                 allTypesFound = false;
                 break;

@@ -1,0 +1,22 @@
+# @rule: gr.decl.variable
+# @description: رقمٌ في خانةٍ «خالي» ⇒ يُرَدُّ — الاتّجاهُ المعاكسُ يُقاسُ أيضًا
+# @priority: P0
+# @expect_compile_error: SEM056
+# @expect_error: SEM056
+
+# ============================================================
+# (AR) الاتّجاهُ المعاكسُ لـ٢٠٠ و٢٠١، وهو المُثبِتُ أنّ «خالي» نوعٌ **مغلق**
+#      لا وعاءٌ يقبلُ ما يُلقى فيه: لا قيمةَ له إلّا `()`. وكان هذا الاتّجاهُ
+#      محروسًا سلفًا (مقيسٌ 2026-09-07) — والبذرةُ تُثبِّتُه كي لا يسقطَ مع
+#      أوّلِ رقعةٍ تُوسِّعُ الاتّجاهَ الآخر.
+#      🔑 وقياسُ ما هو أخضرُ اليومَ ليس ترفًا: أكثرُ ما انكسرَ في هذا المجال
+#      انكسرَ **بتوسيعِ رقعةٍ صحيحة**، لا بكتابةِ شفرةٍ خاطئة.
+# (EN) The reverse direction, proving unit is a CLOSED type with exactly one
+#      value rather than a container. It was already guarded when measured; the
+#      seed pins it so a later widening of the other direction cannot drop it.
+#      Pinning what is already green is not waste: in this area most breakage
+#      came from WIDENING a correct patch, not from writing wrong code.
+# ============================================================
+
+خالي س = 5
+اطبع_سطر(نص(س))

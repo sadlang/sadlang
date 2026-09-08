@@ -41,7 +41,7 @@ void testBasicTypeCreation() {
     assert(boolType->toString() == "bool");
     
     auto voidType = makeVoidType();
-    assert(voidType->getBaseType() == SadTypeKind::Void);
+    assert(voidType->getBaseType() == SadTypeKind::Unit);
     assert(voidType->toString() == "void");
     
     std::cout << "  ✓ Basic types created successfully" << std::endl;

@@ -122,13 +122,13 @@ namespace Sad
                 if (funcName == Bn::CompilerUefi::UEFI_4)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_4, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_RESET_SYSTEM);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]); // reset type
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // --- 16b. إدارة الذاكرة ---
@@ -547,22 +547,22 @@ namespace Sad
                 if (funcName == Bn::CompilerUefi::UEFI_36)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_36, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT_FULL);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_37)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_37, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT_RSDP);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_38)
                 {
@@ -578,11 +578,11 @@ namespace Sad
                 if (funcName == Bn::CompilerUefi::UEFI_39)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_39, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_DISABLE);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_40)
                 {
@@ -611,11 +611,11 @@ namespace Sad
                 if (funcName == Bn::CompilerUefi::UEFI_42)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_42, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_REBOOT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_43)
                 {
@@ -633,13 +633,13 @@ namespace Sad
                 if (funcName == Bn::CompilerUefi::UEFI_44)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_44, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_DELAY_US);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 17c: مؤقت ومعالجات
@@ -759,33 +759,33 @@ namespace Sad
                 {
                     // (AR) الثلاثة (المتّجه، النمط، القاسم) اختياريّةٌ كلُّها بافتراضاتٍ معلنةٍ ⇒ المدى [0, 3].
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_54, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_INIT_TIMER);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_55)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_55, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_START_TIMER);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_56)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_56, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_STOP_TIMER);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_57)
                 {
@@ -816,55 +816,55 @@ namespace Sad
                 if (funcName == Bn::CompilerUefi::UEFI_59)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_59, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SET_PRIORITY);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_60)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_60, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_DISABLE_PIC);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_61)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_61, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_MASK_IRQ);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_62)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_62, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_UNMASK_IRQ);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_63)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_63, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_ROUTE_IRQ);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 18d: IPI متقدم
@@ -872,44 +872,44 @@ namespace Sad
                 {
                     // (AR) الوسيط الثاني (شمول الذات) اختياريٌّ بافتراضِ الصفر ⇒ المدى [1, 2].
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_64, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_IPI_ALL);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_65)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_65, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_INIT_IPI);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_66)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_66, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_SIPI);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_67)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerUefi::UEFI_67, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_WAIT_DELIVERY);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::CompilerUefi::UEFI_68)
                 {

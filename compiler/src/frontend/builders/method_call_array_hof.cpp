@@ -50,14 +50,14 @@ namespace Sad
                     if (args.size() < 2)
                     {
                         b_.errors_.push_back("Error: \u062e\u0631\u064a\u0637\u0629() requires a lambda argument");
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     }
                     SIROperand closureOp = args[1];
 
                     // (AR) نوع إرجاع اللامدا — يُؤخذ من تتبّع الخطوة 3
                     // (EN) Lambda return type — taken from Step 3 tracking
                     SadTypeKind lambdaRetType = firstClosureRetType;
-                    if (lambdaRetType == SadTypeKind::Void)
+                    if (lambdaRetType == SadTypeKind::Unit)
                         lambdaRetType = SadTypeKind::Integer;
 
                     // (AR) الخطوة 1: الحصول على طول المصفوفة المصدر
@@ -174,7 +174,7 @@ namespace Sad
                     // (EN) Append result to new array
                     std::string appendReg = b_.newTempRegister();
                     SIRInstruction appendInst(SIROpcode::BUILTIN_ARRAY_APPEND);
-                    appendInst.result = SIROperand::Register(appendReg, SadTypeKind::Void);
+                    appendInst.result = SIROperand::Register(appendReg, SadTypeKind::Unit);
                     appendInst.operands.push_back(SIROperand::Register(resultArrReg, SadTypeKind::Array));
                     appendInst.operands.push_back(SIROperand::Register(callResReg, lambdaRetType));
                     if (b_.currentBlock_)
@@ -214,7 +214,7 @@ namespace Sad
                     if (args.size() < 2)
                     {
                         b_.errors_.push_back("Error: رشح() requires a lambda argument");
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     }
                     SIROperand closureOp = args[1];
 
@@ -341,7 +341,7 @@ namespace Sad
                     b_.currentBlock_ = appendBlock;
                     std::string appendReg = b_.newTempRegister();
                     SIRInstruction appendInst(SIROpcode::BUILTIN_ARRAY_APPEND);
-                    appendInst.result = SIROperand::Register(appendReg, SadTypeKind::Void);
+                    appendInst.result = SIROperand::Register(appendReg, SadTypeKind::Unit);
                     appendInst.operands.push_back(SIROperand::Register(resultArrReg, SadTypeKind::Array));
                     appendInst.operands.push_back(SIROperand::Register(elemReg, SadTypeKind::Integer));
                     if (b_.currentBlock_)
@@ -390,7 +390,7 @@ namespace Sad
                     if (args.size() < 3)
                     {
                         b_.errors_.push_back("Error: \u0627\u062e\u062a\u0632\u0644() requires a lambda and an initial value");
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     }
                     SIROperand closureOp = args[1]; // (AR) اللامدا
                     SIROperand initOp = args[2];    // (AR) القيمة الابتدائية
@@ -398,7 +398,7 @@ namespace Sad
                     // (AR) تحديد نوع المجمّع (من القيمة الابتدائية)
                     // (EN) Determine accumulator type (from initial value)
                     SadTypeKind accType = initOp.dataType;
-                    if (accType == SadTypeKind::Void)
+                    if (accType == SadTypeKind::Unit)
                         accType = SadTypeKind::Integer;
 
                     // (AR) الخطوة 1: طول المصفوفة المصدر
@@ -556,7 +556,7 @@ namespace Sad
                     if (args.size() < 2)
                     {
                         b_.errors_.push_back("Error: لكل() requires a lambda argument");
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     }
                     SIROperand closureOp = args[1];
 
@@ -643,7 +643,7 @@ namespace Sad
                     std::string callResReg = b_.newTempRegister();
                     SIRInstruction callInst;
                     callInst.opcode = SIROpcode::CLOSURE_CALL;
-                    callInst.result = SIROperand::Register(callResReg, SadTypeKind::Void);
+                    callInst.result = SIROperand::Register(callResReg, SadTypeKind::Unit);
                     callInst.operands.push_back(closureOp);
                     callInst.operands.push_back(SIROperand::Register(elemReg, SadTypeKind::Integer));
                     if (!firstClosureLambdaName.empty())
@@ -670,7 +670,7 @@ namespace Sad
                     // (AR) كتلة الخروج
                     // (EN) Exit block
                     b_.currentBlock_ = exitBlock;
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ================================================================

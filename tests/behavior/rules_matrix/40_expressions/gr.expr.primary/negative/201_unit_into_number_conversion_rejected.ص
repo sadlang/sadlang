@@ -1,0 +1,47 @@
+# @rule: gr.expr.primary
+# @description: تحويلُ وحدةٍ إلى رقمٍ يُرفَضُ بـRUN033 — لا انهيارٌ داخليّ
+# @priority: P0
+# @expect_compile_error RUN033
+# @expect_error RUN033
+
+# ============================================================
+# (AR) 🔑 **رفضٌ مُعلَنٌ حلَّ محلَّ اتّهامٍ كاذبٍ للمترجّم.**
+#
+#      كان `رقم(())` يُخفِقُ بـ`INT011` «خطأ مترجم داخلي … **يُرجى الإبلاغ**»:
+#      تسقطُ الوحدةُ إلى ذراعِ النصِّ فيُمرَّرُ حاملُها `i8` إلى
+#      `strtoll(ptr, …)` فيرفضُه مدقّقُ LLVM. أي أنّ المترجّمَ كان **يطلبُ من
+#      كاتبِ البرنامجِ أن يُبلِّغَ عن علّةٍ لا وجودَ لها** — والعلّةُ في برنامجِه
+#      هو، وهو لا يعلم.
+#
+#      وهذا الصنفُ («انهيارٌ داخليّ») أُعلِنَ **صفرًا** في §١ من CLAUDE.md بعدَ
+#      حملةِ سدٍّ كاملة، وهذا بابٌ باقٍ منه فُتِحَ من طريقٍ آخر.
+#      ⚠️ **وعدّادٌ يبلغُ صفرًا لا يبقى صفرًا بلا بذرةٍ تحرسُه**؛ وهذه هي.
+#
+#   🔑 والوحدةُ **لا حمولةَ لها بالتعريف**، فلا عددَ «فيها» يُستخرَج. فالرفضُ
+#      خاصّيّةُ النوعِ لا قيدُ تنفيذٍ يُرفَعُ يومًا — ولذلك يُشخَّصُ بالرمزِ ولا
+#      يُترَكُ للتوليدِ يكتشفُه بانهيار.
+#
+#   📌 ولا رمزَ جديد: `RUN033` مُعلَنٌ بنائبَيه `{operation}` و`{type}` ونصُّه
+#      «نوع المعامل '{type}' غير مدعوم في العملية '{operation}'» يصفُ الحالةَ
+#      حرفيًّا. **وإعلانُ رمزٍ جديدٍ قرارُ مصدرِ حقيقةٍ لا ترقيعُ باني.**
+#
+#   وضابطُ عدمِ التوسيع: `نص(())` يُجيبُ «()» و`منطقي(())` يُجيبُ «خطأ» —
+#   كلاهما سليمٌ ولم يُمَسّ. المرفوضُ استخراجُ حمولةٍ لا وجودَ لها، لا كلُّ تحويل.
+# (EN) An explicit rejection replaces a false accusation against the compiler.
+#      `رقم(())` failed with INT011 "internal compiler error … please report":
+#      the unit fell into the string arm and its i8 carrier was handed to
+#      strtoll(ptr, …), which the LLVM verifier rejects. The compiler was asking
+#      the author to report a bug that did not exist — the fault was in their own
+#      program and they could not know. That whole class was declared ZERO in §1 of
+#      CLAUDE.md after a full campaign; this was a surviving door into it, reached
+#      by another route. A counter that reaches zero does not stay at zero without a
+#      seed guarding it, and this is that seed. The unit has NO payload by
+#      definition, so there is no number inside it to extract: the rejection is a
+#      property of the type, not an implementation limit to be lifted later, and so
+#      it is diagnosed by code rather than discovered by a crash. No new code was
+#      minted — RUN033 already declares exactly the {operation} and {type} slots.
+#      Nothing is widened: نص(()) still answers «()» and منطقي(()) still «خطأ».
+#      What is refused is extracting a payload that does not exist, not conversion.
+# ============================================================
+
+اطبع_سطر(رقم(()))

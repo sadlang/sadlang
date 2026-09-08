@@ -57,8 +57,8 @@ namespace Sad
          * ```
          * // إنشاء صنف
          * ClassType* personClass = new ClassType("شخص");
-         * personClass->addField("الاسم", stringType, PUBLIC);
-         * personClass->addField("العمر", intType, PUBLIC);
+         * personClass->addField("الاسم", PUBLIC);
+         * personClass->addField("العمر", PUBLIC);
          *
          * // إنشاء كائن
          * ObjectInstance* ahmed = personClass->createInstance();

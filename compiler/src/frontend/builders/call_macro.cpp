@@ -239,7 +239,7 @@ namespace Sad
 
                     b_.exitScope();
 
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ====================================================================
@@ -261,11 +261,11 @@ namespace Sad
 
                 // (AR) استنتاج نوع الإرجاع من جسم الماكرو
                 // (EN) Infer return type from macro body
-                SadTypeKind macroRetType = SadTypeKind::Void;
+                SadTypeKind macroRetType = SadTypeKind::Unit;
                 if (macroDef->body && b_.hasReturnWithValue(macroDef->body.get()))
                 {
                     macroRetType = b_.inferReturnTypeFromBody(macroDef->body.get());
-                    if (macroRetType == SadTypeKind::Void)
+                    if (macroRetType == SadTypeKind::Unit)
                     {
                         macroRetType = SadTypeKind::Integer; // (AR) افتراضي / (EN) default
                     }

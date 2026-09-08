@@ -72,7 +72,7 @@ namespace Sad
                 inline constexpr std::string_view PRINTLN = "اطبع_سطر";
                 // (AR) قراءة مدخل نصي من المستخدم (رسالة اختيارية)
                 inline constexpr std::string_view READ = "اقرأ";
-                // (AR) إرجاع طول مجموعة أو نص
+                // (AR) إرجاع طول مجموعة أو نص. و«خالي» (نوع الوحدة) طولُه **صفرٌ بالتعريف**: هو الصفُّ الفارغُ نفسُه فلا عنصرَ فيه يُعَدّ — ولا يُقرَأُ له حقلُ طولٍ، إذ لا ترويسةَ لقيمةٍ واحدةٍ لا تحمل معلومة. (قِيس 2026-09-07: قبلَ إعلانِ هذه القاعدة كان «طول(())» يسقطُ إلى STRING_LEN فيُرفَض زمنيًّا بـRUN033.)
                 inline constexpr std::string_view LENGTH = "طول";
                 // (AR) إرجاع نوع القيمة كنص
                 inline constexpr std::string_view TYPE = "نوع";
@@ -473,7 +473,7 @@ namespace Sad
                 inline constexpr std::string_view UNICODE_CODEPOINTS = "نص_يونيكود";
                 // (AR) إنشاء خريطة
                 inline constexpr std::string_view MAP_CTOR = "خريطة";
-                // (AR) احصل على قيمة من الخريطة؛ غياب المفتاح يرجع «فراغ» (لا «لاشيء») أو البديل الثالث إن أعطي
+                // (AR) احصل على قيمة من الخريطة؛ غياب المفتاح يرجع الحارسَ الزمنيَّ «مفقود» (لا «لاشيء») أو البديل الثالث إن أعطي
                 inline constexpr std::string_view MAP_GET = "خريطة_احصل";
                 // (AR) جلب مصنف نصي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)
                 inline constexpr std::string_view MAP_FETCH_STR = "خريطة_اجلب_نص";
@@ -3229,7 +3229,7 @@ namespace Sad
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
             {Names::Core::READ, "Core", "CORE_IO", "NONE", false, "قراءة مدخل نصي من المستخدم (رسالة اختيارية)", "رسالة؟", ""},
-            {Names::Core::LENGTH, "Core", "CORE_IO", "NONE", false, "إرجاع طول مجموعة أو نص", "قيمة", "رقم"},
+            {Names::Core::LENGTH, "Core", "CORE_IO", "NONE", false, "إرجاع طول مجموعة أو نص. و«خالي» (نوع الوحدة) طولُه **صفرٌ بالتعريف**: هو الصفُّ الفارغُ نفسُه فلا عنصرَ فيه يُعَدّ — ولا يُقرَأُ له حقلُ طولٍ، إذ لا ترويسةَ لقيمةٍ واحدةٍ لا تحمل معلومة. (قِيس 2026-09-07: قبلَ إعلانِ هذه القاعدة كان «طول(())» يسقطُ إلى STRING_LEN فيُرفَض زمنيًّا بـRUN033.)", "قيمة", "رقم"},
             {Names::Core::TYPE, "Core", "CORE_IO", "NONE", false, "إرجاع نوع القيمة كنص", "قيمة", "نص"},
             {Names::Core::EXPECT, "Core", "CORE_IO", "NONE", false, "Branch hint: expect true", "شرط", ""},
             {Names::Core::EXPECT_FALSE, "Core", "CORE_IO", "NONE", false, "Branch hint: expect false", "شرط", ""},
@@ -3416,7 +3416,7 @@ namespace Sad
             {Names::Maps::COMPARE_TEXT, "Maps", "MODULE_FUNCTION", "MAPS", true, "مقارنة نصين", "", ""},
             {Names::Maps::UNICODE_CODEPOINTS, "Maps", "MODULE_FUNCTION", "MAPS", true, "نقاط Unicode", "", ""},
             {Names::Maps::MAP_CTOR, "Maps", "MODULE_FUNCTION", "MAPS", true, "إنشاء خريطة", "", ""},
-            {Names::Maps::MAP_GET, "Maps", "MODULE_FUNCTION", "MAPS", true, "احصل على قيمة من الخريطة؛ غياب المفتاح يرجع «فراغ» (لا «لاشيء») أو البديل الثالث إن أعطي", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.، بديل — اختياريّ: يُرجَع عند غياب المفتاح بدل «فراغ» (منفَّذ في المحرّكين معًا).", ""},
+            {Names::Maps::MAP_GET, "Maps", "MODULE_FUNCTION", "MAPS", true, "احصل على قيمة من الخريطة؛ غياب المفتاح يرجع الحارسَ الزمنيَّ «مفقود» (لا «لاشيء») أو البديل الثالث إن أعطي", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.، بديل — اختياريّ: يُرجَع عند غياب المفتاح بدل الحارسِ «مفقود».", ""},
             {Names::Maps::MAP_FETCH_STR, "Maps", "MODULE_FUNCTION", "MAPS", true, "جلب مصنف نصي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.", ""},
             {Names::Maps::MAP_FETCH_NUM, "Maps", "MODULE_FUNCTION", "MAPS", true, "جلب مصنف رقمي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.", ""},
             {Names::Maps::MAP_FETCH_BOOL, "Maps", "MODULE_FUNCTION", "MAPS", true, "جلب مصنف منطقي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.", ""},

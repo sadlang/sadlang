@@ -163,7 +163,7 @@ namespace Sad
                             auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
                             llvm::Value *kind = dynKindByte(cg_, retValue);
                             llvm::Value *isVoidK = cg_.builder_->CreateICmpEQ(
-                                kind, llvm::ConstantInt::get(i8Ty, DynKind::Void),
+                                kind, llvm::ConstantInt::get(i8Ty, DynKind::Missing),
                                 "ret.dyn.is.void");
                             llvm::Value *isNullK = cg_.builder_->CreateICmpEQ(
                                 kind, llvm::ConstantInt::get(i8Ty, DynKind::Null),

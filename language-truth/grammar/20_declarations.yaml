@@ -288,7 +288,7 @@ productions:
                | 'طبيعي' | 'طبيعي8' | 'طبيعي16' | 'طبيعي32'
                | 'عشري' | 'عشري32'
                | 'نص' | 'منطقي' | 'مصفوفة' | 'خريطة' | 'أي'
-               | 'فراغ' | 'عدم' | Identifier) ;
+               | 'خالي' | 'عدم' | Identifier) ;
     alternatives:
       - symbols:
           - { kind: terminal, ref: IDENTIFIER, value: "<اسم نوع>" }

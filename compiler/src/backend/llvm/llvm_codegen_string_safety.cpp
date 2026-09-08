@@ -272,7 +272,7 @@ namespace Sad
             llvm::Function *curFunc = builder_->GetInsertBlock()->getParent();
 
             llvm::Value *isVoidK = builder_->CreateICmpEQ(
-                kindByte, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Void),
+                kindByte, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Missing),
                 tag + ".dyn.is.void");
             llvm::Value *isNullK = builder_->CreateICmpEQ(
                 kindByte, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Null),

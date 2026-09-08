@@ -176,12 +176,16 @@ namespace Sad
             SEM_FREESTANDING_HEAP_TOO_LARGE, ///< SEM037: (AR) حجم الكومة الحرّة يجاوز فضاء عنونة الهدف — حقل حجم قسم ELF32 يلتفّ صامتًا / (EN) freestanding heap exceeds the target address space — the ELF32 section-size field wraps silently
             SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN, ///< SEM038: (AR) مدمجة تُخفَّض إلى تعليمة من عائلة معالج أخرى (rdtsc/outb/mov %crN لهدف ARM) / (EN) builtin lowers to a foreign CPU family's instruction
             SEM_STATIC_LOCAL_UNSUPPORTED, ///< SEM039: (AR) «متغير ساكن» داخل دالّة — مدّة تخزين ساكنة غير منفَّذة في المحرّكين / (EN) function-local static storage duration is not implemented
-            SEM_VOID_NOT_A_VALUE_TYPE,    ///< SEM040: (AR) «فراغ» نوعُ إرجاعٍ لا نوعُ قيمة — لا يصلح لخانةٍ تُخزَّن (ISSUE-113) / (EN) void is a return type, not a value type
+            // (AR) 🔑 فجوةٌ محجوزةٌ عمدًا: SEM040 و SEM045 — حُذفا في 2026-09-07 مع
+            //      «فراغ» الذي كانا يحرسانه. و«خالي» (نوعُ الوحدة) نوعُ قيمةٍ كاملٌ
+            //      تحملُه الخانة، فزالَ موضوعُ القاعدةِ لا شدّتُها. ⛔ ولا يُشغَلُ
+            //      رقماهما بغيرِهما أبدًا: رقمٌ واحدٌ لا يعني شيئَين.
+            // (EN) Deliberate gap: SEM040/SEM045 were deleted with the void type.
+            //      Their numbers are never reused.
             SEM_IMPLICIT_CTOR_REQUIRES_ARGS, ///< SEM041: (AR) إنشاءٌ ضمنيٌّ لصنفٍ بانيه يشترط وسائط — «شخص ك» بلا تهيئة / (EN) implicit construction of a class whose constructor requires arguments
             SEM_COMPILER_FIELD_TYPE_UNSUPPORTED, ///< SEM042: (AR) حقلٌ نوعُه صنفٌ لا يخفضه المترجّمُ بعد — رفضٌ صريحٌ بدل بناءٍ ينهار / (EN) class-typed field not lowered yet — explicit rejection instead of a crashing build
             SEM_OPTIONAL_CALL_RECEIVER_NOT_SIMPLE, ///< SEM043: (AR) الوصولُ الآمنُ بنداءِ طريقةٍ يلزمه مستقبِلٌ بسيطٌ — أثرٌ جانبيٌّ مضاعَفٌ لا يُرى في مخرَجٍ صحيح / (EN) safe method call needs a simple receiver — a duplicated side effect no correct output reveals
             SEM_ASM_ARCH_UNSUPPORTED,     ///< SEM044: (AR) كتلةُ «تجميع» على هدفٍ لا معجمَ لمعماريّتِه — رفضٌ صريحٌ بدل خفضٍ بمعجمِ معماريّةٍ أخرى / (EN) assembly block on a target whose architecture has no lexicon — explicit rejection instead of lowering with a foreign one
-            SEM_VOID_ASSIGNED_TO_TYPED_SLOT, ///< SEM045: (AR) «فراغ» أُسند إلى خانةٍ مصنّفة — غيابُ نتيجةٍ يعبر جدارَ الأنواع (RFC عقد الغياب، المرحلة أ) / (EN) Void assigned to a typed slot — an absent result crossing the type wall (absence-contract RFC, stage A)
             SEM_INTERRUPT_HANDLER_CONTRACT, ///< SEM046: (AR) عقدُ «دالة مقاطعة» غير مستوفى — توقيعٌ أو نداءٌ أو بوّابةُ هدفٍ (RFC 0059) / (EN) interrupt-handler contract violated — signature, call, or target gate (RFC 0059)
             SEM_BUILTIN_ABSENT_IN_COMPILER, ///< SEM047: (AR) مدمَجةٌ معلَنةٌ في مصدرِ الحقيقةِ بلا ذراعِ توزيعٍ في المترجم — فجوةُ تغطيةٍ لا اسمٌ مجهول / (EN) builtin declared in the SoT with no compiler dispatch arm — a coverage gap, not an unknown name
             SEM_UNSIGNED64_MIXED_WITH_SIGNED, ///< SEM048: (AR) خلطُ «طبيعي» بموقَّعٍ بعرضِه في عمليّةٍ حسابيّة — لا نوعَ يسعُ المدَيَين فيلزم تحويلٌ صريح / (EN) طبيعي mixed with a same-width signed operand in arithmetic — no type spans both ranges, so an explicit cast is required
@@ -191,6 +195,8 @@ namespace Sad
             SEM_TUPLE_DESTRUCTURE_UNSUPPORTED, ///< SEM052: (AR) فكُّ الصفِّ في التصريحِ غيرُ مُعلَنٍ في القواعدِ ولا يُخفَّض — والخفضُ السابقُ كان يكذبُ صامتًا / (EN) tuple destructuring in a declaration is undeclared and unlowered — the previous lowering lied silently
             SEM_TYPE_METHOD_ABSENT_IN_COMPILER, ///< SEM053: (AR) طريقةٌ معلَنةٌ على النوعِ بلا ذراعِ توزيعٍ في المترجم — فجوةُ تغطيةٍ لا خطأٌ في البرنامج / (EN) a declared type method with no compiler dispatch arm — a coverage gap, not a program defect
             SEM_OPERAND_DOMAIN, ///< SEM054: (AR) نطاقُ معاملٍ غيرُ مسموح — مُعلَنٌ في operators.yaml ومولَّدٌ منه الحارس / (EN) operand domain violation — declared in operators.yaml, guard generated from it
+            SEM_RETURN_TYPE_MISMATCH, ///< SEM055: (AR) عائدٌ يخالفُ العقدَ المُصرَّح — كان نصًّا إنجليزيًّا حرًّا خارجَ الكتالوج / (EN) return type violates the declared contract — was raw English text outside the catalog
+            SEM_SLOT_TYPE_MISMATCH, ///< SEM056: (AR) قيمةٌ لا توافقُ نوعَ خانتِها — كانت نصًّا حرًّا خارجَ الكتالوج، وهي المصبُّ الافتراضيُّ لثمانيةِ باعثين / (EN) value does not match its slot type — was free text outside the catalog
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors

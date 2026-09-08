@@ -333,8 +333,11 @@ namespace Sad
 
                 // (AR) إذا كان نوع الإرجاع غير محدد (UNKNOWN/NONE)، نستنتجه من جسم الدالة
                 // (EN) If return type is unspecified (UNKNOWN/NONE), infer it from function body
-                if (funcDecl->returnType == Types::SadTypeKind::Unknown ||
-                    funcDecl->returnType == Types::SadTypeKind::Void)
+                // (AR) 🔑 «خالي» نوعُ إرجاعٍ **مُصرَّحٌ** لا غيابُ تصريح (2026-09-07):
+                //      الاستدلالُ من الجسدِ لغيرِ المُصرَّحِ وحدَه. وجمعُهما كان
+                //      يُقرِئُ `ارجع ()` **صفًّا** فيُجيبُ `نوع()` «صف» لا «خالي».
+                // (EN) An explicit unit return type is not the absence of one.
+                if (funcDecl->returnType == Types::SadTypeKind::Unknown)
                 {
                     // (AR) استنتاج النوع من جسم الدالة مع معلومات المعاملات
                     // (EN) Infer type from function body with parameter information
@@ -360,9 +363,17 @@ namespace Sad
                 // (EN) Declared-return flag: the exact inverse of the inference gate
                 //      above — what was not inferred is the author's contract; the
                 //      dyn-slot pass must not promote it to Any (see sir_module.h).
+                //      🔑 **وكان يخالفُ الشرطَ فوقَه بثلاثينَ سطرًا**: ذاك يعاملُ
+                //      «خالي» تصريحًا فلا يستنتِج، وهذا يعاملُه غيابَ تصريحٍ فيُعلِنُه
+                //      «غيرَ مُصرَّح» لكلِّ مستهلك — قرارانِ متعاكسانِ عن حقيقةٍ واحدة
+                //      في دالّةٍ واحدة، فيرقّي ممرُّ الخاناتِ الديناميّةِ عائدًا
+                //      مُصرَّحًا كان الشرطُ الأوّلُ قد صانَه.
+                // (EN) It contradicted the gate thirty lines above, which treats a
+                //      declared Unit as a declaration: this flag called it undeclared,
+                //      so the dyn-slot pass could promote a return the first gate had
+                //      just protected. Two opposite decisions about one fact.
                 sirFunction->returnTypeIsDeclared =
-                    (funcDecl->returnType != Types::SadTypeKind::Unknown &&
-                     funcDecl->returnType != Types::SadTypeKind::Void);
+                    (funcDecl->returnType != Types::SadTypeKind::Unknown);
                 sirFunction->declaredSurfaceReturnType = funcDecl->returnType;
 
                 // (AR) نقل سمات الدالة [[سمة]] من AST إلى SIR لتُترجم لاحقاً
@@ -695,7 +706,7 @@ namespace Sad
                     // ═══════════════════════════════════════════════════════════════
                     if (ftIt != functionTable_.end() && i < ftIt->second.parameters.size())
                     {
-                        if (ftIt->second.parameters[i].elementType != SadTypeKind::Void)
+                        if (ftIt->second.parameters[i].elementType != SadTypeKind::Unknown)
                         {
                             paramInfo.elementType = ftIt->second.parameters[i].elementType;
                         }
@@ -902,7 +913,7 @@ namespace Sad
                         {
                             // (AR) لا يوجد return - نضيف واحداً
                             // (EN) No return - add one
-                            if (returnType == SadTypeKind::Void)
+                            if (returnType == SadTypeKind::Unit)
                             {
                                 SIRInstruction retInst;
                                 retInst.opcode = SIROpcode::RET_VOID;
@@ -930,7 +941,7 @@ namespace Sad
                     {
                         // (AR) الدالة فارغة - نضيف return
                         // (EN) Empty function - add return
-                        if (returnType == SadTypeKind::Void)
+                        if (returnType == SadTypeKind::Unit)
                         {
                             SIRInstruction retInst;
                             retInst.opcode = SIROpcode::RET_VOID;
@@ -1122,7 +1133,7 @@ namespace Sad
                     {
                         auto prevFtIt = functionTable_.find(funcDecl->name);
                         if (prevFtIt != functionTable_.end() &&
-                            funcInfo.returnElementType == SadTypeKind::Void)
+                            funcInfo.returnElementType == SadTypeKind::Unknown)
                         {
                             funcInfo.returnElementType = prevFtIt->second.returnElementType;
                         }
@@ -1504,7 +1515,8 @@ namespace Sad
                 // (AR) بابُ ISSUE-138 نفسُه — المسارُ الثالثُ لنوعِ خانةِ التصريح.
                 // (EN) The same ISSUE-138 door — the third declaration-kind path.
                 varType = resolveBareSlotStorageKind(
-                    varDecl->type, varDecl->initializer != nullptr, varType);
+                    varDecl->type, varDecl->initializer != nullptr, varType,
+                    initializerYieldsValueSyntactically(varDecl->initializer.get(), varType));
 
                 // (AR) إنشاء متغير عام (SIRGlobalVariable constructor: sir_module.h:96)
                 // (EN) Create global variable

@@ -25,56 +25,23 @@ namespace Data {
 // ======================================================================
 
 ClassType::ClassType(const std::string& className)
-    : Type(className), name(className), baseClass(nullptr) {
+    : name(className), baseClass(nullptr) {
     // (AR) إنشاء صنف جديد
     // (EN) Create new class
 }
 
 ClassType::ClassType(const std::string& className, ClassType* base)
-    : Type(className), name(className), baseClass(base) {
+    : name(className), baseClass(base) {
     // (AR) إنشاء صنف جديد مع صنف أساسي
     // (EN) Create new class with base class
 }
 
-// ======================================================================
-// واجهة Type / Type Interface
-// ======================================================================
-
-bool ClassType::isEqual(const Type* other) const {
-    // (AR) فحص المساواة مع نوع آخر
-    // (EN) Check equality with another type
-    
-    if (!other) return false;
-    
-    // (AR) يجب أن يكون النوع الآخر ClassType أيضاً
-    // (EN) Other type must also be ClassType
-    const ClassType* otherClass = dynamic_cast<const ClassType*>(other);
-    if (!otherClass) return false;
-    
-    // (AR) المساواة بالاسم
-    // (EN) Equality by name
-    return name == otherClass->name;
-}
-
-bool ClassType::isConvertibleTo(const Type* other) const {
-    // (AR) فحص إمكانية التحويل لنوع آخر
-    // (EN) Check if convertible to another type
-    
-    if (!other) return false;
-    
-    const ClassType* otherClass = dynamic_cast<const ClassType*>(other);
-    if (!otherClass) return false;
-    
-    // (AR) نفس الصنف أو يرث منه (upcast)
-    // (EN) Same class or inherits from it (upcast)
-    return inheritsFrom(otherClass);
-}
 
 // ======================================================================
 // إدارة الخصائص / Field Management
 // ======================================================================
 
-bool ClassType::addField(const std::string& fieldName, Type* type,
+bool ClassType::addField(const std::string& fieldName,
                          AST::Visibility visibility, bool isStatic,
                          const Value& defaultValue,
                          const std::string& defaultConstructClass,
@@ -91,7 +58,7 @@ bool ClassType::addField(const std::string& fieldName, Type* type,
     
     // (AR) إنشاء الخاصية
     // (EN) Create field
-    ClassField field(fieldName, type, visibility);
+    ClassField field(fieldName, visibility);
     field.isStatic = isStatic;
     field.defaultValue = defaultValue;
     field.defaultConstructClass = defaultConstructClass;
@@ -191,7 +158,7 @@ bool ClassType::setStaticField(const std::string& fieldName, const Value& value)
 // ======================================================================
 
 bool ClassType::addMethod(const std::string& methodName, AST::Visibility visibility,
-                          Type* returnType, const std::vector<AST::Parameter>& parameters,
+                          const std::vector<AST::Parameter>& parameters,
                           std::unique_ptr<AST::BlockStmt> body,
                           bool isStatic, bool isVirtual, bool isAbstract) {
     // (AR) إضافة طريقة جديدة
@@ -205,7 +172,7 @@ bool ClassType::addMethod(const std::string& methodName, AST::Visibility visibil
     
     // (AR) إنشاء الطريقة
     // (EN) Create method
-    ClassMethod method(methodName, visibility, returnType);
+    ClassMethod method(methodName, visibility);
     method.parameters = parameters;
     method.body = std::move(body);
     method.isStatic = isStatic;
@@ -222,7 +189,7 @@ bool ClassType::addMethod(const std::string& methodName, AST::Visibility visibil
 }
 
 bool ClassType::addDefaultMethod(const std::string& methodName, AST::Visibility visibility,
-                                Type* returnType, const std::vector<AST::Parameter>& parameters,
+                                const std::vector<AST::Parameter>& parameters,
                                 std::shared_ptr<AST::BlockStmt> sharedBody,
                                 bool isStatic, bool isVirtual) {
     // (AR) إضافة طريقة بجسم مشترك (من سمة افتراضية)
@@ -232,7 +199,7 @@ bool ClassType::addDefaultMethod(const std::string& methodName, AST::Visibility 
         return false;
     }
     
-    ClassMethod method(methodName, visibility, returnType);
+    ClassMethod method(methodName, visibility);
     method.parameters = parameters;
     method.sharedBody = std::move(sharedBody);
     method.isStatic = isStatic;
@@ -572,10 +539,20 @@ void ClassType::printDebugInfo() const {
     }
     
     std::cout << "║ Fields: " << fields.size() << "\n";
+        // (AR) 🔑 وكان ههنا `field.type->getName()` — و`type` مُمَرَّرٌ nullptr
+        //      في **كلِّ** موضعِ تسجيل (مقيسٌ، ومكتوبٌ في ترويسةِ `ClassField` نفسِها)،
+        //      فالسطرُ **إسقاطُ مؤشِّرٍ عدميٍّ** لا قارئُ نوع. ولم ينفجرْ
+        //      لأنَّ `printDebugInfo` صفرُ مُنادٍ من شفرةِ الإنتاج.
+        //      ⚠️ وهو ما كذَّبَ دعواي «صفرُ قارئٍ لـ`field->type`»: كان قارئٌ
+        //      واحدٌ، وكشفَهُ المترجِمُ لا القياس. والمطبوعُ اليومَ `declaredKind`.
+        // (EN) This read field.type->getName() while `type` is nullptr at every
+        //      registration site — a null dereference, inert only because
+        //      printDebugInfo has no production caller. It falsified the
+        //      "zero readers" claim; the compiler found it, not the measurement.
     for (const auto& field : fields) {
         std::cout << "║   - " << field.name << " (" 
                   << (field.isStatic ? "static " : "")
-                  << field.type->getName() << ")\n";
+                  << Sad::Types::sadTypeKindArabicName(field.declaredKind) << ")\n";
     }
     
     std::cout << "║ Methods: " << methods.size() << "\n";
@@ -665,7 +642,7 @@ Value defaultValueForTypeKind(Types::SadTypeKind kind)
     //      الأولى قرارٌ في مصدرِ الحقيقة، والثانيةُ إعلانُ غيابِ قرار.
     // (EN) Explicit void, and undeclared-fallback — same value, different meaning:
     //      the first is a decision in the SoT, the second declares its absence.
-    case Types::SadDefaultInit::Void:
+    case Types::SadDefaultInit::Missing:
     case Types::SadDefaultInit::Unspecified:
         return Value();
     // (AR) لا خانةَ تحمل هذا النوعَ أصلًا — يرفضه المحلّلُ المشترك بـSEM040
@@ -676,7 +653,7 @@ Value defaultValueForTypeKind(Types::SadTypeKind kind)
     //      before this point. The arm is a declared defensive one: reaching it
     //      means an upper-layer rejection was breached. Kept separate from
     //      Unspecified: that one is a debt, this one is an impossibility.
-    case Types::SadDefaultInit::NotASlot:
+    case Types::SadDefaultInit::UnitValue:
         return Value();
     }
 

@@ -161,8 +161,13 @@ namespace Sad
                         // (AR) استنتاج نوع الإرجاع
                         // (EN) Infer return type
                         SadTypeKind returnType;
-                        if (funcDecl->returnType == Types::SadTypeKind::Unknown ||
-                            funcDecl->returnType == Types::SadTypeKind::Void)
+                        // (AR) 🔑 «خالي» نوعُ إرجاعٍ **مُصرَّحٌ** لا غيابُ تصريح (2026-09-07).
+                        //      جمعُه مع `Unknown` كان صوابًا يومَ كان «فراغ» يعني «لا
+                        //      يُرجِعُ شيئًا»؛ وقد صارَ نوعًا كسائرِ الأنواع، فجمعُهما
+                        //      يُسقِطُ التصريحَ في استدلالٍ من الجسد: `ارجع ()` يُقرَأُ
+                        //      **صفًّا** فيُجيبُ `نوع(و())` «صف» لا «خالي» (مقيسٌ).
+                        // (EN) An EXPLICIT unit return type is not the absence of one.
+                        if (funcDecl->returnType == Types::SadTypeKind::Unknown)
                         {
                             returnType = b_.inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
                         }
@@ -187,9 +192,17 @@ namespace Sad
                         //      (sad_dyn_repr rule 4) from trampling the declaration and
                         //      lets the RET door unpack the tag to i64 (fptosi for
                         //      floats) — the same seal as toplevel functions.
+                        //      🔑 **وكان يخالفُ الشرطَ فوقَه بثلاثينَ سطرًا**: ذاك يعاملُ
+                        //      «خالي» تصريحًا فلا يستنتِج، وهذا يعاملُه غيابَ تصريحٍ فيُعلِنُه
+                        //      «غيرَ مُصرَّح» لكلِّ مستهلك — قرارانِ متعاكسانِ عن حقيقةٍ واحدة
+                        //      في دالّةٍ واحدة، فيرقّي ممرُّ الخاناتِ الديناميّةِ عائدًا
+                        //      مُصرَّحًا كان الشرطُ الأوّلُ قد صانَه.
+                        // (EN) It contradicted the gate thirty lines above, which treats a
+                        //      declared Unit as a declaration: this flag called it undeclared,
+                        //      so the dyn-slot pass could promote a return the first gate had
+                        //      just protected. Two opposite decisions about one fact.
                         innerFunc->returnTypeIsDeclared =
-                            (funcDecl->returnType != Types::SadTypeKind::Unknown &&
-                             funcDecl->returnType != Types::SadTypeKind::Void);
+                            (funcDecl->returnType != Types::SadTypeKind::Unknown);
                         innerFunc->declaredSurfaceReturnType = funcDecl->returnType;
                         for (const auto &sp : sirParams)
                             innerFunc->addParameter(sp);
@@ -303,7 +316,7 @@ namespace Sad
                                     if (inst.opcode == SIROpcode::RET && !inst.operands.empty())
                                     {
                                         SadTypeKind actualRetType = inst.operands[0].dataType;
-                                        if (actualRetType != SadTypeKind::Void &&
+                                        if (actualRetType != SadTypeKind::Unit &&
                                             actualRetType != SadTypeKind::Unknown &&
                                             actualRetType != SadTypeKind::Integer &&
                                             returnType == SadTypeKind::Integer)
@@ -685,7 +698,7 @@ namespace Sad
                         if (!closureResult.registerName.empty() && b_.currentBlock_)
                         {
                             SIRInstruction appendInst(SIROpcode::BUILTIN_ARRAY_APPEND);
-                            appendInst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Void);
+                            appendInst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Unit);
                             appendInst.operands.push_back(SIROperand::Register(b_.currentDeferStackReg_, SadTypeKind::Array));
                             appendInst.operands.push_back(SIROperand::Register(closureResult.registerName, SadTypeKind::Function));
                             appendInst.comment = "register deferred closure at runtime";

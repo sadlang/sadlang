@@ -1,0 +1,23 @@
+# @rule: gr.decl.variable
+# @description: قيمةُ الوحدةِ في خانةٍ نصّيّةٍ ⇒ تُرَدُّ ولا تُعرَضُ «لاشيء»
+# @priority: P0
+# @expect_compile_error: SEM056
+# @expect_error: SEM056
+
+# ============================================================
+# (AR) توأمُ ٢٠٠، والطرفُ الثاني يقيسُ **كذبًا مضاعفًا**: كان `نص س = ()`
+#      يُقبَلُ ويطبعُ «لاشيء» — فلا الخانةُ من نوعِها، ولا العرضُ عرضَ
+#      الوحدةِ المُعلَنَ (`kUnitDisplay = "()"`). كذبتانِ في سطرٍ واحد.
+#
+#      والطرفانِ لازمان: لو أُصلِحَ الرقميُّ وحدَه لَما شيءَ يشي بأنّ
+#      النصّيَّ ما زال مفتوحًا — والقناةُ التي سُدَّت واحدةٌ لهما
+#      (`visitTupleExpr` في فاحصِ الأنواع)، فبذرتانِ تحرسانِ سدًّا واحدًا
+#      من جهتَين.
+# (EN) Twin of 200, measuring a DOUBLE lie: `نص س = ()` was accepted and printed
+#      «لاشيء» — neither the slot's type nor unit's declared display. Both seeds
+#      are required: one fix closes both channels, and a single seed would leave
+#      the other silently open.
+# ============================================================
+
+نص س = ()
+اطبع_سطر(س)

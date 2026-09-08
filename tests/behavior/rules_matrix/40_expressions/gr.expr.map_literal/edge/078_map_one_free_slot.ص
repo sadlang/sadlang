@@ -1,8 +1,8 @@
-# @rule: gr.expr.map_literal
+﻿# @rule: gr.expr.map_literal
 # @description: [م-٠٠١] خانةٌ حرّةٌ واحدةٌ تكفي: البحث الخطّيّ يجد الفراغ فلا يُرجع الخانة صفرًا
 # @priority: P0
 # @requires: اطبع_سطر, اطبع, نوع, خرائط
-# @expected: 15فراغخطألاشيء
+# @expected: 15مفقودخطألاشيء
 استورد خرائط
 
 متغير خ = خريطة()

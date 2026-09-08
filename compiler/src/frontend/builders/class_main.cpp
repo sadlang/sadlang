@@ -573,8 +573,17 @@ namespace Sad
                         // (AR) استنتاج نوع الإرجاع إذا لم يُحدد
                         // (EN) Infer return type if not specified
                         SadTypeKind returnType;
-                        if (methodDecl->returnType == Types::SadTypeKind::Unknown ||
-                            methodDecl->returnType == Types::SadTypeKind::Void)
+                        // (AR) 🔑 و«خالي» **تصريحٌ مُحترَم** لا غيابُ تصريح: بعدَ أن
+                        //      صارَ المحلِّلُ يفرّقُ بينهما (`Unknown` لِما لم يُذكَرْ)،
+                        //      بقاءُ `|| Unit` ههنا يجعلُ استنتاجَ الجسمِ **يدوسُ**
+                        //      تصريحًا صريحًا — وهو العطبُ نفسُه الذي أُصلِحَ للدوالِّ
+                        //      الحرّةِ وبقيَ حيًّا في ستّةِ مواضع.
+                        // (EN) A declared Unit is an HONOURED declaration, not its
+                        //      absence: with the parser now separating the two, keeping
+                        //      `|| Unit` let body inference override an explicit
+                        //      declaration — the defect fixed for free functions and
+                        //      left live at six sites.
+                        if (methodDecl->returnType == Types::SadTypeKind::Unknown)
                         {
                             // (AR) تعيين اسم الصنف الحالي مؤقتاً لتمكين b_.inferReturnTypeFromBody
                             //      من البحث عن أنواع الحقول عبر b_.module_->getClass(b_.currentClassName_)
@@ -910,7 +919,7 @@ namespace Sad
                                 if (!hasTerminator)
                                 {
                                     SIRInstruction retInst;
-                                    if (returnType == SadTypeKind::Void)
+                                    if (returnType == SadTypeKind::Unit)
                                     {
                                         retInst.opcode = SIROpcode::RET_VOID;
                                     }
@@ -977,8 +986,17 @@ namespace Sad
                         // (AR) استنتاج نوع الإرجاع إذا لم يُحدد
                         // (EN) Infer return type if not specified
                         SadTypeKind returnType;
-                        if (funcDecl->returnType == Types::SadTypeKind::Unknown ||
-                            funcDecl->returnType == Types::SadTypeKind::Void)
+                        // (AR) 🔑 و«خالي» **تصريحٌ مُحترَم** لا غيابُ تصريح: بعدَ أن
+                        //      صارَ المحلِّلُ يفرّقُ بينهما (`Unknown` لِما لم يُذكَرْ)،
+                        //      بقاءُ `|| Unit` ههنا يجعلُ استنتاجَ الجسمِ **يدوسُ**
+                        //      تصريحًا صريحًا — وهو العطبُ نفسُه الذي أُصلِحَ للدوالِّ
+                        //      الحرّةِ وبقيَ حيًّا في ستّةِ مواضع.
+                        // (EN) A declared Unit is an HONOURED declaration, not its
+                        //      absence: with the parser now separating the two, keeping
+                        //      `|| Unit` let body inference override an explicit
+                        //      declaration — the defect fixed for free functions and
+                        //      left live at six sites.
+                        if (funcDecl->returnType == Types::SadTypeKind::Unknown)
                         {
                             auto savedClassName = b_.currentClassName_;
                             b_.currentClassName_ = classDecl->name;
@@ -1119,7 +1137,7 @@ namespace Sad
                                 if (!hasTerminator)
                                 {
                                     SIRInstruction retInst;
-                                    if (returnType == SadTypeKind::Void)
+                                    if (returnType == SadTypeKind::Unit)
                                     {
                                         retInst.opcode = SIROpcode::RET_VOID;
                                     }
@@ -1218,8 +1236,17 @@ namespace Sad
                     return; // (AR) الدوال المجردة بلا جسم / (EN) abstract methods have no body
 
                 SadTypeKind returnType;
-                if (methodDecl->returnType == Types::SadTypeKind::Unknown ||
-                    methodDecl->returnType == Types::SadTypeKind::Void)
+                // (AR) 🔑 و«خالي» **تصريحٌ مُحترَم** لا غيابُ تصريح: بعدَ أن
+                //      صارَ المحلِّلُ يفرّقُ بينهما (`Unknown` لِما لم يُذكَرْ)،
+                //      بقاءُ `|| Unit` ههنا يجعلُ استنتاجَ الجسمِ **يدوسُ**
+                //      تصريحًا صريحًا — وهو العطبُ نفسُه الذي أُصلِحَ للدوالِّ
+                //      الحرّةِ وبقيَ حيًّا في ستّةِ مواضع.
+                // (EN) A declared Unit is an HONOURED declaration, not its
+                //      absence: with the parser now separating the two, keeping
+                //      `|| Unit` let body inference override an explicit
+                //      declaration — the defect fixed for free functions and
+                //      left live at six sites.
+                if (methodDecl->returnType == Types::SadTypeKind::Unknown)
                 {
                     auto savedClassName = b_.currentClassName_;
                     b_.currentClassName_ = classDecl->name;
@@ -1397,7 +1424,7 @@ namespace Sad
                     if (!hasTerminator)
                     {
                         SIRInstruction retInst;
-                        if (returnType == SadTypeKind::Void)
+                        if (returnType == SadTypeKind::Unit)
                         {
                             retInst.opcode = SIROpcode::RET_VOID;
                         }

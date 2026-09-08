@@ -180,7 +180,7 @@ namespace Sad
                     SadTypeKind elemType = SadTypeKind::Integer;
                     if (objResult.elementType == SadTypeKind::Array)
                         elemType = SadTypeKind::Array;
-                    else if (objResult.elementType != SadTypeKind::Void)
+                    else if (objResult.elementType != SadTypeKind::Unknown)
                         elemType = objResult.elementType;
 
                     // (AR) تجسيد الفهرس في سجلّ (ARRAY_GET يتوقّع معاملًا سجلّيًّا)
@@ -359,6 +359,60 @@ namespace Sad
                             else if (fieldIt->second == SadTypeKind::Boolean)
                             {
                                 memberType = SadTypeKind::Boolean;
+                            }
+                            // ═══════════════════════════════════════════════════
+                            // (AR) 🔑 حقلُ وحدةٍ (`خالي`) — والعطبُ الحقيقيُّ ليس
+                            //      غيابَ هذه الذراعِ بل **شكلُ ما فوقَها**.
+                            //
+                            //      `memberType` يبدأ `Integer` ثمّ تُستثنى أنواعٌ
+                            //      **مسمّاةٌ واحدًا واحدًا**. فهذه ليست قراءةَ نوعٍ
+                            //      بل **قائمةَ سماحٍ**، وجدولُ الحقولِ يحملُ الحقيقةَ
+                            //      كاملةً بجانبِها. وكلُّ نوعٍ لم يُذكَرْ ههنا يُقرَأُ
+                            //      عددًا صحيحًا: `خالي` و`أي` و`عدم` وسواها.
+                            //
+                            //      مقيسٌ (2026-09-07): `بنية ب { متغير خالي ح }`
+                            //      ثمّ `اطبع_سطر(ك.ح)` يطبعُ **`0`** و`نوع(ك.ح)`
+                            //      يقولُ «رقم»، والضابطانِ `نص` و`منطقي` صحيحان —
+                            //      لأنّهما مذكورانِ أعلاه وحدَهما.
+                            //
+                            //   ⚠️ **وتناقضٌ داخليٌّ أخطرُ من الخطأ نفسِه**: حارسُ
+                            //      التساوي في الخلفيّةِ يحكمُ بنوعِ **المُعامِل**
+                            //      فيرى وحدةً، فيُجيبُ `ك.ح == ()` بـ«صحيح»؛
+                            //      و`نوع(ك.ح)` يُجيبُ «رقم»؛ و`ك.ح == 0` يُجيبُ
+                            //      «صحيح» أيضًا. فالخانةُ الواحدةُ تُجيبُ بنوعَينِ
+                            //      متناقضَينِ حسبَ **مَن يسأل**.
+                            //
+                            //   📌 دَينٌ مُسمًّى لا يُدَسُّ في هذه الرقعة: توسيعُ
+                            //      القائمةِ إلى «اقرأِ المُسجَّلَ كما هو» هو الصوابُ،
+                            //      لكنّه يمسُّ كلَّ حقلٍ في اللغةِ (‏`Pointer` و
+                            //      `Class` و`Unknown` تُقرَأُ اليومَ أعدادًا وقد
+                            //      يُبنى عليها) — فهو مشروعٌ يُقاسُ وحدَه لا سطرٌ
+                            //      يُزادُ في رقعةِ نوعِ الوحدة.
+                            // (EN) Unit-typed field. The real defect is not this arm's
+                            //      absence but the SHAPE above it: memberType starts at
+                            //      Integer and kinds are then excepted ONE BY ONE — an
+                            //      allow-list, not a type read, while the field table
+                            //      beside it holds the whole truth. Every kind not named
+                            //      here reads back as an integer. Measured: a unit field
+                            //      printed 0 and answered «رقم», while the String and
+                            //      Boolean controls were right — because only they are
+                            //      named. Worse is the internal contradiction: the
+                            //      backend's equality guard judges by the OPERAND's kind
+                            //      and sees a unit, so `f == ()` is true, while `نوع(f)`
+                            //      says number and `f == 0` is also true. One slot, two
+                            //      contradictory answers depending on who asks.
+                            //      Widening this to "read what was recorded" is the right
+                            //      end state but touches every field in the language, so
+                            //      it is a measured project of its own, not a line
+                            //      smuggled into a unit-type patch.
+                            // ═══════════════════════════════════════════════════
+                            // (AR) والقائمةُ من قلبِها الواحدِ في `template_builder.h`
+                            //      لا مكتوبةً ههنا: ثلاثُ نسخٍ افترقت مرّةً فتفترقُ ثانية.
+                            // (EN) From its single heart, not written here.
+                            else if (TemplateBuilder::fieldKindIsReadAsDeclared(
+                                         fieldIt->second, /*arrayReadsAsDeclared=*/false))
+                            {
+                                memberType = fieldIt->second;
                             }
                         }
                         // (AR) حقل كائنيّ: انقل اسم صنفه لتمكين الوصول المتسلسل اللاحق
@@ -619,7 +673,33 @@ namespace Sad
                 //      register — the backend packs it with the Void tag into the
                 //      %SadDyn slot (toDyn reads the operand dataType) — the peer
                 //      of the local-slot STORE arm.
-                if (valResult.type == SadTypeKind::Void)
+                // ════════════════════════════════════════════════════════════════
+                // (AR) ⛔ **دعوى مراجعةٍ نُقِضَت بالقياس — ونقضُها مُدوَّنٌ لئلّا
+                //      تُعادَ.** قيلَ إنّ الشرطَ ينبغي أن يكونَ «سِجِلٌّ معدوم» لا
+                //      «النوعُ خالٍ»، قياسًا على مسارَي الخريطةِ والمصفوفة، وإنّ
+                //      «ك.ح = ()» تكتبُ حارسَ الغيابِ مكانَ القيمة.
+                //      والمقيسُ (٨ أيلول) **عكسُه**: تمريرُ سِجِلِّ الوحدةِ ههنا
+                //      يُخرِجُ «لاشيء» و«رقم»، وثابتُ الغيابِ يُخرِجُ «()» و«خالي».
+                //      والسببُ أنّ هذا المسارَ **يُرقّي الحقلَ إلى خانةٍ موسومة**
+                //      عندَ الثابتِ وحدَه؛ والسِّجِلُّ يُكتَبُ في خانةٍ خامٍّ i64
+                //      فتُقرَأُ عددًا. وحرسَ العقدَ بذرةٌ قائمةٌ:
+                //      `sections/…/103_void_member_tag_and_fetch_sentinel.ص`
+                //      احمرَّت بالرقعةِ واخضرَّت بنقضِها.
+                //      🔑 **والدرسُ أنّ تشابهَ الشكلِ ليس تشابهَ المعنى**: ثلاثةُ
+                //      مواضعَ تسألُ سؤالًا واحدًا لا يعني أنّ لها جوابًا واحدًا،
+                //      متى اختلفَ **تمثيلُ الخانةِ** خلفَ كلٍّ منها.
+                // (EN) A review finding DISPROVEN by measurement, recorded so it is not
+                //      re-attempted. It claimed this should test an empty register
+                //      rather than the unit kind, by analogy with the map and array
+                //      paths. Measured, the opposite holds: passing the unit register
+                //      here prints «null»/«number», while the absence constant prints
+                //      «()»/«unit» — because only the constant promotes the field to a
+                //      TAGGED slot, whereas a register lands in a raw i64 field. A
+                //      standing seed guards the contract and reddened under the patch.
+                //      The lesson: identical SHAPE is not identical MEANING when the
+                //      slot representation behind each site differs.
+                // ════════════════════════════════════════════════════════════════
+                if (valResult.type == SadTypeKind::Unit)
                 {
                     storeInst.operands.push_back(SIROperand::ConstantVoid());
                 }

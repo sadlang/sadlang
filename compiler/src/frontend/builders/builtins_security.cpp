@@ -55,7 +55,7 @@ namespace Sad
                 if (funcName == Bn::Basics::ASSERT)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::ASSERT, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT);
                     inst.operands.push_back(argOperands[0]); // condition
                     if (argOperands.size() > 1)
@@ -67,7 +67,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 1-ب. تأكد_صحيح · تأكد_خطأ · تأكد_يساوي · تأكد_لا_يساوي — الأسماءُ
@@ -78,14 +78,14 @@ namespace Sad
                 if (funcName == Bn::Assertions::ASSERT_TRUE)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_TRUE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT);
                     inst.operands.push_back(argOperands[0]);
                     if (argOperands.size() > 1)
                         inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // تأكد_خطأ: النفيُ يُبنى هنا (XOR بـ1) لا في الخلفيّة — فتبقى آلةُ
@@ -93,7 +93,7 @@ namespace Sad
                 if (funcName == Bn::Assertions::ASSERT_FALSE)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_FALSE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     std::string negReg = b_.newTempRegister();
                     SIRInstruction negInst(SIROpcode::NOT);
                     negInst.result = SIROperand::Register(negReg, SadTypeKind::Boolean);
@@ -107,19 +107,19 @@ namespace Sad
                         inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 if (funcName == Bn::Assertions::ASSERT_EQ)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_EQ, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_EQUAL);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 2. تحقق / verify - يعيد صحيح أو خطأ دون إيقاف البرنامج
@@ -163,7 +163,7 @@ namespace Sad
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName,
                                            Ar::Assertions::PANIC, argOperands.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_PANIC);
                     if (!argOperands.empty())
                     {
@@ -174,7 +174,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 5. هاش / hash - حساب هاش SHA-256 للنص كسلسلة ست عشرية (يطابق المفسّر +
@@ -238,7 +238,7 @@ namespace Sad
                 if (funcName == Bn::Assertions::ASSERT_TYPE)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_TYPE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_TYPE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -247,14 +247,14 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 9. تأكد_مساواة / assert_equal - التحقق من تساوي قيمتين
                 if (funcName == Bn::CompilerSec::SEC_1)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerSec::SEC_1, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_EQUAL);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -263,14 +263,14 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 10. تأكد_أكبر / assert_greater - التحقق من أن القيمة الأولى أكبر
                 if (funcName == Bn::Assertions::ASSERT_GT)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_GT, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_GREATER);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -279,7 +279,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 11. نظّف / sanitize - تنظيف نص من HTML

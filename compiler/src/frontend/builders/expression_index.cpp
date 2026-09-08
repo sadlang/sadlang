@@ -390,7 +390,7 @@ namespace Sad
                         //      assign decode Any natively.
                         resultType = SadTypeKind::Any;
                     }
-                    else if (objResult.elementType != SadTypeKind::Void)
+                    else if (objResult.elementType != SadTypeKind::Unknown)
                     {
                         resultType = objResult.elementType;
                     }
@@ -486,7 +486,7 @@ namespace Sad
                     //      never fired — while the stored tag was correct all along
                     //      (measured: adversarial review caught it after only the
                     //      assignment path was sealed).
-                    if (mapElemType == SadTypeKind::Void || mapElemType == SadTypeKind::Any ||
+                    if (mapElemType == SadTypeKind::Unit || mapElemType == SadTypeKind::Any ||
                         mapElemType == SadTypeKind::Unknown || mapElemType == SadTypeKind::Null ||
                         mapElemType == SadTypeKind::Integer || mapElemType == SadTypeKind::Boolean ||
                         mapElemType == SadTypeKind::Float || mapElemType == SadTypeKind::String ||
@@ -916,14 +916,14 @@ namespace Sad
                         //      on the raw string channel, so the sentinel was read as text ⇒
                         //      `نوع()` lied «نصّ» and the compiled null-middle SEM011 guard
                         //      never fired (measured).
-                        if (mapVar && (valResult.type == SadTypeKind::Void ||
+                        if (mapVar && (valResult.type == SadTypeKind::Unit ||
                                        valResult.type == SadTypeKind::Null))
                         {
                             mapVar->elementType = SadTypeKind::Any;
                         }
                         else if (mapVar)
                         {
-                            if (mapVar->elementType == SadTypeKind::Void)
+                            if (mapVar->elementType == SadTypeKind::Unknown)
                                 mapVar->elementType = valResult.type;
                             else if (mapVar->elementType != valResult.type &&
                                      mapVar->elementType != SadTypeKind::Any)
@@ -982,9 +982,30 @@ namespace Sad
                     //      (حمولة 0) مع وسم kMapValueTagVoid القائم في الخلفيّة.
                     // (EN) SEM045: a Void register has no LLVM value — use the Void
                     //      constant (payload 0) with the backend's existing Void tag.
-                    SIROperand valOp = (valResult.type == SadTypeKind::Void)
+                    // (AR) 🔑 والشرطُ **قيمةٌ أم لا قيمة** لا النوعُ وحدَه (2026-09-07).
+                    //      كان كلُّ ما نوعُه «خالي» يُستبدَلُ بثابتِ الغياب بحجّةٍ
+                    //      كانت صحيحةً يومَ كُتِبت: «سجلُّ الفراغِ لا يقابله شيءٌ في
+                    //      LLVM». وصارت خاطئةً حين صارت **قيمةُ الوحدةِ لها سجلٌّ
+                    //      حقيقيّ** يبنيه `expression_collections`. فكان
+                    //      `خ["ب"] = ()` — قيمةٌ كُتِبَت عمدًا — يُخزَّنُ بوسمِ
+                    //      **الغياب**، فيقولُ `نوع(خ["ب"])` «مفقود» كما يقولُ عن
+                    //      `خ["ج"]` التي لم تُكتَبْ قطّ. سؤالانِ مختلفانِ وجوابٌ واحد.
+                    //      والمِطلاقُ هو المِطلاقُ نفسُه المستعمَلُ في الخانةِ العارية
+                    //      (`resolveBareSlotStorageKind`): نداءٌ بلا قيمةٍ لا سجلَّ له.
+                    // (EN) The test is VALUE vs NO VALUE, not the type alone. Every
+                    //      unit-typed result used to be swapped for the absence
+                    //      constant — true while "a Void register has no LLVM value",
+                    //      false once a unit VALUE gained a real register. So a
+                    //      deliberately written `()` was stored under the ABSENCE tag
+                    //      and read back as «missing», the same answer given for a key
+                    //      never written: two different questions, one answer.
+                    const bool absentNotValue = valResult.isAbsentValue();
+                    SIROperand valOp = absentNotValue
                                            ? SIROperand::ConstantVoid()
                                            : SIROperand::Register(valResult.registerName, valResult.type);
+                    const int64_t valueTag =
+                        absentNotValue ? Sad::Compiler::kMapValueTagVoid
+                                       : mapValueTagFor(valResult.type);
 
                     SIRInstruction setInst;
                     setInst.opcode = SIROpcode::CALL;
@@ -1002,8 +1023,7 @@ namespace Sad
                     //      their floatness: `نوع(م["k"])` said «نصّ» where the interpreter said
                     //      «عشريّ». They are now stored as raw bits under their own tag.
                     setInst.operands.push_back(valOp);
-                    const int64_t typeTag = mapValueTagFor(valResult.type);
-                    setInst.operands.push_back(SIROperand::ConstantI64(typeTag));
+                    setInst.operands.push_back(SIROperand::ConstantI64(valueTag));
                     setInst.comment = "map index-assign set typed";
                     if (b_.currentBlock_)
                         b_.currentBlock_->addInstruction(setInst);
@@ -1030,8 +1050,18 @@ namespace Sad
                 //      (its register has no LLVM value) — the tagged representation
                 //      needs boxed elements, so the homogeneous-array (raw slots) limit
                 //      stays as measured.
+                // (AR) 🔑 والشرطُ **سجلٌّ معدومٌ لا نوعٌ خالٍ** — وهو عينُ ما
+                //      أُصلِحَ لمسارِ الخريطةِ أعلاه بخمسينَ سطرًا وبقيَ ههنا:
+                //      «م[0] = ()» كانت تُلقي القيمةَ وتكتبُ حارسَ الغياب، فيُجيبُ
+                //      «نوع(م[0])» بـ«مفقود» عن قيمةٍ كُتِبَتْ صراحة. سؤالانِ
+                //      مختلفانِ بجوابٍ واحد — والمُعينُ في `BuildResult` يمنعُ
+                //      انفصالَ النسختَينِ ثانية.
+                // (EN) The test is an EMPTY REGISTER, not a unit kind — the same fix
+                //      the map path got fifty lines above, missing here: `arr[0] = ()`
+                //      discarded the value and wrote the absence sentinel, so نوع()
+                //      answered «missing» for a value explicitly written.
                 storeInst.operands.push_back(
-                    (valResult.type == SadTypeKind::Void)
+                    valResult.isAbsentValue()
                         ? SIROperand::ConstantVoid()
                         : SIROperand::Register(valResult.registerName, valResult.type));
                 storeInst.comment = "array element set";

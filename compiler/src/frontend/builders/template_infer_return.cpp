@@ -92,11 +92,11 @@ namespace Sad
                                                             const Sad::AST::FunctionDecl *funcDecl)
             {
                 if (!body)
-                    return SadTypeKind::Void;
+                    return SadTypeKind::Unit;
 
                 if (!b_.hasReturnWithValue(body))
                 {
-                    return SadTypeKind::Void;
+                    return SadTypeKind::Unit;
                 }
 
                 // ═══════════════════════════════════════════════════════════════════
@@ -195,7 +195,7 @@ namespace Sad
                         //      inferred Integer and printed the string pointer as a number.
                         if (VariableInfo *known = b_.lookupVariable(var->name))
                         {
-                            if (known->type != SadTypeKind::Void &&
+                            if (known->type != SadTypeKind::Unit &&
                                 known->type != SadTypeKind::Unknown)
                                 return known->type;
                         }
@@ -203,7 +203,7 @@ namespace Sad
                         {
                             if (auto g = b_.module_->getGlobalVariable(var->name))
                             {
-                                if (g->type != SadTypeKind::Void &&
+                                if (g->type != SadTypeKind::Unit &&
                                     g->type != SadTypeKind::Unknown)
                                     return g->type;
                             }
@@ -797,10 +797,25 @@ namespace Sad
                     // (EN) New object creation
                     if (dynamic_cast<const Sad::AST::NewExpr *>(expr))
                         return SadTypeKind::Struct;
-                    // (AR) تعبير صف (Tuple)
-                    // (EN) Tuple expression
-                    if (dynamic_cast<const Sad::AST::TupleExpr *>(expr))
-                        return SadTypeKind::Tuple;
+                    // (AR) تعبير صف (Tuple) — **والفارغُ منه ليس صفًّا**.
+                    //
+                    //   🔑 `()` صفٌّ بلا عناصر، وهو **قيمةُ الوحدةِ** لا صفٌّ ذو
+                    //      حقول. وكانت الذراعُ تُجيبُ `Tuple` للحالَين، فـ
+                    //      `دالة جلب() ارجع () نهاية` يُجيبُ `نوع(جلب())` بـ«صف»
+                    //      (مقيسٌ 2026-09-07)، ويطبعُ النداءُ `0`.
+                    //
+                    //      وهذه هي القناةُ الثالثةُ لضياعِ نوعِ الوحدة: لا قناةَ
+                    //      القيمةِ (وسمُ `DynKind` صحيح) ولا قناةَ العنصر
+                    //      (`elementType` سُدَّت) بل **قناةُ العائد**.
+                    // (EN) A tuple expression — but the EMPTY one is not a tuple. `()`
+                    //      is the unit VALUE, not a tuple with fields. The arm answered
+                    //      Tuple for both, so an inferred `return ()` reported «صف» and
+                    //      the call printed 0. This is the third channel through which
+                    //      the unit type was lost: not the value tag and not the element
+                    //      type, but the RETURN type.
+                    if (const auto *tup = dynamic_cast<const Sad::AST::TupleExpr *>(expr))
+                        return tup->elements.empty() ? SadTypeKind::Unit
+                                                     : SadTypeKind::Tuple;
                     // ================================================================
                     // (AR) [Fix #52] تعبير لامدا — يُرجع دائماً نوع Function
                     //      بدون هذا الفحص، inferReturnTypeFromBody يُعيد Integer
@@ -852,7 +867,20 @@ namespace Sad
                         //      المسارُ وحدَه يملك سجلَّ أنواعِ العناصرِ المحلّيَّ فيمرّره.
                         // (EN) Semantics live in the single source bracketReadResultKind;
                         //      only this path owns the local element-type registry.
-                        SadTypeKind knownElem = SadTypeKind::Void;
+                        // (AR) 🔑 والحارسُ المُمرَّرُ `Unknown` لا `Unit`: المُعينُ صارَ
+                        //      يقرأُ «خالي» **نوعًا معلومًا** (وهو كذلك بعدَ هذه
+                        //      الحملة)، فتمريرُ `Unit` حارسًا يجعلُه يُجيبُ «خالي» عن
+                        //      كلِّ فهرسةٍ لا سجلَّ لعنصرِها.
+                        //      ⚠️ **ومقيسٌ أنّ نزعَ `Unit` من المُعينِ وحدَه انحدار**:
+                        //      أحمرَّ `129_string_index_return_type` و
+                        //      `131_hetero_array_elem_tagged`. فالمصبُّ يُصلَحُ بالمنبعِ
+                        //      لا بالعكس — وإلّا صارَ إصلاحُ ازدواجِ حارسٍ سببَ عطبٍ ثانٍ.
+                        // (EN) The sentinel passed is Unknown, not Unit: the helper now
+                        //      reads Unit as a KNOWN kind, so passing Unit made it answer
+                        //      «unit» for every index whose element type is unregistered.
+                        //      Measured: removing Unit from the helper ALONE reddened two
+                        //      seeds — the sink is fixed at the source, not the reverse.
+                        SadTypeKind knownElem = SadTypeKind::Unknown;
                         if (auto obj = dynamic_cast<const Sad::AST::VariableExpr *>(idx->object.get()))
                         {
                             auto elemIt = localElementTypes.find(obj->name);
@@ -934,12 +962,20 @@ namespace Sad
                             if (auto arrLit =
                                     dynamic_cast<const Sad::AST::ArrayExpr *>(varDecl->initializer.get()))
                             {
-                                SadTypeKind elemType = SadTypeKind::Void;
+                                // (AR) 🔑 و`Unknown` حارسُ «لم يُضبَطْ» — و`inferExprType`
+                                //      في هذه الدالّةِ نفسِها صارت تُرجِعُ `Unit` لقيمةِ
+                                //      الوحدة، فكان أوّلُ عنصرٍ وحدةً يُقرَأُ «غيرَ
+                                //      مضبوط» فتُصنَّفُ مصفوفةٌ مختلطةٌ **متجانسة**.
+                                // (EN) Unknown is the "unset" sentinel — inferExprType in
+                                //      this very function now returns Unit for the unit
+                                //      value, so a first unit element was read as unset
+                                //      and a mixed array was classified homogeneous.
+                                SadTypeKind elemType = SadTypeKind::Unknown;
                                 bool homogeneous = true;
                                 for (const auto &el : arrLit->elements)
                                 {
                                     SadTypeKind t = inferExprType(el.get());
-                                    if (elemType == SadTypeKind::Void)
+                                    if (elemType == SadTypeKind::Unknown)
                                         elemType = t;
                                     else if (t != elemType)
                                         homogeneous = false;
@@ -956,7 +992,6 @@ namespace Sad
                                 {
                                     auto fnIt = b_.functionTable_.find(callee->name);
                                     if (fnIt != b_.functionTable_.end() &&
-                                        fnIt->second.returnElementType != SadTypeKind::Void &&
                                         fnIt->second.returnElementType != SadTypeKind::Unknown)
                                     {
                                         localElementTypes[varDecl->name] =

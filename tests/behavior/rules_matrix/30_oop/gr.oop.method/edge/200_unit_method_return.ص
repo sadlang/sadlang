@@ -1,0 +1,56 @@
+# @rule: gr.oop.method
+# @description: طريقةٌ تُرجِعُ «خالي» — مصرَّحةً ومستنتَجةً وعبرَ سمة
+# @priority: P0
+# @expected خالي\nخالي\nخالي\nنص
+
+# ============================================================
+# (AR) 🔑 قناةُ عائدِ **الطريقةِ** غيرُ قناةِ عائدِ الدالّةِ الحرّة، وذلك
+#      هو ما أخفى العطب: `دالة خالي جلب()` الحرّةُ كانت تُجيبُ صحيحًا،
+#      فمن جرّبَ الشكلَ الأوّلَ قرأ «سليم» ومضى. أمّا الطريقةُ فتُجيبُ
+#      **«صف»** ويطبعُ نداؤُها `0` — حتّى مع تصريحٍ خالصٍ لا استنتاجَ فيه
+#      (مقيسٌ 2026-09-07).
+#
+#      والسببُ أنّ `()` صفٌّ بلا عناصر، وذراعُ الاستنتاجِ كانت تُجيبُ
+#      `Tuple` للصفِّ الفارغِ وغيرِ الفارغِ سواءً. **والفارغُ منه ليس صفًّا
+#      بل قيمةَ الوحدة.**
+#
+#   ⚠️ وشقٌّ ثانٍ في الحارسِ نفسِه: «لا يُرجِعُ شيئًا» و«يُرجِعُ وحدةً» كانا
+#      **مطويَّينِ في قيمةٍ واحدة**، فشرطُ «تجاهَلِ الوحدة» يُسقِطُ الثانيةَ
+#      مع الأولى. والتمييزُ يُقرأُ من الجسمِ (`hasReturnWithValue`) لا
+#      يُخترَع، والدالّةُ التي لا تُرجِعُ قيمةً تبقى كما كانت حرفًا بحرف —
+#      وهي الأغلبيّةُ الساحقةُ في الشجرة.
+#
+#   والسطرُ الرابعُ ضابطٌ لا حشو: طريقةٌ تُرجِعُ نصًّا. فلو رُدَّ عائدُ
+#   الطرائقِ كلِّه إلى الوحدةِ لَبقيت الثلاثةُ الأُوَلُ خضراءَ وحدَها،
+#   **وبذرةٌ بلا ضابطٍ لا تفرِّقُ بين إصلاحٍ ومحوٍ شامل.**
+# (EN) A method's return channel is not a free function's, and that is what hid
+#      the defect: the free `دالة خالي جلب()` answered correctly, so anyone who
+#      tried that form first read "fine" and moved on. A method answered «صف»
+#      and its call printed 0 — even with an explicit declaration and no
+#      inference at all. `()` is a tuple with no elements and the inference arm
+#      answered Tuple for empty and non-empty alike; the empty one is not a
+#      tuple but the unit VALUE. A second half of the same guard folded "returns
+#      nothing" and "returns unit" into one value, so ignoring units dropped
+#      both; the distinction is READ from the body, not invented, and functions
+#      that return no value are untouched. The fourth line is a control, not
+#      filler: had every method return been forced to unit, the first three
+#      would still pass — a seed without a control cannot tell a fix from a
+#      blanket erasure.
+# ============================================================
+
+سمة قابل
+    دالة خالي وصف()
+نهاية
+
+صنف ك
+    نفّذ قابل
+    دالة خالي وصف() ارجع () نهاية
+    دالة خالي مصرّحة() ارجع () نهاية
+    دالة مستنتجة() ارجع () نهاية
+    دالة نص ضابط() ارجع "نص" نهاية
+نهاية
+
+اطبع_سطر(نوع(ك().وصف()))
+اطبع_سطر(نوع(ك().مصرّحة()))
+اطبع_سطر(نوع(ك().مستنتجة()))
+اطبع_سطر(نوع(ك().ضابط()))

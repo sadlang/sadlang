@@ -9,15 +9,15 @@ guard: scripts/codegen/check_builtin_engine_coverage.py
 harness: scripts/codegen/calibrate_builtin_coverage.py
 guard_sha256: b87ba6bdad58cb17d03cd90a6db429bcd469474c8be03d03221d568086c4f6b4
 harness_sha256: d351ee8ba649942bef9b6dc1f50d20fb06fed1755bef5860604d46bd691cc369
-calibrated_at: 2026-09-06
+calibrated_at: 2026-09-07
 probes_total: 10
 probes_passed: 10
 result: 10/10
 targets_sha256:
-  compiler/src/frontend/builders/builtins_core.cpp: 13139e1e8e64e85195d54422911849519116f4565beaef2f791f82b4cd8ccce6
+  compiler/src/frontend/builders/builtins_core.cpp: c3865b6506d6eb29141224146a588fe5d1e739339122ef37802278521aa89ccc
   compiler/src/frontend/builders/builtins_network.cpp: a6e1ca4057de241c4acc8080187c9aed5a192d1d5919b51940723859d7b2ee33
   compiler/tests/zz_calibration_launder_probe.h: (معدوم)
-  language-truth/builtins/core.yaml: 147fdb1f6d253c35083b0820ecfe3118ba26724425ed6245dd65cdf7b030b596
+  language-truth/builtins/core.yaml: ba91b86c9ac0ee2c0e57a04751e5620a79b48e81383e8a0876971abd0f77271a
   language-truth/builtins/sadnet.yaml: f690a64644979d1db6568b9cfa702bcda37d7642fb8992bde8a1ee01da22597f
   scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
 probes:

@@ -315,8 +315,8 @@ namespace Sad
                 return "TYPE_STRING";
             case TokenType::TYPE_BOOLEAN:
                 return "TYPE_BOOLEAN";
-            case TokenType::TYPE_VOID:
-                return "TYPE_VOID";
+            case TokenType::TYPE_UNIT:
+                return "TYPE_UNIT";
             case TokenType::TYPE_NULL:
                 return "TYPE_NULL";
             case TokenType::TYPE_ARRAY:

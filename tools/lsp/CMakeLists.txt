@@ -8,7 +8,7 @@
 # │  sad-lsp  (الملف التنفيذي النهائي)                           │
 # │     ├── sad_lsp_engine  (مكتبة المحرك الأساسي)                      │
 # │     │     ├── sad_shared       (المحلل المعجمي + النحوي + AST)       │
-# │     │     ├── sad_type_system  (SadType — تحليل الأنواع الساكن)      │
+# │     │     ├── sad_shared  (SadType — تحليل الأنواع الساكن)      │
 # │     │     ├── sad_formatter    (تنسيق المستندات)                    │
 # │     │     └── nlohmann_json    (مكتبة JSON)                         │
 # │     └── sad_lsp_transport  (طبقة النقل JSON-RPC)                    │
@@ -141,14 +141,14 @@ add_dependencies(sad_lsp_engine sad_lsp_keyword_docs_codegen)
 
 # (AR) م4 (RFC sadlang-rfcs#10): إعادة توصيل الأدوات إلى sad_shared الحقيقيّ.
 #      خادم LSP تحليلٌ ساكن (معجم/محلّل/AST/أنواع) — لا يستعمل أيّ رمز Sad::Interpreter::
-#      ⇒ يربط sad_shared (النواة) + sad_type_system (SadType) بدل sad_core (المفسّر كاملًا)،
+#      ⇒ يربط sad_shared (النواة) + sad_shared (SadType) بدل sad_core (المفسّر كاملًا)،
 #      فلا يُسحَب المفسّر الشجريّ + المدمجات + وقت التشغيل في ثنائيّ أداةٍ لا تحتاجها.
 # (EN) Phase-4: re-wire tools to the real sad_shared. The LSP server is static analysis
 #      (lexer/parser/AST/types) — uses zero Sad::Interpreter:: symbols ⇒ links sad_shared
-#      + sad_type_system instead of sad_core (the whole interpreter).
+#      + sad_shared instead of sad_core (the whole interpreter).
 target_link_libraries(sad_lsp_engine PUBLIC
     sad_shared
-    sad_type_system
+
     sad_formatter
 )
 

@@ -1,0 +1,65 @@
+# @rule: gr.oop.field
+# @description: حقولُ البنيةِ تُقرَأُ بأنواعِها المُعلَنة — لا بالافتراضِ «رقم»
+# @priority: P1
+# @expected خالي\nخريطة\nعدم\nنص\nمنطقي\nعشري\nمصفوفة\n9
+
+# ============================================================
+# (AR) 🔑 **قائمةُ السماحِ لا تُعطِبُ النوعَ الذي نُسيَ وحدَه، بل كلَّ نوعٍ لم
+#      يُذكَرْ فيها.**
+#
+#      كاتبُ حقولِ البنيةِ يبدأ «رقم» ثمّ يستثني أنواعًا **مُسمّاةً واحدًا
+#      واحدًا**. فلمّا أُضيفت `خالي` إليه سُدَّ عطبُها وحدَها، **وبقيَ جاراها في
+#      الصمتِ معطوبَين**: `متغير خريطة ح` و`متغير عدم ح` يُجيبانِ «رقم»
+#      ويطبعانِ `0` (مقيسٌ 2026-09-07)، وضابطُهما في موضعِ متغيّرٍ محلّيٍّ يُجيبُ
+#      «خريطة» و«عدم» صحيحًا — فالعلّةُ في **موضعِ الحقلِ** لا في النوعَين.
+#
+#   ⚠️ **وسببُ بقائِهما هو الدرس**: مسحُ `tests/behavior` كلِّه أعطى **صفرَ**
+#      حقلٍ من هذين النوعَين. فالدَّينُ لم يَعِشْ لأنّه عسير، بل **لأنّ لا بذرةَ
+#      تمسُّه**. وهذه البذرةُ تمسُّ الأنواعَ السبعةَ معًا لا الوحدةَ وحدَها،
+#      كي لا يتكرّرَ سدُّ نوعٍ وتركُ جيرانِه.
+#
+#   🔑 وقياسُ نوعٍ واحدٍ من قائمةٍ يشهدُ لذلك النوعِ لا للقائمة. والقائمةُ هي
+#      الآليّة، والنوعُ عرَضٌ من أعراضِها.
+#
+#   ⚠️ واسمُ الحقلِ الأوّلِ «وح» لا «و»: **«و» كلمةٌ محجوزة**، وقد أخفقَت بها
+#      خمسةُ مِجَسّاتٍ في هذه الحملةِ برسائلَ تبدو أعطابًا في النوعِ المقيسِ لا
+#      في اسمِ المتغيّر. والدرس: **رسالةُ الخطأِ تُسمّي الموضعَ لا السبب.**
+#
+#   والحقلُ الأخيرُ (`9`) يحرسُ تخطيطَ البنية: تصحيحُ عرضِ خانةٍ قد يُزيحُ ما
+#   بعدَها، فيَخضَرُّ نوعُ الحقلِ ويكذبُ موضعُه.
+# (EN) An allow-list does not corrupt only the kind that was forgotten — it corrupts
+#      every kind not named in it. The struct-field WRITER starts at Integer and
+#      then excepts kinds one by one; adding خالي closed its own defect and left its
+#      silent neighbours broken: خريطة and عدم fields answered «رقم» and printed 0,
+#      while the same kinds in a local-variable position answered correctly, so the
+#      fault is in the FIELD POSITION, not in those kinds. Why they survived is the
+#      lesson: a scan of all of tests/behavior found ZERO fields of either kind. The
+#      debt lived not because it was hard but because no seed touched it. This seed
+#      touches all seven kinds together rather than the unit alone, so that fixing
+#      one kind and leaving its neighbours cannot happen again: measuring one kind
+#      from a list testifies for that kind, not for the list — and the list is the
+#      mechanism, the kind merely its symptom. The trailing 9 guards the struct
+#      layout: correcting one slot's width can shift what follows, leaving the
+#      field's TYPE right and its POSITION lying.
+# ============================================================
+
+بنية ب
+    متغير خالي وح
+    متغير خريطة خ
+    متغير عدم د
+    متغير نص ن = "س"
+    متغير منطقي م = صحيح
+    متغير عشري ع = 1.5
+    متغير مصفوفة ص = []
+    متغير رقم ر = 9
+نهاية
+
+متغير ك = ب()
+اطبع_سطر(نوع(ك.وح))
+اطبع_سطر(نوع(ك.خ))
+اطبع_سطر(نوع(ك.د))
+اطبع_سطر(نوع(ك.ن))
+اطبع_سطر(نوع(ك.م))
+اطبع_سطر(نوع(ك.ع))
+اطبع_سطر(نوع(ك.ص))
+اطبع_سطر(ك.ر)

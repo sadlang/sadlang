@@ -908,38 +908,38 @@ namespace Sad
                 if (funcName == Bn::CompilerUi::UI_20)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_20, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ADD_CHILD);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── أزل_ابن(أب, ابن) / sad_remove_child(parent, child) ───
                 if (funcName == Bn::CompilerUi::UI_21)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_21, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_REMOVE_CHILD);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── امسح_الأبناء(عنصر) / sad_clear_children(widget) ───
                 if (funcName == Bn::CompilerUi::UI_22)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_22, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CLEAR_CHILDREN);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // =====================================================================
@@ -950,156 +950,156 @@ namespace Sad
                 if (funcName == Bn::CompilerUi::UI_23)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_23, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_TEXT);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_الحجم(عنصر, عرض, ارتفاع) / sad_set_size(widget, w, h) ───
                 if (funcName == Bn::CompilerUi::UI_24)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_24, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SIZE);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_المرونة(عنصر, مرونة) / sad_set_flex(widget, flex) ───
                 if (funcName == Bn::CompilerUi::UI_25)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_25, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FLEX);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_الخلفية(عنصر, أحمر, أخضر, أزرق, شفافية) / sad_set_background(w, r,g,b,a) ───
                 if (funcName == Bn::CompilerUi::UI_26)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_26, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BACKGROUND);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_اللون(عنصر, أحمر, أخضر, أزرق, شفافية) / sad_set_foreground(w, r,g,b,a) ───
                 if (funcName == Bn::CompilerUi::UI_27)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_27, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FOREGROUND);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_التباعد(عنصر, تباعد) / sad_set_spacing(w, spacing) ───
                 if (funcName == Bn::CompilerUi::UI_28)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_28, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SPACING);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_الحشوة(عنصر, فوق, يمين, تحت, يسار) / sad_set_padding(w, t,r,b,l) ───
                 if (funcName == Bn::CompilerUi::UI_29)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_29, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_PADDING);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_المحاذاة(عنصر, رئيسية, فرعية) / sad_set_alignment(w, main, cross) ───
                 if (funcName == Bn::CompilerUi::UI_30)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_30, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ALIGNMENT);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_الحدود(عنصر, سمك, أحمر, أخضر, أزرق, شفافية) / sad_set_border(...) ───
                 if (funcName == Bn::CompilerUi::UI_31)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_31, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BORDER);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_الارتفاع(عنصر, ارتفاع) / sad_set_elevation(w, elev) ───
                 if (funcName == Bn::CompilerUi::UI_32)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_32, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ELEVATION);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_الشفافية(عنصر, شفافية) / sad_set_opacity(w, opacity) ───
                 if (funcName == Bn::CompilerUi::UI_33)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_33, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_OPACITY);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── عين_الظهور(عنصر, مرئي) / sad_set_visibility(w, visible) ───
                 if (funcName == Bn::CompilerUi::UI_34)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_34, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_VISIBILITY);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // =====================================================================
@@ -1121,38 +1121,38 @@ namespace Sad
                 if (funcName == Bn::CompilerUi::UI_36)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_36, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_SET_ROOT);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── خطط(تطبيق, عرض, ارتفاع) / sad_app_layout(app, w, h) ───
                 if (funcName == Bn::CompilerUi::UI_37)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_37, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_LAYOUT);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── ارسم(تطبيق) / sad_app_render(app) ───
                 if (funcName == Bn::CompilerUi::UI_38)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_38, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_RENDER);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── تشغيل_تطبيق(عنصر) / sad_app_run(root) ───
@@ -1161,24 +1161,24 @@ namespace Sad
                 if (funcName == Bn::UICore::RUN_APP)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::RUN_APP, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_RUN);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── طباعة_شجرة(عنصر) / sad_print_tree(root) — تصحيح ───
                 if (funcName == Bn::UICore::PRINT_TREE)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::PRINT_TREE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_PRINT_TREE);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── م-تحكّم: دوال الثيم — جسرٌ إلى حالة الثيم المكتبيّة (sad::ui::*) ───
@@ -1194,7 +1194,7 @@ namespace Sad
                     SIRInstruction inst(op); // بلا operands
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::UICore::IS_DARK)
                 {
@@ -1226,7 +1226,7 @@ namespace Sad
                 if (funcName == Bn::UICore::NAVIGATE || funcName == Bn::UICore::REPLACE_PAGE)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), (funcName == Bn::UICore::NAVIGATE ? Ar::UICore::NAVIGATE : Ar::UICore::REPLACE_PAGE), argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     // (AR) الوسيط قد يكون **لقطة عنصر** (ptr) أو **بانِي صفحة** (دالّة ص
                     //      تُرجع عنصرًا ⇒ إغلاق i64). يميّزهما الخافض (emitUiNavigate/
                     //      ReplacePage) بنوع المُعامل: إغلاق ⇒ sad_navigate_builder (م1-ج،
@@ -1237,22 +1237,22 @@ namespace Sad
                             funcName == Bn::UICore::NAVIGATE ? "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84"    // انتقل
                                                              : "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x84", // استبدل
                             argResults[0].type))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(funcName == Bn::UICore::NAVIGATE ? SIROpcode::BUILTIN_UI_NAVIGATE
                                                                         : SIROpcode::BUILTIN_UI_REPLACE_PAGE);
                     inst.operands.push_back(argOperands[0]); // الصفحة (عنصر أو بانٍ)
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 // (م2) انتقل_بتحريك(صفحة, نوع, مدة؟) — تنقّل + انتقال بصريّ.
                 if (funcName == Bn::UICore::NAVIGATE_TRANSITION)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::NAVIGATE_TRANSITION, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     // (AR) حارس نوع (HIGH-2): الصفحة عنصر أو دالّة بناء (منع انهيار المترجم).
                     if (!checkUiNavArgType(b_.errors_, "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83", argResults[0].type)) // انتقل_بتحريك
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_NAVIGATE_TRANSITION);
                     inst.operands.push_back(argOperands[0]); // الصفحة
                     inst.operands.push_back(argOperands[1]); // نوع الانتقال
@@ -1260,7 +1260,7 @@ namespace Sad
                         inst.operands.push_back(argOperands[2]); // مدة (اختياريّة)
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 // (م2) عودة_بتحريك(نوع؟, مدة؟) — عودة + انتقال بصريّ.
                 if (funcName == Bn::UICore::BACK_TRANSITION)
@@ -1272,7 +1272,7 @@ namespace Sad
                         inst.operands.push_back(argOperands[1]); // مدة (اختياريّة)
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::UICore::BACK || funcName == Bn::UICore::BACK_TO_ROOT)
                 {
@@ -1280,7 +1280,7 @@ namespace Sad
                                                                      : SIROpcode::BUILTIN_UI_NAV_ROOT);
                     if (b_.currentBlock_) // نداء void بلا وسائط (نتيجة عودة المنطقيّة تُهمَل كالمفسّر)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 if (funcName == Bn::UICore::PAGE_COUNT)
                 {
@@ -1312,10 +1312,10 @@ namespace Sad
                 if (funcName == Bn::UICore::NAVIGATE_EXIT_TRANSITION)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::NAVIGATE_EXIT_TRANSITION, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     // (HIGH-2) حارس نوع: الصفحة عنصر أو دالّة بناء (منع انهيار المترجم).
                     if (!checkUiNavArgType(b_.errors_, std::string(Bn::UICore::NAVIGATE_EXIT_TRANSITION), argResults[0].type))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_NAVIGATE_EXIT_TRANSITION);
                     inst.operands.push_back(argOperands[0]); // الصفحة (عنصر أو بانٍ)
                     inst.operands.push_back(argOperands[1]); // نوع الدخول
@@ -1324,7 +1324,7 @@ namespace Sad
                         inst.operands.push_back(argOperands[3]); // مدة (اختياريّة)
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 // (إكمال) تحديث_حالة() — يطلب إعادة رسم (بلا وسائط).
                 if (funcName == Bn::UICore::UPDATE_STATE)
@@ -1332,7 +1332,7 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_UPDATE_STATE); // بلا operands
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 // (rfcs#51) أوقف_الانتشار() — يوقف انتشار الحدث الجاري (بلا وسائط).
                 if (funcName == Bn::UICore::STOP_PROPAGATION)
@@ -1340,7 +1340,7 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_STOP_PROPAGATION);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 // (إكمال) عين_الحالة(دالّة_تحديث؟) — نداء دالّة التحديث تزامنيًّا ثمّ إعادة رسم.
                 //   نمرّر المُعامل فقط إن كان **دالّة** (Function): الخافض يستدعي ثانك الإغلاق
@@ -1359,22 +1359,22 @@ namespace Sad
                         inst.operands.push_back(argOperands[0]); // دالّة التحديث (إغلاق)
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 // (إكمال) عنوان_النافذة(نص) — يطلب تغيير عنوان النافذة عبر المتحكّم المشترك.
                 if (funcName == Bn::UICore::SET_TITLE)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::SET_TITLE, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     // (Amelia M2) حارس نوع نصّ (تكافؤ مع المفسّر !isString): يرفض العنوان
                     //   العدديّ/المنطقيّ (وإلّا مرّ non-pointer فتحوّل إلى null صامتًا).
                     if (!checkUiTitleArgType(b_.errors_, std::string(Bn::UICore::SET_TITLE), argResults[0].type))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_TITLE);
                     inst.operands.push_back(argOperands[0]); // العنوان (نص)
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 // (إكمال) أغلق_النافذة() — يطلب إغلاق النافذة (بلا وسائط).
                 if (funcName == Bn::UICore::CLOSE_WINDOW)
@@ -1382,7 +1382,7 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CLOSE_WINDOW); // بلا operands
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
                 // (إكمال) أبوابُ توليدِ كودِ المنصّة: توليد_ويب/أندرويد/آي_أو_إس/ماك
                 //   (عنصر, اسم؟) ⇒ نصٌّ (String). أربعتُها متطابقةُ الشكلِ والحراسة،
@@ -1408,13 +1408,13 @@ namespace Sad
                         if (funcName != name)
                             continue;
                         if (!checkBuiltinArity(b_.errors_, std::string(funcName), arity, argResults.size()))
-                            return BuildResult("", SadTypeKind::Void);
+                            return BuildResult("", SadTypeKind::Unit);
                         // (Amelia مراجعة2، MEDIUM) حارس نوع الوسيط: عنصر (Pointer) أو دالّة بناء
                         //   (Function) فقط. بدونه يُصنّف bridgeUiPageBuilder أيّ i64 (عدد) بانيًا
                         //   ⇒ inttoptr لقيمةٍ عدديّة ثمّ قراءة {fn,env} من عنوانٍ باطل ⇒ انهيار
                         //   (بينما المفسّر يرفضه بأمان). نظير حرّاس انتقل/انتقل_بتحريك.
                         if (!checkUiNavArgType(b_.errors_, std::string(name), argResults[0].type))
-                            return BuildResult("", SadTypeKind::Void);
+                            return BuildResult("", SadTypeKind::Unit);
                         std::string r = b_.newTempRegister();
                         SIRInstruction inst(opcode);
                         inst.operands.push_back(argOperands[0]); // العنصر (أو بانٍ)
@@ -1442,24 +1442,24 @@ namespace Sad
                 if (funcName == Bn::CompilerUi::UI_39)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_39, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_DESTROY);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // ─── دمر_عنصر(عنصر) / sad_widget_destroy(widget) ───
                 if (funcName == Bn::CompilerUi::UI_40)
                 {
                     if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_40, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_WIDGET_DESTROY);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
 

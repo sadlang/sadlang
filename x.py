@@ -65,6 +65,14 @@ for _stream in (sys.stdout, sys.stderr):
 # ──────────────────────────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent
 BUILD_DIR = ROOT / "build"
+# (AR) 🔑 شجرةُ بناءِ اختباراتِ الوحدةِ **منفصلةٌ عمدًا** عن شجرةِ الإنتاج:
+#      `BUILD_TESTS=ON` يُضيفُ عشراتِ الأهدافِ ويُبدِّلُ ذاكرةَ CMake، فخلطُهما
+#      يجعلُ كلَّ تشغيلِ اختباراتٍ يُعيدُ بناءَ المترجِّمِ كلَّه — والثمنُ شوطٌ
+#      كاملٌ لا خطوةُ حارس. والفصلُ يجعلُ البوّابتَينِ تعملانِ بالتوازي.
+# (EN) The unit-test build tree is deliberately separate from the production one:
+#      BUILD_TESTS=ON adds dozens of targets and rewrites the CMake cache, so
+#      sharing one tree would rebuild the whole compiler on every test run.
+BUILD_TESTS_DIR = ROOT / "build-tests"
 DIST_DIR = ROOT / "dist"
 
 # (AR) الهدفان اللذان يجب أن يُبنيا معًا دائمًا — قلب ضمان التطابق السلوكيّ.
@@ -1317,6 +1325,49 @@ def cmd_test(args: argparse.Namespace) -> None:
     sys.exit(result.returncode)
 
 
+def cmd_units(args: argparse.Namespace) -> None:
+    """(AR) بوّابةُ اختباراتِ الوحدة (GTest + ctest).
+    (EN) Unit-test gate (GTest + ctest).
+
+    ════════════════════════════════════════════════════════════════════════
+    (AR) 🔑 **طبقةُ حراسةٍ كانت مُطفأةً بالكامل.** البناءُ الافتراضيُّ
+         `BUILD_TESTS=OFF`، فأهدافُ GTest **لا تُترجَمُ ولا تُربَطُ ولا تُشغَّل**
+         في أيِّ بوّابة. ومقيسٌ (٢٠٢٦-٠٩-٠٨): أوّلُ تشغيلٍ لها بعدَ إعادةِ
+         توجيهِ اثنَينِ وعشرينَ هدفًا أعطى **١٠٢ حالةً، ١٠٠ ناجحة** — أي أنّ
+         الشفرةَ كانت سليمةً، **والحراسةُ وحدَها كانت غائبة**.
+         وفيها بواباتُ عقدٍ لا تراها أشواطُ البذورِ إطلاقًا: `metrics`
+         (سطحُ اللغةِ والحجمُ الحتميّ) · `safety` · `symmetry` · `nfr`.
+         فبقاؤها خارجَ البوّابةِ يعني أنّ انجرافَ سطحِ اللغةِ يمرُّ صامتًا.
+    ⚠️  **وهدفٌ يُترجَمُ ولا يُشغَّلُ ليس محروسًا بل مُصرَّفًا** — والفرقُ بينهما
+         هو الفرقُ بين حارسٍ يعضُّ وحارسٍ يبدو أنّه يعضّ.
+    (EN) A whole guard layer that was switched off: the default build is
+         BUILD_TESTS=OFF, so GTest targets are never compiled, linked or run by
+         any gate. Measured: their first run after 22 targets were retargeted
+         gave 102 cases, 100 passing — the code was fine; only the guarding was
+         missing. It carries contract gates the seed runs never see (language
+         surface, deterministic size, safety, symmetry, NFR), so leaving it out
+         lets a language-surface drift pass in silence. A target that compiles
+         but never runs is not guarded — it is merely compiled.
+    ════════════════════════════════════════════════════════════════════════
+    """
+    configs = _parse_configs(args.config)
+    if len(configs) != 1:
+        _fail("units يقبل تهيئة واحدة فقط / units accepts exactly one config.")
+    config = configs[0]
+
+    if not (BUILD_TESTS_DIR / "CMakeCache.txt").exists():
+        _log("تهيئة شجرة اختبارات الوحدة / configuring unit-test tree …")
+        _run(["cmake", "-S", str(ROOT), "-B", str(BUILD_TESTS_DIR), "-DBUILD_TESTS=ON"])
+
+    _log("بناء أهداف الاختبار / building test targets …")
+    _run(["cmake", "--build", str(BUILD_TESTS_DIR), "--config", config])
+
+    _log("تشغيل ctest / running ctest …")
+    cmd = ["ctest", "-C", config, "--output-on-failure", *args.ctest_args]
+    result = subprocess.run(cmd, cwd=BUILD_TESTS_DIR)
+    sys.exit(result.returncode)
+
+
 def cmd_conformance(args: argparse.Namespace) -> None:
     """(AR) تمرير رفيع إلى فاحص مطابقة القواعد القائم (يصبح أعمق في مرحلة لاحقة).
     (EN) Thin pass-through to the existing grammar-conformance checker."""
@@ -1468,6 +1519,13 @@ def build_parser() -> argparse.ArgumentParser:
     pc = sub.add_parser("configure", help="تهيئة CMake / configure CMake")
     pc.set_defaults(func=cmd_configure)
 
+    pu = sub.add_parser("units", help="اختبارات الوحدة (GTest/ctest) / unit tests")
+    pu.add_argument("--config", default="Release",
+                    help="تهيئة البناء / build config")
+    pu.add_argument("ctest_args", nargs=argparse.REMAINDER,
+                    help="وسائط تُمرَّر لـctest بعد -- / args passed to ctest after --")
+    pu.set_defaults(func=cmd_units)
+
     pf = sub.add_parser("conformance", help="فاحص مطابقة القواعد / grammar-conformance checker")
     pf.add_argument("checker_args", nargs=argparse.REMAINDER,
                     help="وسائط تُمرَّر للفاحص بعد -- / args passed to the checker after --")
@@ -1483,7 +1541,7 @@ def main() -> None:
     args = build_parser().parse_args()
     # (AR) إزالة `--` الفاصل إن مرّره argparse ضمن REMAINDER.
     # (EN) Strip a leading `--` separator left by argparse in REMAINDER.
-    for attr in ("runner_args", "checker_args"):
+    for attr in ("runner_args", "checker_args", "ctest_args"):
         vals = getattr(args, attr, None)
         if vals and vals and vals[0] == "--":
             setattr(args, attr, vals[1:])

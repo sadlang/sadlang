@@ -59,7 +59,7 @@ namespace {
             case Types::SadTypeKind::Float:     return "float";
             case Types::SadTypeKind::String:    return "string";
             case Types::SadTypeKind::Boolean:   return "bool";
-            case Types::SadTypeKind::Void:      return "none";
+            case Types::SadTypeKind::Unit:      return "none";
             case Types::SadTypeKind::Array:     return "array";
             case Types::SadTypeKind::Map:       return "map";
             case Types::SadTypeKind::Tuple:     return "tuple";
@@ -120,7 +120,7 @@ std::string FunctionDecl::toString() const {
     
     oss << ")";
     
-    if (returnType != Types::SadTypeKind::Void) {
+    if (returnType != Types::SadTypeKind::Unit) {
         oss << " -> " << typeToString(returnType);
     }
     
@@ -256,7 +256,7 @@ std::string MethodDecl::toString() const {
     
     oss << ")";
     
-    if (returnType != Types::SadTypeKind::Void) {
+    if (returnType != Types::SadTypeKind::Unit) {
         oss << " -> " << typeToString(returnType);
     }
     

@@ -231,49 +231,59 @@ def test_generated_header_default_init_in_sync():
     ), "جدولُ القيمِ الافتراضيّةِ غيرُ متزامن — أعد التوليد"
 
 
-def test_not_a_slot_kinds_are_proven_rejected_by_a_behaviour_test():
-    """(AR) 🔑 «لا خانةَ تحمله» دعوى **سلوكيّةٌ لا تصنيفيّة**: لا يكفي أن تُكتَب
-       في مصدرِ الحقيقة، بل يلزم أن يرفضَها المحرّكان فعلًا. فهذا الحارسُ يربط
-       كلَّ نوعٍ موسومٍ `not_a_slot` باختبارِ سلوكٍ يُصرِّح به خانةً ويشترط
-       `SEM040` بعينِه — لا `@expect_error` عاريًا يمرّ على أيِّ خطأ.
-       فإن وُسِم نوعٌ جديدٌ بها بلا برهانٍ سلوكيٍّ، احمرّ هذا الحارس.
-       (EN) «no slot can hold it» is a BEHAVIOURAL claim, not a taxonomy label:
-       writing it in the SoT is not enough — both engines must actually reject
-       it. This guard ties every `not_a_slot` kind to a behaviour test that
-       declares it as a slot and demands SEM040 specifically."""
-    words = [entry["word"] for entry in _types() if entry["default_init"] == "not_a_slot"]
-    assert words, "لا نوعَ موسومٌ not_a_slot — أزِلِ الحارسَ أو أعِدِ الوسم"
+def test_unit_value_kinds_are_proven_held_by_a_behaviour_test():
+    """(AR) 🔑 «الخانةُ تحملُه» دعوى **سلوكيّةٌ لا تصنيفيّة**: لا يكفي أن تُكتَب
+       في مصدرِ الحقيقة، بل يلزم أن يقبلَها المترجّمُ فعلًا. فهذا الحارسُ يربط
+       كلَّ نوعٍ موسومٍ `unit_value` ببذرةِ سلوكٍ تُصرِّح به خانةً وتشترط مخرَجًا
+       — لا `@expect_error` يمرُّ على أيِّ رفض.
+
+       (AR) 🔑 وهو **مقلوبُ** حارسٍ سابقٍ لا حذفُه: كان `not_a_slot` يربط
+       «فراغ» ببذرةٍ تشترط `SEM040`. وقد حُذف «فراغ» وحلَّ محلَّه «خالي» —
+       نوعُ الوحدة، وهو نوعُ قيمةٍ كاملٌ تحملُه الخانة — فانقلبَ موضوعُ
+       الدعوى ولم تسقطْ. وإسقاطُ الحارسِ كان يترك الدعوى الجديدة بلا قفل.
+       (EN) "a slot can hold it" is a BEHAVIOURAL claim, not a taxonomy label.
+       This is the INVERSION of the former `not_a_slot` guard, not its deletion:
+       that one tied «فراغ» to a seed demanding SEM040; «خالي» (unit) replaced
+       it as a full value type, so the claim flipped rather than vanished."""
+    words = [entry["word"] for entry in _types() if entry["default_init"] == "unit_value"]
+    assert words, "لا نوعَ موسومٌ unit_value — أزِلِ الحارسَ أو أعِدِ الوسم"
 
     behavior_dir = ROOT / "tests" / "behavior"
     assert behavior_dir.is_dir(), "مجلّدُ اختباراتِ السلوكِ غيرُ موجود"
 
-    rejection_tests = {}
-    for path in behavior_dir.rglob("*.\u0635"):
+    positive_tests = {}
+    for path in behavior_dir.rglob("*.ص"):
         text = path.read_text(encoding="utf-8", errors="replace")
-        if "@expect_error: SEM040" in text:
-            rejection_tests[path.name] = text
-    assert rejection_tests, "لا اختبارَ يشترط SEM040 بعينِه"
+        if "@expected" in text and "@expect_error" not in text:
+            positive_tests[path.name] = text
+    assert positive_tests, "لا بذرةَ موجبةٍ في الشجرة"
 
     for word in words:
         declared = re.compile(
-            r"^[ \t]*(?:\u0645\u062a\u063a\u064a\u0631[ \t]+)?" + re.escape(word) + r"[ \t]+\S",
+            r"^[ 	]*(?:متغير[ 	]+)?" + re.escape(word) + r"[ 	]+\S",
             re.MULTILINE,
         )
-        hits = [name for name, text in rejection_tests.items() if declared.search(text)]
+        hits = [name for name, text in positive_tests.items() if declared.search(text)]
         assert hits, (
-            f"«{word}» موسومٌ not_a_slot ولا اختبارَ سلوكٍ يُصرِّح به خانةً "
-            f"ويشترط SEM040 — الدعوى غيرُ مقيسة"
+            f"«{word}» موسومٌ unit_value ولا بذرةَ سلوكٍ موجبةٌ تُصرِّح به خانةً "
+            f"— الدعوى غيرُ مقيسة"
         )
 
 
-def test_not_a_slot_is_distinct_from_unspecified():
-    """(AR) الفرقُ ليس تسمية: «unspecified» دَينٌ ينتظر قرارًا، و«not_a_slot»
-       استحالةٌ لا قرارَ فيها. ودمجُهما يجعل قارئًا يحسب على «فراغ» دَينًا."""
+def test_unit_value_is_distinct_from_unspecified():
+    """(AR) الفرقُ ليس تسمية: «unspecified» دَينٌ ينتظر قرارًا، و«unit_value»
+       قيمةٌ مُقرَّرةٌ «()». ودمجُهما يجعل قارئًا يحسب على «خالي» دَينًا."""
     vocab = {word for word, _cxx, _ar, _en in DEFAULT_INIT_VOCAB}
-    assert {"unspecified", "not_a_slot"} <= vocab
+    assert {"unspecified", "unit_value"} <= vocab
+    assert "not_a_slot" not in vocab, (
+        "«not_a_slot» زالَ مع «فراغ» (2026-09-07) — إعادتُه تُعيد لفظًا بلا حامل"
+    )
     by_word = {entry["word"]: entry for entry in _types()}
-    assert by_word["\u0641\u0631\u0627\u063a"]["default_init"] == "not_a_slot", (
-        "«فراغ» نوعُ إرجاعٍ لا نوعُ خانة — وسمُه unspecified يجعله دَينًا وهو ليس كذلك"
+    assert "فراغ" not in by_word, (
+        "«فراغ» محذوفٌ من اللغة — وجودُه نوعًا يُعيد اللفظَ الذي حلَّ محلَّه «خالي»"
+    )
+    assert by_word["خالي"]["default_init"] == "unit_value", (
+        "«خالي» نوعُ الوحدة وقيمتُه «()» — وسمُه unspecified يجعله دَينًا وهو ليس كذلك"
     )
 
 

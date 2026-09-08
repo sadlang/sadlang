@@ -1,0 +1,30 @@
+# @description «خالي» يعبرُ حدَّ الدالّةِ في الطرفَين: معاملًا ونوعَ إرجاع.
+# @priority P0
+# @expected خالي
+# @rule gr.decl.function
+
+# ============================================================
+# (AR) 🔑 حلَّت محلَّ `068_issue113_void_param_rejected.ص` بقلبِ توكيدِها.
+#
+#      وسببُ وجودِ تلك البذرةِ يبقى قائمًا وإن انقلبَ حكمُها: **المعاملُ يبلغُ
+#      المحلّلَ من سبعةِ مواضعَ متمايزة**، ولا واحدٌ منها `parseVarDecl`. فبوّابةٌ
+#      على مسارٍ واحدٍ تُخفي أنّ الستّةَ الباقيةَ مفتوحة. وذلك صحيحٌ في اتّجاهَي
+#      الحكمِ معًا: كما كان منعُ «فراغ» متغيّرًا لا يعني منعَه معامِلًا، فقبولُ
+#      «خالي» متغيّرًا لا يعني قبولَه معامِلًا. ولذلك تُقاسُ الأطرافُ ههنا
+#      صراحةً — معاملًا ونوعَ إرجاعٍ معًا — لا يُستنتَجُ أحدُهما من الآخر.
+#
+#      و«خالي» نوعُ الوحدة: الصفُّ الفارغُ نفسُه، قيمتُه الوحيدةُ «()»، وهو
+#      نظيرُ `()` في رست — قيمةٌ تُمرَّرُ وتُرجَعُ كسائرِ القيم.
+# (EN) Replaces 068_issue113_void_param_rejected.ص by inverting its assertion.
+#      Its reason for existing survives the inversion: parameters reach the
+#      parser through SEVEN distinct sites, none of them parseVarDecl — so a
+#      gate on one path hides that the others are open. That holds in both
+#      directions: accepting unit as a variable does not imply accepting it as
+#      a parameter. Both ends are measured here rather than inferred.
+# ============================================================
+
+دالة خالي مرر(خالي قيمة)
+    ارجع قيمة
+نهاية
+
+اطبع_سطر(نوع(مرر(())))

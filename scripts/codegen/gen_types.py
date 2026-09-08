@@ -102,17 +102,16 @@ DEFAULT_INIT_VOCAB: list[tuple[str, str, str, str]] = [
     ("bool_false",   "BoolFalse",   "خطأ", "boolean false"),
     ("empty_string", "EmptyString", "نصٌّ فارغ", "empty string"),
     ("null_value",   "Null",        "لاشيء — العدمُ الصريح", "the explicit null value"),
-    ("void",         "Void",        "فراغٌ — لم تُسنَدْ بعدُ، متمايزٌ عن العدم",
-     "void - never assigned, distinct from null"),
-    # (AR) 🔑 «لا محلَّ للسؤال» ليست «لم يُحسَمْ بعدُ». النوعُ الموسومُ بهذه لا
-    #      تحمله خانةٌ أصلًا فيرفضه المحلّلُ المشترك — فلا قيمةَ افتراضيّةَ له
-    #      لأنّه لا خانةَ له، لا لأنّ القرارَ مؤجَّل. وخلطُها بـUnspecified
-    #      يجعل قارئًا يحسب على «فراغ» دَينًا ولا دَينَ عليه.
-    # (EN) «no slot can hold it» is NOT «undecided». A kind marked this way is
-    #      rejected by the shared parser, so it has no default because it has no
-    #      slot — not because a decision is pending.
-    ("not_a_slot",   "NotASlot",    "لا خانةَ تحمله — يرفضه المحلّل (SEM040)",
-     "no slot can hold it - rejected by the parser (SEM040)"),
+    ("missing",      "Missing",     "مفقودٌ — لم تُسنَدْ بعدُ، متمايزٌ عن العدمِ الصريح",
+     "missing - never assigned, distinct from the explicit null"),
+    # (AR) 🔑 حلَّت محلَّ `not_a_slot` (2026-09-07). كان اللفظُ يعني «لا تحمله
+    #      خانةٌ أصلًا» وحاملُه الوحيدُ «فراغ»؛ ولمّا حُذف «فراغ» وحلَّ محلَّه
+    #      «خالي» — وهو **نوعُ قيمةٍ كاملٌ تحملُه الخانة** — زالَ موضوعُ اللفظِ
+    #      كلِّه، فلا يبقى في المفرداتِ لفظٌ بلا حامل.
+    # (EN) Replaced `not_a_slot` (2026-09-07): its only holder was «فراغ», which
+    #      is deleted. «خالي» IS held by a slot, so the word lost its subject.
+    ("unit_value",   "UnitValue",   "«()» — القيمةُ الوحيدةُ لنوعِ الوحدة",
+     "«()» - the sole value of the unit type"),
 ]
 
 
@@ -965,6 +964,34 @@ def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | Non
         name = r.get("word") or "?"
         lines.append(f'            "{hex_escape(name)}", // {name} ⇒ {r.get("replacement", "?")}')
     lines.append("        }};")
+    lines.append("")
+
+    # ========================================================================
+    # (AR) 🔑 بديلُ اللفظِ المُزال — مُشتقٌّ لا مكتوبٌ باليد.
+    #      كان التشخيصُ SYN014 يُبعَث بلفظٍ **مُصلَّبٍ في المحلّل** («مضاعف» في
+    #      موضعَين)، فإضافةُ لفظٍ مُزالٍ إلى مصدرِ الحقيقةِ كانت تُعرِّفُه للمحلّلِ
+    #      ولا تُنتِجُ له رسالةً — فيسقط إلى تشخيصٍ غامضٍ لا يُرشِدُ إلى بديل.
+    #      وقد قِيسَ ذلك حيًّا حين أُزيل «فراغ» (2026-09-07): عُرِّف في types.yaml
+    #      فرُفِض البرنامجُ بـSYN010 «توقعت اسم نوع» بدل SYN014 «⇒ خالي».
+    # (EN) The replacement for a removed word — DERIVED, not hand-written. SYN014
+    #      used to be raised with a hardcoded literal («مضاعف», in two parser
+    #      sites), so adding a removed word to the SoT taught the parser to
+    #      recognise it but gave it no message. Measured when «فراغ» was removed.
+    # ========================================================================
+    lines.append("        /**")
+    lines.append("         * @brief (AR) بديلُ لفظِ نوعٍ مُزال — مُولَّد من types.yaml")
+    lines.append("         * @brief (EN) Replacement for a removed type word — generated")
+    lines.append("         */")
+    lines.append("        inline const char *removedTypeReplacement(std::string_view word)")
+    lines.append("        {")
+    for r in removed_list:
+        name = r.get("word") or "?"
+        repl = r.get("replacement") or "?"
+        lines.append(
+            f'            if (word == "{hex_escape(name)}") return "{hex_escape(repl)}"; // {name} ⇒ {repl}'
+        )
+    lines.append('            return "";')
+    lines.append("        }")
     lines.append("")
 
     # ========================================================================

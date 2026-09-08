@@ -44,7 +44,7 @@ namespace Sad
 #endif
 
                 std::string fullCtorName = constructorNameFor(classDecl->name);
-                auto sirCtor = std::make_shared<SIRFunction>(fullCtorName, SadTypeKind::Void);
+                auto sirCtor = std::make_shared<SIRFunction>(fullCtorName, SadTypeKind::Unit);
                 sirCtor->isConstructor = true;
                 sirCtor->addParameter(SIRParameter(kSelfParamName, SadTypeKind::Integer));
 
@@ -610,8 +610,8 @@ namespace Sad
                         // (EN) Emit CALL instruction for parent constructor
                         SIRInstruction callInst;
                         callInst.opcode = SIROpcode::CALL;
-                        callInst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Void);
-                        callInst.operands.push_back(SIROperand::Register(parentCtorName, SadTypeKind::Void));
+                        callInst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Unit);
+                        callInst.operands.push_back(SIROperand::Register(parentCtorName, SadTypeKind::Unit));
                         for (auto &op : superArgOperands)
                         {
                             callInst.operands.push_back(op);
@@ -656,7 +656,7 @@ namespace Sad
                     // ═══════════════════════════════════════════════════════════
                     FunctionInfo ctorInfo;
                     ctorInfo.name = fullCtorName;
-                    ctorInfo.returnType = SadTypeKind::Void;
+                    ctorInfo.returnType = SadTypeKind::Unit;
                     ctorInfo.parameters = sirCtor->getParameters();
                     ctorInfo.sirFunction = sirCtor;
 
@@ -672,7 +672,7 @@ namespace Sad
                             // (EN) If Phase 1.7 updated the type from Integer to a more specific type
                             if (ctorInfo.parameters[pi].type == SadTypeKind::Integer &&
                                 prevParams[pi].type != SadTypeKind::Integer &&
-                                prevParams[pi].type != SadTypeKind::Void &&
+                                prevParams[pi].type != SadTypeKind::Unit &&
                                 prevParams[pi].type != SadTypeKind::Pointer)
                             {
                                 ctorInfo.parameters[pi].type = prevParams[pi].type;

@@ -1,0 +1,72 @@
+# @rule: gr.expr.equality
+# @description: وحدةٌ تُقارَنُ بنوعٍ آخر — في الاتّجاهَين، وبالمساواةِ والاختلاف
+# @priority: P0
+# @expected لا يساوي\nلا يساوي\nيختلف\nيختلف\nمتساويتان
+
+# ============================================================
+# (AR) 🔑 **اللاتماثلُ هو الدرس، لا الانهيار.**
+#
+#      كان `خالي أ = ()` ثمّ `أ == 5` يُخفِقُ بـ`INT011` (انهيارٌ داخليّ:
+#      `icmp eq i8 …, i64 0` يرفضُه مدقّقُ LLVM)، بينما `5 == ()`
+#      يُجيبُ «لا» سليمًا. اتّجاهٌ يعملُ واتّجاهٌ ينهار — فمَن كتبَ
+#      الاتّجاهَ العاملَ قرأ «سليم».
+#
+#   ⚠️ وهذا **تِلْوُ رقعةٍ سابقةٍ لا عطبٌ مستقلّ**: أُضيفت ذراعُ «تساوي
+#      الوحدةِ بالنوعِ لا بالبتّات» بشرطِ **أن يكونَ الطرفانِ كلاهما
+#      وحدة**. فحارسٌ شرطُه اقترانُ طرفَينِ يحرسُ **الحالةَ المتماثلةَ
+#      وحدَها** — وهي أقلُّ الحالاتِ ورودًا في برامجِ الناس، والحالةُ
+#      المختلطةُ (وهي الشائعة) تسقطُ إلى المسارِ العامِّ فتنهار.
+#      **فالرقعةُ التي تسدُّ حالتَها المتماثلةَ تترك بابَها المختلطَ مفتوحًا.**
+#
+#   🔑 والحكمُ «خطأ» لا رفضًا عمدًا: هو حكمُ اللغةِ نفسِه لنوعَينِ متغايرَين
+#      (`boolVersusNumber`) — فلا تُخترَعُ لنوعِ الوحدةِ قاعدةٌ تخالفُ ما
+#      تفعلُه اللغةُ لسائرِ الأنواع.
+#
+#   والسطرُ الأخيرُ يحرسُ الاتّجاهَ المقابل: لولا وحدتانِ متساويتانِ
+#   لَجازَ أن تكونَ الأسطرُ الأربعةُ خضراءَ بردِّ «لا يساوي» دائمًا.
+# (EN) The asymmetry is the lesson, not the crash. `unit == 5` failed with an
+#      internal error (icmp eq i8, i64 — rejected by the LLVM verifier) while
+#      `5 == unit` answered correctly, so whoever wrote the working direction
+#      read "fine". This was the AFTERMATH of an earlier patch, not an
+#      independent defect: the "unit equality is decided by type" arm required
+#      BOTH operands to be units, and a guard predicated on both guards only the
+#      symmetric case — the rarest one in real programs — while the mixed case
+#      fell through and crashed. False (not a rejection) is what the language
+#      already answers for two mismatched types, so no special rule is invented
+#      for the unit. The last line guards the converse: without two equal units,
+#      all four lines would pass under a blanket "never equal".
+# ============================================================
+
+خالي أ = ()
+خالي ب = ()
+متغير س = 5
+
+اذا (أ == س)
+    اطبع_سطر("يساوي")
+والا
+    اطبع_سطر("لا يساوي")
+نهاية
+
+اذا (س == أ)
+    اطبع_سطر("يساوي")
+والا
+    اطبع_سطر("لا يساوي")
+نهاية
+
+اذا (أ != س)
+    اطبع_سطر("يختلف")
+والا
+    اطبع_سطر("لا يختلف")
+نهاية
+
+اذا (س != أ)
+    اطبع_سطر("يختلف")
+والا
+    اطبع_سطر("لا يختلف")
+نهاية
+
+اذا (أ == ب)
+    اطبع_سطر("متساويتان")
+والا
+    اطبع_سطر("مختلفتان")
+نهاية

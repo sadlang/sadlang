@@ -140,7 +140,7 @@ namespace Sad
                         //      can never lawfully run must not block a promotion for one that can.
                         if (paramsBelongToConstructor)
                         {
-                            scanMemberArgKinds_[&param].insert(static_cast<int>(SadTypeKind::Void));
+                            scanMemberArgKinds_[&param].insert(static_cast<int>(SadTypeKind::Unit));
                         }
                         continue;
                     }
@@ -209,7 +209,7 @@ namespace Sad
                         //      semantics are untouched.
                         const bool declaredNumberMixed =
                             param->type == Types::SadTypeKind::Integer &&
-                            kinds.count(static_cast<int>(SadTypeKind::Void)) == 0;
+                            kinds.count(static_cast<int>(SadTypeKind::Unit)) == 0;
                         // (AR) والمصرَّحُ «عشري» يعمُّ فقط إذا خالطَه **غيرُ عدديٍّ**
                         //      (نصٌّ مثلًا): الخليطُ العدديُّ الخالصُ {صحيح، عشريّ} يبقى
                         //      على عقدِه double (التكييفُ sitofp قائمٌ ومقيس) — التعميمُ
@@ -222,7 +222,7 @@ namespace Sad
                         //      semantics.
                         bool declaredFloatNonNumericMixed = false;
                         if (param->type == Types::SadTypeKind::Float &&
-                            kinds.count(static_cast<int>(SadTypeKind::Void)) == 0)
+                            kinds.count(static_cast<int>(SadTypeKind::Unit)) == 0)
                         {
                             for (const int kd : kinds)
                             {
@@ -263,7 +263,7 @@ namespace Sad
                         if (agreed != SadTypeKind::Float)
                         {
                             if (agreed != SadTypeKind::Integer &&
-                                agreed != SadTypeKind::Void)
+                                agreed != SadTypeKind::Unit)
                             {
                                 param->type = SadTypeKind::Any;
                                 param->sadType =
@@ -285,7 +285,7 @@ namespace Sad
                         //      all-Integer site) keeps the double contract.
                         if (agreed != SadTypeKind::Integer &&
                             agreed != SadTypeKind::Float &&
-                            agreed != SadTypeKind::Void)
+                            agreed != SadTypeKind::Unit)
                         {
                             param->type = SadTypeKind::Any;
                             param->sadType =
@@ -440,7 +440,7 @@ namespace Sad
                         //      (rejected by SEM040 in the shared parser).
                         const bool widenHasNoMeaning = (slot == SadTypeKind::Any ||
                                                         slot == SadTypeKind::Unknown ||
-                                                        slot == SadTypeKind::Void);
+                                                        slot == SadTypeKind::Unit);
 
                         // ⚠️ (AR) استثناءٌ ثانٍ **بشرطِ خروجٍ جديدٍ مقيس**. وشرطُه
                         //      الأوّلُ سُدَّ فعلًا: كان تعميمُ الصنفِ يبلغُ الإرسالَ
@@ -1159,7 +1159,19 @@ namespace Sad
                                     {
                                         paramType = SadTypeKind::Array;
                                         SadTypeKind &pElem = funcInfo.parameters[i + paramOffset].elementType;
-                                        if (pElem == SadTypeKind::Void)
+                                        // (AR) 🔑 الحارسُ `Unknown` لا `Unit` (2026-09-08):
+                                        //      `SIRParameter::elementType` افتراضيُهُ
+                                        //      `Unknown`، فمقارنتُهُ بـ`Unit` تُعطّلُ
+                                        //      استنتاجَ نوعِ العنصرِ رأسًا. والمواضعُ أربعةٌ
+                                        //      في هذا الملفِّ وحدَهُ — وخامسٌ (1370) كانَ
+                                        //      قد هوجِرَ إلى `Unknown` فعلًا، فالملفُّ
+                                        //      كانَ يحملُ حارسَينِ لمعنًى واحد.
+                                        // (EN) The sentinel is Unknown, not Unit: SIRParameter's
+                                        //      elementType defaults to Unknown, so testing Unit
+                                        //      disables element-type inference outright. Four sites
+                                        //      here, while a fifth (line 1370) had already been
+                                        //      migrated — one file, two sentinels for one meaning.
+                                        if (pElem == SadTypeKind::Unknown)
                                             pElem = vit->second;
                                         handledByVarWiden = true;
                                     }
@@ -1228,6 +1240,24 @@ namespace Sad
                                 //      an integer value stays int-tagged and decodes as int (no gate
                                 //      regression).
                                 else if (paramType == SadTypeKind::Integer && argType == SadTypeKind::Any)
+                                {
+                                    paramType = SadTypeKind::Any;
+                                }
+                                // ═══════════════════════════════════════════════════════════
+                                // (AR) 🔑 وسيطُ وحدةٍ «()» ⇒ عمِّمِ الخانةَ إلى «أي».
+                                //      لا تُوضَعُ `Unit` في الخانةِ نفسِها: نوعُها في LLVM
+                                //      `void` (انظر cf_branch_call.cpp عند إعلانِ العائد)،
+                                //      فمعامِلٌ نوعُه وحدةٌ لا خانةَ له تُمرَّرُ فيها. و«أي»
+                                //      يُخفَضُ %SadDyn فيَحملُ الوسمَ الصادقَ `DynKind::Unit`
+                                //      الذي يضعُه `toDyn` سلفًا (sad_dyn_repr.cpp:761).
+                                //      مقيسٌ قبلَه: «دالة مرر(ق) ارجع ق نهاية» ثمّ
+                                //      «نوع(مرر(()))» يطبعُ «رقم»، والمرجعُ «خالي».
+                                // (EN) A unit argument widens the slot to Any. Unit itself is
+                                //      not written into the slot: its LLVM type is void, so it
+                                //      is not a passable slot type. Any lowers to %SadDyn, which
+                                //      carries the truthful DynKind::Unit tag toDyn already sets.
+                                // ═══════════════════════════════════════════════════════════
+                                else if (paramType == SadTypeKind::Integer && argType == SadTypeKind::Unit)
                                 {
                                     paramType = SadTypeKind::Any;
                                 }
@@ -1309,7 +1339,7 @@ namespace Sad
                                             //      semantics (an untyped param froze on its first
                                             //      site) and keeps the declared-param / single-site
                                             //      improvement without regressing multi-site.
-                                            if (pElem == SadTypeKind::Void)
+                                            if (pElem == SadTypeKind::Unknown)
                                             {
                                                 if (allScalar && ((!homogeneous && arrExpr->elements.size() > 1) || hasAny))
                                                     pElem = SadTypeKind::Any;
@@ -1344,7 +1374,7 @@ namespace Sad
                                     else if (auto *varArg = dynamic_cast<const Sad::AST::VariableExpr *>(call->arguments[i].get()))
                                     {
                                         SadTypeKind &pElem = funcInfo.parameters[i + paramOffset].elementType;
-                                        if (pElem == SadTypeKind::Void && !b_.currentScanFuncName_.empty())
+                                        if (pElem == SadTypeKind::Unknown && !b_.currentScanFuncName_.empty())
                                         {
                                             auto encIt = b_.functionTable_.find(b_.currentScanFuncName_);
                                             if (encIt != b_.functionTable_.end())
@@ -1352,7 +1382,7 @@ namespace Sad
                                                 for (const auto &encParam : encIt->second.parameters)
                                                 {
                                                     if (encParam.name == varArg->name &&
-                                                        encParam.elementType != SadTypeKind::Void)
+                                                        encParam.elementType != SadTypeKind::Unknown)
                                                     {
                                                         pElem = encParam.elementType;
                                                         break;
@@ -1418,7 +1448,7 @@ namespace Sad
                                                             hasAny = true;
                                                     }
                                                     SadTypeKind &pElem = funcInfo.parameters[i + paramOffset].elementType;
-                                                    if (pElem == SadTypeKind::Void)
+                                                    if (pElem == SadTypeKind::Unknown)
                                                     {
                                                         if (allScalar && ((!homogeneous && retArr->elements.size() > 1) || hasAny))
                                                             pElem = SadTypeKind::Any;
@@ -1538,7 +1568,7 @@ namespace Sad
                                 // ═══════════════════════════════════════════════════════════
                                 else if (paramType != SadTypeKind::String &&
                                          paramType != SadTypeKind::Any &&
-                                         argType != SadTypeKind::Void &&
+                                         argType != SadTypeKind::Unit &&
                                          argType != paramType)
                                 {
                                     paramType = SadTypeKind::Any;
@@ -2097,7 +2127,7 @@ namespace Sad
                             if (it != scopeIt->end())
                             {
                                 if (it->second.elementType != SadTypeKind::Integer &&
-                                    it->second.elementType != SadTypeKind::Void)
+                                    it->second.elementType != SadTypeKind::Unknown)
                                 {
                                     iterVarType = it->second.elementType;
                                 }
@@ -2697,7 +2727,7 @@ namespace Sad
                         if (!decl || !decl->body)
                             continue;
                         if (decl->returnType != Types::SadTypeKind::Unknown &&
-                            decl->returnType != Types::SadTypeKind::Void)
+                            decl->returnType != Types::SadTypeKind::Unit)
                             continue;
                         // (AR) [موجة ABI المغاليق] اسمُ النطاقِ يُضبَطُ كما في المسحِ كي
                         //      تُصيبَ مفاتيحُ حلِّ الأصلِ المُنطاقةُ في استنتاجِ العائد.
@@ -2706,7 +2736,40 @@ namespace Sad
                         b_.currentScanFuncName_ = decl->name;
                         const SadTypeKind fresh = inferReturnTypeFromBody(decl->body.get(), decl);
                         b_.currentScanFuncName_.clear();
-                        if (fresh != SadTypeKind::Void && fresh != entry.second.returnType)
+                        // ════════════════════════════════════════════════════════
+                        // (AR) 🔑 «لا يُرجِعُ شيئًا» ≠ «يُرجِعُ وحدةً» — والفرقُ
+                        //      كان مطويًّا في قيمةٍ واحدة.
+                        //
+                        //      `inferReturnTypeFromBody` تُجيبُ `Unit` في حالَين
+                        //      مختلفَين جوهريًّا: جسمٌ بلا `ارجع` ذاتِ قيمةٍ أصلًا
+                        //      (‏«لا معلومةَ عندي»)، وجسمٌ فيه `ارجع ()` صريحةٌ
+                        //      (‏«المعلومةُ أنّها وحدة»). فكان الشرطُ `fresh != Unit`
+                        //      يُسقِطُ الثانيةَ مع الأولى، فيبقى العائدُ على ما
+                        //      استُنتِجَ خطأً قبلَه.
+                        //
+                        //      والتمييزُ يُقرأُ من الجسمِ نفسِه لا يُخترَعُ:
+                        //      `hasReturnWithValue` هي بعينِها البوّابةُ التي
+                        //      تُرجِعُ `Unit` في الحالةِ الأولى.
+                        //
+                        //   ⚠️ ولا تُوسَّعُ الرقعة: الدالّةُ التي لا تُرجِعُ قيمةً
+                        //      تبقى كما كانت حرفًا بحرف — وهي الأغلبيّةُ الساحقةُ
+                        //      في الشجرة، فتوسيعُها كان سيُبدِّلُ عائدَ كلِّ إجرائيّة.
+                        // (EN) "Returns nothing" is not "returns unit", and the two were
+                        //      folded into one value. inferReturnTypeFromBody answers Unit
+                        //      both for a body with no value-returning `return` at all ("I
+                        //      have no information") and for a body with an explicit
+                        //      `return ()` ("the information is: unit"). The `fresh != Unit`
+                        //      guard dropped the second along with the first, leaving the
+                        //      return type at whatever had been wrongly inferred earlier.
+                        //      The distinction is READ from the body — hasReturnWithValue is
+                        //      the very gate that produces Unit in the first case. The patch
+                        //      is not widened: a function that returns no value behaves
+                        //      exactly as before, and those are the overwhelming majority.
+                        // ════════════════════════════════════════════════════════
+                        const bool freshIsRealUnit =
+                            fresh == SadTypeKind::Unit && b_.hasReturnWithValue(decl->body.get());
+                        if ((fresh != SadTypeKind::Unit || freshIsRealUnit) &&
+                            fresh != entry.second.returnType)
                             pending.emplace_back(entry.first, fresh);
                     }
                     for (const auto &upd : pending)

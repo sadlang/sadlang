@@ -166,7 +166,18 @@ namespace sad
         // (AR) الفراغ (Void=9): «لا قيمةَ هنا» — وسمُ ناتجِ قراءةِ مفتاحٍ غائبٍ من الخريطة
         //      الموسومة (__sad_map_get_dyn). القيمُ 6–8 محجوزةٌ لوسومِ LLVM الخاصّة (Map/Obj/Adt)
         //      — التسويغُ الكاملُ في value_repr.yaml. يُعرَض «لاشيء» (ذراعُ default في emitPrintBoxed).
-        inline constexpr long long kDynKindVoid = types::repr::kDynKindVoid;
+        inline constexpr long long kDynKindMissing = types::repr::kDynKindMissing;
+        // (AR) 🔑 خالي (Unit=10): **قيمةُ الوحدةِ** لا الغياب. وذراعُه لازمةٌ في
+        //      `remapArm` أدناه لأنّ الوسمَ غيرَ المعروفِ في هذا المسارِ **يُفزِعُ**
+        //      (kMapValueTagPanicCode) — فتركُه بلا ذراعٍ يجعلُ `خ["ب"] = ()` ثمّ
+        //      قراءتَها تُنهي العمليّةَ زمنَ التشغيل. والفزَعُ سلوكٌ صحيحٌ للوسمِ
+        //      المجهول؛ والخطأُ أن يبقى وسمٌ **معروفٌ** مجهولًا ههنا.
+        // (EN) Unit (10): the unit VALUE, not an absence. Its arm is required in
+        //      remapArm below because an unknown tag on this path PANICS — leaving
+        //      it out would make writing `()` into a map and reading it back abort
+        //      at runtime. Panicking on an unknown tag is correct; the defect would
+        //      be leaving a KNOWN tag unknown here.
+        inline constexpr long long kDynKindUnit = types::repr::kDynKindUnit;
 
         // (AR) تخطيطُ التعداد الجبريّ (ADT، الدفعة ٥؛ يُطابق مسارَ LLVM enum_ops.cpp): قيمةُ التعداد =
         //      مؤشّرُ كومة [i64 tag@0 | SadDyn f0@8 | SadDyn f1@24 | …]. SadDyn = {i8 kind@0، i64 payload@8}
@@ -184,6 +195,11 @@ namespace sad
         inline const std::string &kDynBoolTrueText = types::repr::kBoolTrueDisplay;   // صحيح
         inline const std::string &kDynBoolFalseText = types::repr::kBoolFalseDisplay; // خطأ
         inline const std::string &kDynNullText = types::repr::kNullDisplay;           // لاشيء
+        // (AR) 🔑 وعرضُ الوحدةِ من مصدرِ الحقيقةِ نفسِه — لا يُؤلَّفُ ههنا ولا يُشتقُّ
+        //      من عرضِ العدم: نوعانِ متمايزانِ لا يُعرَضانِ بلفظٍ واحد.
+        // (EN) Unit's display comes from the same source of truth — never composed
+        //      here and never borrowed from null's: two distinct kinds, two spellings.
+        inline const std::string &kDynUnitText = types::repr::kUnitDisplay;           // ()
 
         // (AR) واصفُ النصّ المعلَّب (ذاتيُّ الوصف): طولٌ ٦٤-بت (LE) يليه البايتات. النصُّ المعلَّب
         //      يُقرأ نوعُه زمنَ التشغيل من الوسم، فطولُه غيرُ معلومٍ عند الطباعة إلّا من الواصف. دالّةٌ
@@ -219,6 +235,12 @@ namespace sad
             case types::SadTypeKind::Float: tag = kDynKindFloat; return true;
             case types::SadTypeKind::Boolean: tag = kDynKindBool; return true;
             case types::SadTypeKind::Null: tag = kDynKindNull; return true;
+            // (AR) 🔑 و«خالي» له وسمٌ خاصٌّ بهِ في هذا الملفِّ (`kDynKindUnit`)، وكان
+            //      غيابُه ههنا يُسقِطُ `مصفوفة[خالي]` إلى رفضٍ صريحٍ بلا سببٍ قائم:
+            //      الوسمُ موجودٌ والطباعةُ تعرفُه، فالفجوةُ كانت في هذا السُّلَّمِ وحدَه.
+            // (EN) Unit has its own tag in this file and the printer knows it; its
+            //      absence here alone rejected arrays of units for no standing reason.
+            case types::SadTypeKind::Unit: tag = kDynKindUnit; return true;
             default: return false;
             }
         }
@@ -1909,7 +1931,28 @@ namespace sad
                     endJmps.push_back(j);
                 }
                 patchFwd(notS);
-                // غيرها (Null) ⇒ «عدم»
+                // (AR) 🔑 وذراعُ الوحدةِ لازمةٌ ههنا: الوسمُ **مُعرَّفٌ في هذا
+                //      الملفِّ نفسِه** (`kDynKindUnit`) ومُوصَلٌ في `remapArm`، ثمّ
+                //      يسقطُ عند الطباعةِ إلى ذراعِ «غيرها ⇒ لاشيء». فيطبعُ
+                //      البرنامجُ الواحدُ «()» بخلفيّةِ LLVM و«لاشيء» بالخلفيّةِ
+                //      الأصليّة — **خلفيّتانِ بحكمَين على قيمةٍ واحدة**، وهو
+                //      أخطرُ من فجوةٍ مُعلَنةٍ في إحداهما.
+                // (EN) The unit arm is required here: the tag is defined in this very
+                //      file and wired in remapArm, yet printing fell through to the
+                //      "otherwise ⇒ null" arm — one program, two backends, two answers.
+                size_t notU;
+                if (!cmpImm8(x86::R8, kDynKindUnit) || !emitJccFwd(x86::mnem::kJne, notU))
+                    return false;
+                {
+                    if (!emitPrintString(kDynUnitText))
+                        return false;
+                    size_t j;
+                    if (!branchEnd(j))
+                        return false;
+                    endJmps.push_back(j);
+                }
+                patchFwd(notU);
+                // غيرها (Null) ⇒ «لاشيء»
                 if (!emitPrintString(kDynNullText))
                     return false;
                 for (size_t j : endJmps)
@@ -3694,7 +3737,7 @@ namespace sad
                     if (!emitJccFwd(x86::mnem::kJne, hit))
                         return false;
                     // (AR) الغائب ⇒ {فراغ، ٠}
-                    if (!movImm(x86::R8, kDynKindVoid) || !movImm(x86::R9, 0))
+                    if (!movImm(x86::R8, kDynKindMissing) || !movImm(x86::R9, 0))
                         return false;
                     size_t missBoxed;
                     if (!emitJccFwd(x86::mnem::kJmp, missBoxed))
@@ -3728,7 +3771,8 @@ namespace sad
                         !remapArm(Sad::Compiler::kMapValueTagFloat, kDynKindFloat) ||
                         !remapArm(Sad::Compiler::kMapValueTagBoolean, kDynKindBool) ||
                         !remapArm(Sad::Compiler::kMapValueTagNull, kDynKindNull) ||
-                        !remapArm(Sad::Compiler::kMapValueTagVoid, kDynKindVoid))
+                        !remapArm(Sad::Compiler::kMapValueTagVoid, kDynKindMissing) ||
+                        !remapArm(Sad::Compiler::kMapValueTagUnit, kDynKindUnit))
                         return false;
                     if (!movImm(x86::RDI, kMapValueTagPanicCode) ||
                         !movImm(x86::RAX, kSysExitX86) || !emit(x86::mnem::kSyscall, "", {}))
@@ -7355,7 +7399,7 @@ namespace sad
                         return false;
                     const types::SadTypeKind e0 = inst.operands[0].elementType;
                     const types::SadTypeKind e1 = inst.operands[1].elementType;
-                    const bool bothKnown = e0 != types::SadTypeKind::Void && e1 != types::SadTypeKind::Void;
+                    const bool bothKnown = e0 != types::SadTypeKind::Unit && e1 != types::SadTypeKind::Unit;
                     if (e0 == types::SadTypeKind::Any || e1 == types::SadTypeKind::Any ||
                         (bothKnown && e0 != e1))
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayConcatBoxed);

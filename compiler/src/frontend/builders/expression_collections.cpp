@@ -44,7 +44,18 @@ namespace Sad
 
                 // (AR) تخزين العناصر واحداً تلو الآخر
                 // (EN) Store elements one by one
-                SadTypeKind inferredElementType = SadTypeKind::Void;
+                // (AR) 🔑 الحارسُ `Unknown` لا `Unit` (2026-09-07). كان `Unit` يخدمُ
+                //      «لم يُستنتَجْ بعد» — وهو صوابٌ يومَ كان «فراغ» غيابَ نوعٍ لا
+                //      نوعًا. ولمّا صارَ «خالي» نوعًا حقيقيًّا صارت مصفوفةٌ عناصرُها
+                //      وحداتٌ **لا تُميَّزُ عن مصفوفةٍ لم يُستنتَجْ نوعُها**: يُقارَنُ
+                //      النوعُ المستنتَجُ بالحارسِ فيتساويان، فيسقطُ الشرطُ أدناه
+                //      ويُقرَأُ `نوع(م[0])` **«رقم»** لا «خالي» (مقيسٌ 2026-09-07).
+                //      و`Unknown` موجودٌ في التعدادِ لهذا الغرضِ بعينِه.
+                // (EN) The sentinel is Unknown, not Unit. Using Unit for "not inferred
+                //      yet" was right while «فراغ» was the ABSENCE of a type; now that
+                //      unit IS a type, an array of units is indistinguishable from an
+                //      array whose type was never inferred — so نوع(م[0]) read «رقم».
+                SadTypeKind inferredElementType = SadTypeKind::Unknown;
                 std::string inferredElementClassName;
                 // (AR) ISSUE-067/070: تتبّع تجانس أنواع العناصر. المصفوفة المختلطة
                 //      (`[[1،2]، 9]`) كانت تُستنتَج `Array` من العنصر الأوّل **كذبًا**،
@@ -192,7 +203,7 @@ namespace Sad
                 //      Homogeneous / non-scalar arrays keep their exact prior path (tags=null,
                 //      static path).
                 const bool boxedHeterogeneous =
-                    allElementsScalar && inferredElementType != SadTypeKind::Void &&
+                    allElementsScalar && inferredElementType != SadTypeKind::Unknown &&
                     ((!elementTypesHomogeneous && arrayExpr->elements.size() > 1) ||
                      hasDynamicElement);
 
@@ -224,7 +235,7 @@ namespace Sad
                 {
                     result.elementType = SadTypeKind::Any;
                 }
-                else if (inferredElementType != SadTypeKind::Void && elementTypesHomogeneous)
+                else if (inferredElementType != SadTypeKind::Unknown && elementTypesHomogeneous)
                 {
                     result.elementType = inferredElementType;
                 }
@@ -244,6 +255,56 @@ namespace Sad
                 SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found TupleExpr with "
                           << tupleExpr->elements.size() << " elements");
 #endif
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 «()» قيمةُ الوحدة «خالي» — لا صفٌّ يُخصَّصُ في الكومة.
+                //      نوعُ الوحدةِ **هو** الصفُّ الفارغُ كما في رست، وقيمتُه
+                //      **واحدةٌ لا تتعدّد**؛ فتخصيصُ كائنٍ لكلِّ «()» يُنتِجُ
+                //      عناوينَ متغايرةً لقيمةٍ واحدة. ومقيسٌ (2026-09-07) قبلَ هذا
+                //      الفرع: «خالي أ = ()» و«خالي ب = ()» داخلَ دالّةٍ يُقارَنانِ
+                //      **مختلفَين**، و«نص(())» يطبعُ عنوانًا (3142254033712).
+                //      ⚠️ وكان يمرُّ في النطاقِ العامِّ ويسقطُ داخلَ الدالّة — أي أنّ
+                //      برنامجَين متطابقَين في المعنى يُخرِجانِ حكمَين متضادَّينِ
+                //      لأنّ أحدَهما في دالّة. والجوابُ الخاطئُ أخطرُ من الانهيار:
+                //      الانهيارُ يُقرَأُ عطبًا، والجوابُ يُقرَأُ قاعدةَ لغة.
+                //      والمرساة: `language-truth/grammar/40_expressions.yaml`
+                //      ⇒ `gr.expr.primary` («()» قيمةُ الوحدة).
+                // (EN) «()» is the unit value, not a heap tuple. Unit IS the empty
+                //      tuple (as in Rust) and has exactly ONE value, so allocating an
+                //      object per «()» yields distinct addresses for one value.
+                //      Measured before this branch: two units compared UNEQUAL inside
+                //      a function, and نص(()) printed an address — while both behaved
+                //      correctly at global scope. One meaning, two verdicts.
+                // ════════════════════════════════════════════════════════════════
+                if (tupleExpr->elements.empty())
+                {
+                    std::string unitReg = b_.newTempRegister();
+                    SIRInstruction unitInst(SIROpcode::MOVE);
+                    unitInst.result = SIROperand::Register(unitReg, SadTypeKind::Unit);
+                    unitInst.operands.push_back(SIROperand::ConstantI64(0));
+                    // (AR) 🔑 والفحصُ ليس زينة: كلُّ نظائرِ هذا السطرِ في الملفِّ
+                    //      مفحوصةٌ، وهذا وحدَه كان عاريًا — و«()» تُبنى في مواضعَ
+                    //      لا كتلةَ نشطةً فيها (مسحُ الاستنتاج، مُهيّئٌ عامٌّ قبلَ
+                    //      إنشاءِ `__sad_main`)، فيكونُ الجوابُ **انهيارَ إشارةٍ**
+                    //      لا رفضًا مُشخَّصًا. وحين تغيبُ الكتلةُ يغيبُ السجلُّ
+                    //      كذلك، فتُرجَعُ نتيجةٌ **غائبةُ القيمة** لا سجلٌّ لا
+                    //      مُعرِّفَ له — وإلّا كان العلاجُ «تِلْوًا» جديدًا.
+                    // (EN) Every sibling addInstruction in this file is guarded; this
+                    //      one alone was bare, and «()» is built where no block is
+                    //      active — so the answer was a segfault, not a diagnosis.
+                    //      With no block there is no register either, so an ABSENT
+                    //      result is returned rather than an undefined register name.
+                    if (!b_.currentBlock_)
+                    {
+                        return BuildResult();
+                    }
+                    b_.currentBlock_->addInstruction(unitInst);
+
+                    BuildResult unitResult;
+                    unitResult.registerName = unitReg;
+                    unitResult.type = SadTypeKind::Unit;
+                    return unitResult;
+                }
 
                 // (AR) تخصيص صف جديد
                 // (EN) Allocate new tuple
@@ -347,7 +408,17 @@ namespace Sad
 
                 // (AR) تتبع نوع عنصر الخريطة — يُستخدم لاحقاً عند القراءة
                 // (EN) Track map element type — used later for typed get
-                SadTypeKind mapElementType = SadTypeKind::Void;
+                // (AR) 🔑 والحارسُ `Unknown` لا `Unit`: هذه القناةُ تحملُ معنيَين
+                //      («لم يُستنتَجْ بعد» و«أنواعٌ مختلطة»)، وكلاهما ليس نوعًا.
+                //      وقارئوها انتقلوا إلى `Unknown` وبقيت هي، فكانت خريطةٌ أوّلُ
+                //      قيمةٍ فيها وحدةٌ تُظَنُّ غيرَ مضبوطةٍ فيُبدَّلُ حارسُها بنوعِ
+                //      العنصرِ التالي ⇒ **خريطةٌ مختلطةٌ تُقرَأُ متجانسة**.
+                //      والمختلطُ يُبلَّغُ `Any` صراحةً لا بحارسٍ يُشبِهُ نوعًا.
+                // (EN) Unknown, not Unit: this channel carries two non-type meanings
+                //      ("not yet inferred" and "heterogeneous"), and its readers moved
+                //      to Unknown while it did not — so a map whose first value was a
+                //      unit was read as unset and re-typed by the next element.
+                SadTypeKind mapElementType = SadTypeKind::Unknown;
 
                 // (AR) إضافة الأزواج (مفتاح، قيمة) عبر runtime
                 // (EN) Insert key-value pairs via runtime
@@ -441,10 +512,10 @@ namespace Sad
                     // (EN) Track value types — if mixed, set Void (heterogeneous)
                     if (i == 0 || !mapExpr->pairs[0].isSpread())
                     {
-                        if (mapElementType == SadTypeKind::Void)
+                        if (mapElementType == SadTypeKind::Unknown)
                             mapElementType = valResult.type;
                         else if (mapElementType != valResult.type)
-                            mapElementType = SadTypeKind::Void; // (AR) أنواع مختلطة
+                            mapElementType = SadTypeKind::Any; // (AR) أنواع مختلطة
                     }
 
                     // (AR) إدراج الزوج في الخريطة — تخزين مطبوع: القيمة كـ i64 + نوعها

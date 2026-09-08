@@ -778,11 +778,11 @@ namespace Sad::Compiler
     inline constexpr int64_t kMapValueTagNull = 4;
     // (AR) [م-٠٠١] فراغ — «لا قيمةَ هنا»، تمييزًا عن «عدم» الصريحة. تنشأُ حين تُخزَّنُ
     //      نتيجةُ قراءةِ مفتاحٍ غائبٍ في خريطةٍ أخرى: `ج["س"] = م["غائب"]`؛ فالمفسّرُ
-    //      يقولُ `نوع(ج["س"])` «فراغ» لا «عدم». تقابلُ `DynKind::Void`.
+    //      يقولُ `نوع(ج["س"])` «فراغ» لا «عدم». تقابلُ `DynKind::Missing`.
     // (EN) [card م-٠٠١] Void — "no value here", as distinct from an explicit Null. It arises
     //      when the result of reading an absent key is stored into another map:
     //      `ج["س"] = م["غائب"]`; the interpreter then says `نوع(ج["س"])` is «فراغ», not «عدم».
-    //      Mirrors `DynKind::Void`.
+    //      Mirrors `DynKind::Missing`.
     inline constexpr int64_t kMapValueTagVoid = 5;
     // (AR) [م-٠٠١] الحاويات. كان فضاءُ الأوسامِ يخلو منهما، فقيمةٌ خريطةٌ أو مصفوفةٌ
     //      تُخزَّنُ بوسمِ النصّ: ترويسةُ الخريطةِ تُقرأُ `char*` عندَ الطباعة، وفهرسةُ
@@ -804,6 +804,26 @@ namespace Sad::Compiler
     //      `DynKind::Obj`: every reader can now tell objects apart, and absent-key
     //      reads on object-valued maps are guarded like every other kind.
     inline constexpr int64_t kMapValueTagObject = 8;
+    // (AR) 🔑 خالي — **قيمةُ الوحدة**، لا الغياب. وكانت تتقاسمُ الوسمَ ٥ مع
+    //      «فراغ/مفقود» فتكذبُ `نوع()` بجوابٍ واحدٍ عن سؤالَين مختلفَين:
+    //      `خ["ب"] = ()` (قيمةٌ حاضرةٌ كُتِبَت عمدًا) و`خ["ج"]` (مفتاحٌ لم
+    //      يُكتَبْ قطُّ) كلاهما يُجيبُ «مفقود» — مقيسٌ 2026-09-07.
+    //      وهو نظيرُ `kDynKindUnit` في فضاءِ الوسومِ الزمنيّة: الفضاءانِ
+    //      اثنانِ ويجبُ أن يتّفقا، فوسمٌ ههنا بلا نظيرٍ هناك يضيعُ عندَ
+    //      القراءة. يقابلُ `DynKind::Unit`.
+    // (EN) Unit — the VALUE, not an absence. It used to share tag 5 with
+    //      «missing», so typeof() gave one answer to two different questions:
+    //      a deliberately written `()` and a key never written both said
+    //      «مفقود». Mirrors `DynKind::Unit`; the two tag spaces must agree.
+    inline constexpr int64_t kMapValueTagUnit = 9;
+
+    // (AR) 🔑 حمولةُ حاملِ قيمةِ الوحدة. قيمةُ الوحدةِ الوحيدةُ **لا حمولةَ لها**،
+    //      وحاملُها خانةٌ لا تُقرَأ — فالصفرُ ههنا اتّفاقُ تمثيلٍ مُسمًّى لا عددٌ
+    //      سحريٌّ يُكرَّرُ في كلِّ باعث. ونظيرُه في الخلفيّةِ `unitCarrierValue`.
+    // (EN) The unit carrier's payload. The unit's single value has no payload and its
+    //      slot is never read, so this zero is a NAMED representation convention rather
+    //      than a magic number repeated at each producer.
+    inline constexpr int64_t kUnitCarrierPayload = 0;
 
     // ──────────────────────────────────────────────────────────────────
     // (AR) [م-٠٠١] الاشتقاقُ الوحيدُ لوسمِ قيمةِ الخريطةِ من نوعِها الساكن.
@@ -836,8 +856,8 @@ namespace Sad::Compiler
             return kMapValueTagBoolean;
         case TypeKind::Null:
             return kMapValueTagNull;
-        case TypeKind::Void:
-            return kMapValueTagVoid;
+        case TypeKind::Unit:
+            return kMapValueTagUnit;
         case TypeKind::Map:
             return kMapValueTagMap;
         // (AR) [ISSUE-047] كان `Struct` يسقطُ في وسمِ الخريطةِ و`Class` في وسمِ

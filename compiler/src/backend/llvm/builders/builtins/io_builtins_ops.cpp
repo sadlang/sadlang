@@ -65,6 +65,24 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         cg_.builder_->CreateCall(putsFn, {dynToString(cg_, v)});
                         continue;
                     }
+                    // (AR) 🔑 وذراعُ الوحدةِ ههنا كذلك: كانت مُضافةً في المسارِ
+                    //      المستضافِ وحدَه — في **الدالّةِ نفسِها** بعدَ ثمانينَ سطرًا —
+                    //      فيطبعُ البرنامجُ الواحدُ «()» مستضافًا و«0» حرًّا، إذ يسقطُ
+                    //      حاملُ الوحدةِ إلى ذراعِ الصحيح. وذراعٌ تُضافُ في نصفِ
+                    //      المسارَينِ تصنعُ محرّكَينِ بحكمَين لا ميزةً ناقصة.
+                    // (EN) The unit arm belongs here too: it was added on the hosted path
+                    //      only — in the same function eighty lines below — so one program
+                    //      printed «()» hosted and "0" freestanding, the unit carrier
+                    //      falling through to the integer arm.
+                    if (op.dataType == SadTypeKind::Unit &&
+                        !::Sad::LLVM::operandIsAbsenceConstant(op))
+                    {
+                        cg_.builder_->CreateCall(
+                            putsFn, {cg_.builder_->CreateGlobalStringPtr(
+                                        ::Sad::Types::repr::kUnitDisplay, "print.unit.fs")});
+                        continue;
+                    }
+
                     // (AR) القيم المنطقية: طباعة "صحيح"/"خطأ" في الوضع المستقل
                     // (EN) Boolean values: print "صحيح"/"خطأ" in freestanding mode
                     if (op.dataType == SadTypeKind::Boolean)
@@ -147,6 +165,42 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                     llvm::Value *dynStr = dynToString(cg_, v);
                     llvm::Value *dynFmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
                     cg_.builder_->CreateCall(printfFunc, {dynFmt, dynStr});
+                    continue;
+                }
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 طباعةُ قيمةِ الوحدة «خالي» ⇒ «()» — والنصُّ من مصدرِ
+                //      الحقيقة (`value_repr.yaml ⇒ kUnitDisplay`) لا مؤلَّفٌ ههنا.
+                //      ولزِمَ الفرعُ حين صارَ **نداءُ دالّةٍ لا تُرجِعُ شيئًا يُنتِجُ
+                //      قيمةَ وحدةٍ حقيقيّة** — وهو عقدُ رست: الدالّةُ بلا نوعِ
+                //      إرجاعٍ تُرجِعُ «()». وقبلَه كانت الخانةُ تحملُ حارسَ الغياب
+                //      فتُطبَعُ «لاشيء»؛ ومقيسٌ (2026-09-07) أنّ الطباعةَ بعدَ
+                //      التغييرِ كانت **تنهارُ داخليًّا** بـINT007 لأنّ الطابعةَ لا
+                //      تعرفُ هذا النوع — والانهيارُ الداخليُّ يتّهمُ المستعمِلَ
+                //      بعلّةِ مترجّمٍ في برنامجٍ صحيح.
+                // (EN) Printing the unit value ⇒ «()», text from the SoT, not
+                //      composed here. Required once a call to a function that
+                //      returns nothing yields a real unit value (Rust's contract).
+                //      Measured: without it, printing crashed with INT007 —
+                //      accusing the user of a compiler bug for a correct program.
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 والشرطُ يمرُّ بسلطةِ `operandIsAbsenceConstant` لا يختبرُ
+                //      النوعَ وحدَه: `ConstantVoid()` يستعيرُ `dataType = Unit` وهو
+                //      **غيابٌ لا قيمة**، فطباعتُه «()» تُظهِرُ قيمةً في موضعِ لا
+                //      قيمة. والسلطةُ مُعلَنةٌ «واحدةً لا نسختَين» في
+                //      `sad_dyn_repr.h`، وكان لها مُستهلِكانِ من ثلاثة.
+                // (EN) The test goes through the operandIsAbsenceConstant authority
+                //      rather than the kind alone: ConstantVoid() borrows dataType=Unit
+                //      and is an ABSENCE, so printing «()» for it shows a value where
+                //      there is none. That authority is declared "one, not two copies".
+                if (op.dataType == SadTypeKind::Unit &&
+                    !::Sad::LLVM::operandIsAbsenceConstant(op))
+                {
+                    llvm::Value *unitFmt =
+                        cg_.builder_->CreateGlobalStringPtr("%s", "fmt.unit");
+                    llvm::Value *unitTxt = cg_.builder_->CreateGlobalStringPtr(
+                        ::Sad::Types::repr::kUnitDisplay, "print.unit");
+                    cg_.builder_->CreateCall(printfFunc, {unitFmt, unitTxt});
                     continue;
                 }
 

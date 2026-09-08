@@ -30,9 +30,7 @@
 #endif
 
 #include "pattern_nodes.h"
-#include "type_registry.h"
-#include "union_type.h"
-#include "enum_types.h"
+#include "sad_type_system.h"
 #include <iostream>
 #include <sstream>
 #include <unordered_set>
@@ -345,7 +343,7 @@ public:
      */
     ExhaustivenessResult checkExhaustiveness(
         const AST::MatchStmt& matchStmt,
-        TypeSystem::TypePtr matchedType
+        Sad::Types::SadTypePtr matchedType
     ) {
         ExhaustivenessResult result;
         
@@ -458,19 +456,16 @@ private:
      * @brief (AR) حساب فضاء القيم الممكنة لنوع
      *        (EN) Compute space of possible values for a type
      */
-    std::shared_ptr<PatternSpace> computeTypeSpace(TypeSystem::TypePtr type) {
+    std::shared_ptr<PatternSpace> computeTypeSpace(Sad::Types::SadTypePtr type) {
         if (!type) {
             // (AR) نوع غير معروف = فضاء كامل
             // (EN) Unknown type = full space
             return PatternSpace::full();
         }
         
-        auto& registry = TypeSystem::TypeRegistry::getInstance();
-        (void)registry;
-        
         // (AR) أنواع خاصة
         // (EN) Special types
-        if (type->getKind() == TypeSystem::SadTypeKind::Boolean) {
+        if (type->getKind() == Sad::Types::SadTypeKind::Boolean) {
             // (AR) Boolean له قيمتان فقط
             // (EN) Boolean has only two values
             return PatternSpace::enumSpace({"true", "false"});
@@ -480,7 +475,7 @@ private:
         // ولكن يمكن التحقق من الأنواع الكائنية إذا كانت enum
         // (EN) Enum support: in the current system, EnumType doesn't inherit from Type
         // but we can check Class types to see if they represent an enum
-        if (type->getKind() == TypeSystem::SadTypeKind::Class) {
+        if (type->getKind() == Sad::Types::SadTypeKind::Class) {
             // (AR) إذا كان الصنف يمثل تعداداً، نبني فضاء من أسماء الحالات
             // (EN) If class represents an enum, build space from variant names
             auto className = type->toString();
@@ -490,10 +485,10 @@ private:
             // to detect enums through class name
         }
         
-        if (type->getKind() == TypeSystem::SadTypeKind::Union) {
+        if (type->getKind() == Sad::Types::SadTypeKind::Union) {
             // (AR) Union: اتحاد فضاءات الأعضاء
             // (EN) Union: union of member spaces
-            auto* unionType = dynamic_cast<const TypeSystem::UnionType*>(type.get());
+            auto* unionType = dynamic_cast<const Sad::Types::SadUnionType*>(type.get());
             if (unionType) {
                 std::unordered_set<std::string> members;
                 for (const auto& member : unionType->getAlternatives()) {
@@ -678,7 +673,7 @@ private:
  */
 ExhaustivenessResult checkExhaustiveness(
     const AST::MatchStmt& matchStmt,
-    TypeSystem::TypePtr matchedType
+    Sad::Types::SadTypePtr matchedType
 ) {
     ExhaustivenessChecker checker;
     return checker.checkExhaustiveness(matchStmt, matchedType);

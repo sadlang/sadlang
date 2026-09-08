@@ -599,9 +599,14 @@ namespace Sad
                 std::string valueVarAllocName;
                 // (AR) نوع متغيّر القيمة المحسوم (يُستخدَم في alloc والربط بالجسم) / (EN) resolved value-var type (used at alloc and body bind)
                 SadTypeKind valueVarType = SadTypeKind::Integer;
-                // (AR) نوع قيمة الخريطة كما تعقّبه بانٍ الحرفيّ (Void = مختلط/مجهول) — يُلتقَط قبل دهس elementType.
-                // (EN) Map value type as tracked by the literal builder (Void = heterogeneous/unknown) — captured before elementType is overwritten.
-                SadTypeKind mapValueType = SadTypeKind::Void;
+                // (AR) نوع قيمة الخريطة كما تعقّبه بانٍ الحرفيّ — يُلتقَط قبل دهس elementType.
+                //      🔑 والحارسُ `Unknown` كنظيرِه `elementType` في هذا الملفِّ نفسِه؛
+                //      وكان `Unit` فاختلطَ فضاءا حارسَين في ملفٍّ واحدٍ يُسنِدُ
+                //      أحدَهما إلى الآخر.
+                // (EN) Unknown, matching its elementType peer in this same file; it was
+                //      Unit, mixing two sentinel spaces in one file that assigns one to
+                //      the other.
+                SadTypeKind mapValueType = SadTypeKind::Unknown;
                 // (AR) قيود موثَّقة (راجعتها Amelia): (1) مصفوفتا المفاتيح/القيم المُعادتان من
                 //      __sad_map_* تُخصَّصان ولا تُحرَّران هنا — تسريب متّسق مع بقيّة مجمِّعات
                 //      المصفوفات في الخلفيّة، يُترك لإدارة الذاكرة العامّة لا لهذا المسار. (2) لو
@@ -1046,9 +1051,33 @@ namespace Sad
                 // (EN) Use actual element type when known (e.g., STRING for text arrays)
                 //      This ensures alloca ptr for strings instead of alloca i64
                 {
-                    SadTypeKind loopVarType = (iterableResult.elementType != SadTypeKind::Void)
-                                                  ? iterableResult.elementType
-                                                  : SadTypeKind::Integer;
+                    // (AR) 🔑 **خانةُ التخزينِ غيرُ النوعِ المُعلَن** — وهذا الفصلُ
+                    //      لازمٌ لنوعِ الوحدةِ وحدَه. فقيمةُ الوحدةِ لا تحملُ معلومةً،
+                    //      وخانتُها في الخلفيّةِ حاملُ `i8` لا يقرؤه أحد؛ أمّا آلةُ
+                    //      الحلقةِ (العدّادُ والحدُّ وقراءةُ العنصر) فتعملُ على
+                    //      عرضٍ واحد. فتُخزَّنُ الوحدةُ في خانةٍ عاديّةٍ ويبقى
+                    //      **النوعُ المُعلَنُ** «خالي» في `varInfo` أدناه، فيُجيبُ
+                    //      `نوع(ع)` «خالي» ولا تنكسرُ الآلة.
+                    //
+                    //      ⚠️ ومقيسٌ (2026-09-07): تخصيصُ الخانةِ بنوعِ الوحدةِ
+                    //      جعلَ `لكل ع في [()، ()]` **يعلَقُ إلى ما لا نهاية** —
+                    //      لا ينهارُ ولا يُخفِقُ، بل يدورُ صامتًا. وهو أسوأُ أنواعِ
+                    //      العطبِ في القياس: بذرةٌ بلا مهلةٍ تبدو «بطيئة» لا
+                    //      «معطوبة»، والعدّاءُ بلا مهلةٍ يتوقّفُ هو نفسُه.
+                    // (EN) The STORAGE slot is not the DECLARED type — a split needed
+                    //      only for unit. A unit value carries no information and its
+                    //      backend slot is an unread i8 carrier, while the loop
+                    //      machinery (counter, bound, element load) works at one width.
+                    //      So unit is stored in an ordinary slot while varInfo keeps
+                    //      the declared type, so typeof() still answers «خالي».
+                    //      Measured: allocating the slot AS unit made `for x in [(), ()]`
+                    //      HANG forever — neither a crash nor a failure, a silent spin,
+                    //      the worst kind of defect to measure.
+                    SadTypeKind loopVarType =
+                        (iterableResult.elementType != SadTypeKind::Unknown &&
+                         iterableResult.elementType != SadTypeKind::Unit)
+                            ? iterableResult.elementType
+                            : SadTypeKind::Integer;
                     SIRInstruction allocLoop(SIROpcode::ALLOC);
                     allocLoop.result = SIROperand::Register(loopVarAllocName, loopVarType);
                     if (b_.currentBlock_)
@@ -1062,7 +1091,7 @@ namespace Sad
                 VariableInfo varInfo;
                 varInfo.name = forRange->variable;
                 varInfo.registerName = loopVarAllocName;
-                varInfo.type = (iterableResult.elementType != SadTypeKind::Void) ? iterableResult.elementType : SadTypeKind::Integer;
+                varInfo.type = (iterableResult.elementType != SadTypeKind::Unknown) ? iterableResult.elementType : SadTypeKind::Integer;
                 varInfo.isMutable = true;
                 if (!iterableResult.elementClassName.empty())
                 {
@@ -1228,8 +1257,20 @@ namespace Sad
                 //      هذا يحل مشكلة تكرار النصوص التي كانت تُحمَّل كأرقام
                 // (EN) Use inferred element type from array if available
                 //      This fixes string iteration being loaded as numbers
+                // (AR) 🔑 والشرطُ **نظيرُ شرطِ التخصيصِ حرفًا بحرف**: ذاك يستثني
+                //      `Unit` ليبقى عرضُ الخانةِ واحدًا مع آلةِ الحلقة، وهذا كان
+                //      لا يستثنيه — فتُخصَّصُ الخانةُ `i64` وتُقرَأُ وتُكتَبُ بعرضِ
+                //      حاملِ الوحدة. وشرطانِ لخانةٍ واحدةٍ يفترقانِ بعشرينَ سطرًا،
+                //      والعَرَضُ المُدوَّنُ لهذا الصنفِ **تعليقٌ صامتٌ لا نهائيّ** لا
+                //      انهيارٌ ولا إخفاق.
+                // (EN) The exact mirror of the ALLOC gate twenty lines above, which
+                //      excludes Unit to keep the slot at the loop machinery's width;
+                //      this one did not, so an i64 slot was read and written at the
+                //      unit carrier's width. The documented symptom of this class is a
+                //      silent infinite spin — neither a crash nor a failure.
                 SadTypeKind elemType = SadTypeKind::Integer;
-                if (iterableResult.elementType != SadTypeKind::Void)
+                if (iterableResult.elementType != SadTypeKind::Unknown &&
+                    iterableResult.elementType != SadTypeKind::Unit)
                 {
                     elemType = iterableResult.elementType;
                 }

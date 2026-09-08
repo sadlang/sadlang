@@ -99,7 +99,7 @@ int main()
     SAD_GROUP("Compiler.SIRTypes / المترجم.أنواع_SIR");
 
     SAD_TEST("SIRT01: نوع VOID", {
-        auto type = Sad::Compiler::SIR::SadTypeKind::Void;
+        auto type = Sad::Compiler::SIR::SadTypeKind::Unit;
         SAD_ASSERT_EQ((int)type, 0);
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(str != nullptr);
@@ -154,7 +154,7 @@ int main()
     });
 
     SAD_TEST("SIRT10: مقارنة الأنواع - VOID != I64", {
-        SAD_ASSERT_TRUE(Sad::Compiler::SIR::SadTypeKind::Void != Sad::Compiler::SIR::SadTypeKind::Integer);
+        SAD_ASSERT_TRUE(Sad::Compiler::SIR::SadTypeKind::Unit != Sad::Compiler::SIR::SadTypeKind::Integer);
     });
 
     SAD_TEST("SIRT11: مقارنة الأنواع - F64 == F64", {
@@ -166,7 +166,7 @@ int main()
     SAD_TEST("SIRT12: تحويل جميع الأنواع لنص", {
         // التحقق من أن كل نوع يُرجع نصاً غير فارغ
         const auto types = {
-            Sad::Compiler::SIR::SadTypeKind::Void,
+            Sad::Compiler::SIR::SadTypeKind::Unit,
             Sad::Compiler::SIR::SadTypeKind::Integer,
             Sad::Compiler::SIR::SadTypeKind::Float,
             Sad::Compiler::SIR::SadTypeKind::Boolean,
@@ -185,7 +185,7 @@ int main()
 
     SAD_TEST("SIRT13: ترتيب الأنواع", {
         // التحقق من أن VOID هو الأول
-        SAD_ASSERT_TRUE((int)Sad::Compiler::SIR::SadTypeKind::Void < (int)Sad::Compiler::SIR::SadTypeKind::Integer);
+        SAD_ASSERT_TRUE((int)Sad::Compiler::SIR::SadTypeKind::Unit < (int)Sad::Compiler::SIR::SadTypeKind::Integer);
     });
 
     SAD_TEST("SIRT14: أنواع رقمية", {

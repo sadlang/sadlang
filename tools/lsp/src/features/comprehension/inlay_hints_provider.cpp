@@ -31,7 +31,7 @@ namespace lsp {
 //        («فراغ») = empty return, and «غير_محدد» = failed inference.
 // ══════════════════════════════════════════════════════════════════════════════
 static const std::string TYPE_NAME_VOID =
-    Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Void); // فراغ
+    Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Unit); // خالي
 static const std::string TYPE_NAME_UNRESOLVED =
     "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf"; // غير_محدد
 

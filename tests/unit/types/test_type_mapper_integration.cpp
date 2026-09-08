@@ -190,7 +190,7 @@ enum class SadTypeKind {
 
 llvm::Type* mapSIRType(llvm::LLVMContext& ctx, SadTypeKind sirType) {
     switch (sirType) {
-        case SadTypeKind::Void:     return llvm::Type::getVoidTy(ctx);
+        case SadTypeKind::Unit:     return llvm::Type::getVoidTy(ctx);
         case SadTypeKind::Integer:      return llvm::Type::getInt64Ty(ctx);
         case SadTypeKind::Float:      return llvm::Type::getDoubleTy(ctx);
         case SadTypeKind::Boolean:     return llvm::Type::getInt1Ty(ctx);
@@ -399,7 +399,7 @@ TEST_F(TypeMapperTest, PointerChain_MapsToSinglePointer) {
 // ═══════════════════════════════════════════════════════
 
 TEST_F(TypeMapperTest, SIR_Void_MapsToVoid) {
-    EXPECT_TRUE(mapSIR(SadTypeKind::Void)->isVoidTy());
+    EXPECT_TRUE(mapSIR(SadTypeKind::Unit)->isVoidTy());
 }
 
 TEST_F(TypeMapperTest, SIR_I64_MapsToI64) {

@@ -22,7 +22,6 @@
 
 #pragma once
 
-#include "type.h"
 #include "value.h"
 #include "class_nodes.h"
 #include <string>
@@ -61,7 +60,6 @@ namespace Sad
         struct ClassField
         {
             std::string name;           ///< (AR) اسم الخاصية / (EN) field name
-            Type *type;                 ///< (AR) نوع البيانات / (EN) data type
             AST::Visibility visibility; ///< (AR) الرؤية / (EN) visibility
             Value defaultValue;         ///< (AR) قيمة افتراضية / (EN) default value
             bool isStatic;              ///< (AR) هل ثابتة؟ / (EN) is static?
@@ -125,8 +123,8 @@ namespace Sad
              * @brief (AR) منشئ مع اسم ونوع
              * @brief (EN) Constructor with name and type
              */
-            ClassField(const std::string &n, Type *t, AST::Visibility vis)
-                : name(n), type(t), visibility(vis), isStatic(false) {}
+            ClassField(const std::string &n, AST::Visibility vis)
+                : name(n), visibility(vis), isStatic(false) {}
         };
 
         // ======================================================================
@@ -153,7 +151,6 @@ namespace Sad
         struct ClassMethod
         {
             std::string name;                           ///< (AR) اسم الطريقة / (EN) method name
-            Type *returnType;                           ///< (AR) نوع الإرجاع / (EN) return type
             std::vector<AST::Parameter> parameters;     ///< (AR) المعاملات / (EN) parameters
             AST::Visibility visibility;                 ///< (AR) الرؤية / (EN) visibility
             std::unique_ptr<AST::BlockStmt> body;       ///< (AR) جسم الطريقة (ملكية حصرية) / (EN) method body (exclusive ownership)
@@ -184,8 +181,8 @@ namespace Sad
              * @brief (AR) منشئ مع اسم ورؤية
              * @brief (EN) Constructor with name and visibility
              */
-            ClassMethod(const std::string &n, AST::Visibility vis, Type *ret = nullptr)
-                : name(n), returnType(ret), visibility(vis),
+            ClassMethod(const std::string &n, AST::Visibility vis)
+                : name(n), visibility(vis),
                   isStatic(false), isVirtual(false), isAbstract(false) {}
         };
 
@@ -210,7 +207,6 @@ namespace Sad
         struct ClassProperty
         {
             std::string name;           ///< (AR) اسم الخاصية / (EN) property name
-            Type *type;                 ///< (AR) نوع البيانات / (EN) data type
             AST::Visibility visibility; ///< (AR) الرؤية / (EN) visibility
             bool isStatic;              ///< (AR) هل ثابتة؟ / (EN) is static?
 
@@ -222,8 +218,8 @@ namespace Sad
              * @brief (AR) منشئ مع اسم ورؤية
              * @brief (EN) Constructor with name and visibility
              */
-            ClassProperty(const std::string &n, Type *t, AST::Visibility vis)
-                : name(n), type(t), visibility(vis), isStatic(false) {}
+            ClassProperty(const std::string &n, AST::Visibility vis)
+                : name(n), visibility(vis), isStatic(false) {}
 
             /**
              * @brief (AR) هل للقراءة فقط؟ (بدون setter)
@@ -294,8 +290,8 @@ namespace Sad
          * ```
          * // تعريف صنف شخص
          * ClassType* personClass = new ClassType("شخص");
-         * personClass->addField("الاسم", stringType, PUBLIC);
-         * personClass->addField("العمر", intType, PRIVATE);
+         * personClass->addField("الاسم", PUBLIC);
+         * personClass->addField("العمر", PRIVATE);
          * personClass->addMethod("اطبع_معلومات", ...);
          *
          * // إنشاء كائن
@@ -303,7 +299,26 @@ namespace Sad
          * ahmed->setField("الاسم", Value("أحمد"));
          * ```
          */
-        class ClassType : public Type
+        // ══════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 **حُذفت `Sad::Data::Type` — الصنفُ الثالثُ من «النوع».**
+        //      كانت `ClassType` ترثُه، وكان في `ClassField`/`ClassMethod`/
+        //      `ClassProperty` حقلُ `Type*`. والمقيسُ يومَ الحذف:
+        //        · صفرُ موضعٍ يُنشئُ `Data::Type` في شفرةِ الإنتاج (مُنشِئُه
+        //          الوحيدُ اختبارٌ **معطَّلٌ** بـ`if(FALSE)` في `cmake/tests.cmake`)؛
+        //        · صفرُ قارئٍ لـ`field->type` أو `method->returnType`؛
+        //        · صفرُ مُنادٍ لـ`ClassType::isEqual`/`isConvertibleTo`؛
+        //        · و`ClassType` كانت تخزّنُ الاسمَ **مرّتين** — `Type::name`
+        //          ومِلْكَها `name` — وكلاهما يُسنَدُ `className` في البانيَين.
+        //      أمرُ القياس: `python scripts/codegen/measure_type_layer_bridges.py`.
+        //      والتصنيفُ المُعلَنُ للحقلِ يبقى في `declaredKind` (SadTypeKind)،
+        //      وهو المحورُ الشرعيُّ المولَّدُ من `language-truth/types.yaml`.
+        // (EN) Sad::Data::Type deleted — the third parallel "Type" class. It was
+        //      ClassType's base and the type of three never-read fields; nothing
+        //      in production ever constructed one, and ClassType stored its name
+        //      twice. The declared kind lives on in `declaredKind` (SadTypeKind).
+        // ══════════════════════════════════════════════════════════════════════
+
+        class ClassType
         {
         public:
             // ──────────────────────────────────────────────────────────────────
@@ -382,7 +397,7 @@ namespace Sad
              * @brief (AR) هدام افتراضي
              * @brief (EN) Default destructor
              */
-            ~ClassType() override = default;
+            ~ClassType() = default;
 
             /**
              * @brief (AR) إسناد نقلي — يستعمله ClassManager لتحديث التسجيل المؤقت
@@ -409,27 +424,6 @@ namespace Sad
              */
             std::string getName() const { return name; }
 
-            /**
-             * @brief (AR) هل النوع مطابق لنوع آخر؟
-             * @brief (EN) Is this type equal to another?
-             *
-             * @param other (const Type*) — (AR) النوع الآخر / (EN) other type
-             * @return (bool) — (AR) true إذا متطابق / (EN) true if equal
-             */
-            bool isEqual(const Type *other) const override;
-
-            /**
-             * @brief (AR) هل النوع قابل للتحويل لنوع آخر؟
-             * @brief (EN) Is this type convertible to another?
-             *
-             * ملاحظات إضافية:
-             * - AR: يدعم التحويل للصنف الأساسي (upcast)
-             * - EN: Supports upcast to base class
-             *
-             * @param other (const Type*) — (AR) النوع المستهدف / (EN) target type
-             * @return (bool) — (AR) true إذا قابل للتحويل / (EN) true if convertible
-             */
-            bool isConvertibleTo(const Type *other) const override;
 
             /**
              * @brief (AR) تمثيل نصي للنوع
@@ -459,7 +453,7 @@ namespace Sad
              * - AR: ترجع false إذا كان الاسم موجود مسبقاً
              * - EN: Returns false if name already exists
              */
-            bool addField(const std::string &fieldName, Type *type,
+            bool addField(const std::string &fieldName,
                           AST::Visibility visibility, bool isStatic = false,
                           const Value &defaultValue = Value(),
                           const std::string &defaultConstructClass = std::string(),
@@ -508,7 +502,6 @@ namespace Sad
              *
              * @param methodName (std::string) — (AR) اسم الطريقة / (EN) method name
              * @param visibility (AST::Visibility) — (AR) الرؤية / (EN) visibility
-             * @param returnType (Type*) — (AR) نوع الإرجاع / (EN) return type
              * @param parameters (std::vector<AST::Parameter>) — (AR) المعاملات / (EN) parameters
              * @param body (std::unique_ptr<AST::BlockStmt>) — (AR) جسم الطريقة / (EN) method body
              * @param isStatic (bool) — (AR) هل ثابتة؟ / (EN) is static?
@@ -517,7 +510,7 @@ namespace Sad
              * @return (bool) — (AR) true إذا نجحت الإضافة / (EN) true if added successfully
              */
             bool addMethod(const std::string &methodName, AST::Visibility visibility,
-                           Type *returnType, const std::vector<AST::Parameter> &parameters,
+                           const std::vector<AST::Parameter> &parameters,
                            std::unique_ptr<AST::BlockStmt> body,
                            bool isStatic = false, bool isVirtual = false,
                            bool isAbstract = false);
@@ -528,13 +521,12 @@ namespace Sad
              *
              * @param methodName (std::string) — (AR) اسم الطريقة / (EN) method name
              * @param visibility (AST::Visibility) — (AR) الرؤية / (EN) visibility
-             * @param returnType (Type*) — (AR) نوع الإرجاع / (EN) return type
              * @param parameters (std::vector<AST::Parameter>) — (AR) المعاملات / (EN) parameters
              * @param sharedBody (std::shared_ptr<AST::BlockStmt>) — (AR) الجسم المشترك / (EN) shared body
              * @return (bool) — (AR) true إذا نجحت الإضافة / (EN) true if added successfully
              */
             bool addDefaultMethod(const std::string &methodName, AST::Visibility visibility,
-                                  Type *returnType, const std::vector<AST::Parameter> &parameters,
+                                  const std::vector<AST::Parameter> &parameters,
                                   std::shared_ptr<AST::BlockStmt> sharedBody,
                                   bool isStatic = false, bool isVirtual = false);
 

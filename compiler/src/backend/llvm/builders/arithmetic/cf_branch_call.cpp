@@ -149,7 +149,7 @@ namespace Sad
                     kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Null),
                     "tobool.dyn.nn");
                 llvm::Value *notVoid = cg_.builder_->CreateICmpNE(
-                    kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Void),
+                    kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Missing),
                     "tobool.dyn.nv");
                 llvm::Value *nonZero = cg_.builder_->CreateICmpNE(
                     payload, llvm::ConstantInt::get(payload->getType(), 0),
@@ -659,7 +659,7 @@ namespace Sad
                     case SadTypeKind::Class:
                         returnType = cg_.getInt8PtrType();
                         break;
-                    case SadTypeKind::Void:
+                    case SadTypeKind::Unit:
                         returnType = cg_.getVoidType();
                         break;
                     default:
@@ -776,7 +776,7 @@ namespace Sad
                     const auto declaredKind = sirParam.declaredSurfaceType;
                     if (declaredKind != SadTypeKind::Unknown &&
                         declaredKind != SadTypeKind::Any &&
-                        declaredKind != SadTypeKind::Void &&
+                        declaredKind != SadTypeKind::Unit &&
                         declaredKind != SadTypeKind::Null)
                     {
                         emitDynVoidStoreGuard(
@@ -802,7 +802,7 @@ namespace Sad
                 // (EN) Fix: If LLVM function is void but SIR expects a return value,
                 //      create a new declaration with correct return type via getOrInsertFunction
                 bool needsReturnValue = inst->result.has_value() &&
-                                        inst->result->dataType != SadTypeKind::Void;
+                                        inst->result->dataType != SadTypeKind::Unit;
                 if (needsReturnValue)
                 {
                     // (AR) تحديد نوع الإرجاع المطلوب
@@ -841,7 +841,20 @@ namespace Sad
                 else
                 {
                     cg_.builder_->CreateCall(callee, args);
-                    result = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+                    // (AR) 🔑 وعائدُ نداءٍ بلا قيمةٍ يُمثَّلُ بحاملِ الوحدةِ حين تكونُ
+                    //      نتيجةُ التعليمةِ وحدةً — لا بصفرٍ `i64`. وكان نداءُ
+                    //      الإغلاقِ يربطُ `i8` وهذا يربطُ `i64`: حاملانِ لقيمةٍ
+                    //      واحدةٍ بحسبِ كونِ المُنادى إغلاقًا أو دالّةً مسمّاة.
+                    // (EN) A value-less call's result is the unit carrier when the
+                    //      instruction's result is Unit — not an i64 zero. The closure
+                    //      path bound i8 and this one i64: one value, two widths, by
+                    //      whether the callee was a closure or a named function.
+                    result = (inst->result.has_value() &&
+                              inst->result->dataType == SadTypeKind::Unit)
+                                 ? static_cast<llvm::Value *>(
+                                       ::Sad::LLVM::unitCarrierValue(*cg_.context_))
+                                 : static_cast<llvm::Value *>(
+                                       llvm::ConstantInt::get(cg_.getInt64Type(), 0));
                 }
             }
             else

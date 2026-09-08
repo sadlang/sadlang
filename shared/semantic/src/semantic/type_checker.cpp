@@ -17,9 +17,6 @@
 #include "class_nodes.h"
 #include "pattern_nodes.h"    // (AR) [أ-م٢] ConstructorPattern / MatchStmt / CaseClause
 #include "error_manager.h"    // (AR) [أ-م٢] بناء رسالة الكتالوج ثنائيّة اللغة
-#include "types/composite_type_classes.h"
-#include "types/enum_types.h"
-#include "types/struct_types.h"
 
 #include <iostream>
 #include <algorithm>
@@ -30,7 +27,7 @@ namespace Sad
     namespace Semantic
     {
 
-        using namespace TypeSystem;
+        using namespace Sad::Types;
         using TT = Lexer::TokenType;
 
         namespace
@@ -77,10 +74,76 @@ namespace Sad
         // TypeCheckError
         // ============================================================================
 
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 اللافتةُ العامّةُ تُطبَعُ **حين لا هُويّةَ أخصَّ منها**.
+        //      كانت `[خطأ نوع]` / `[Type Error]` تُصدَّرُ دائمًا، فلمّا صارت
+        //      رسائلُ الكتالوجِ تحملُ رمزَها خرجَ السطرُ هكذا:
+        //          [خطأ نوع] 'س': [SEM056] (AR) الخانة 'س' …
+        //      لافتتانِ متتاليتان، والثانيةُ تُغني عن الأولى وتزيد: `SEM056`
+        //      يُسمّي **هذه** العلّةَ بعينِها، و«خطأ نوع» يُسمّي صنفَها كلَّه.
+        //      ⚠️ ولا تُحذَفُ اللافتةُ رأسًا: باعثونَ كثيرونَ ما زالوا يملؤون
+        //      `message` نثرًا بلا رمزٍ (مقيسٌ: ثمانيةُ مواضعَ في هذه الطبقة)،
+        //      فحذفُها يترُكُ تشخيصَهم **بلا أيِّ هُويّة**. فالشرطُ هو الجواب
+        //      لا الحذف: تُطبَعُ ما لم تكن الرسالةُ تحملُ رمزًا سلفًا.
+        // (EN) The generic label prints only when nothing more specific exists.
+        //      It used to print unconditionally, so once catalog messages carried
+        //      their code the line read «[خطأ نوع] 'x': [SEM056] (AR) …» — two
+        //      labels where the second subsumes the first. Not deleted outright:
+        //      many raisers still fill `message` with codeless prose, and deleting
+        //      it would leave those diagnostics with no identity at all.
+        // ════════════════════════════════════════════════════════════════════
+        namespace
+        {
+            /// (AR) أتحملُ الرسالةُ رمزَ كتالوجٍ في مطلعِها؟ — «[ABC123] …»
+            /// (EN) Does the message already open with a catalog code «[ABC123] …»?
+            inline bool carriesCatalogCode(const std::string &m)
+            {
+                if (m.size() < 4 || m[0] != '[')
+                    return false;
+                const std::size_t close = m.find(']');
+                if (close == std::string::npos || close < 2)
+                    return false;
+                bool sawAlpha = false;
+                bool sawDigit = false;
+                for (std::size_t i = 1; i < close; ++i)
+                {
+                    const unsigned char c = static_cast<unsigned char>(m[i]);
+                    if (c >= 'A' && c <= 'Z')
+                        sawAlpha = true;
+                    else if (c >= '0' && c <= '9')
+                        sawDigit = true;
+                    else
+                        return false;
+                }
+                return sawAlpha && sawDigit;
+            }
+        } // namespace
+
         std::string TypeCheckError::toEnglishString() const
         {
             std::ostringstream oss;
-            oss << "[Type Error] ";
+            // ════════════════════════════════════════════════════════════════
+            // (AR) ⛔ **دعوى مراجعةٍ نُقِضَت بعقدٍ مكتوب.** قيلَ إنّ الرمزَ ينبغي
+            //      أن يتصدّرَ السطرَ كمسارِ المحلّل، وإنّ لافتةَ الاسمِ قبلَه
+            //      تكسرُ مراسي البذور. والعقدُ القائمُ يقولُ عكسَه **نصًّا**:
+            //      `rules_matrix/…/203_diagnostic_carries_one_code.ص` بذرةُ P1
+            //      تُعدِّدُ ثلاثةَ أشياءَ تُثبِّتُها، ثالثُها حرفيًّا «واسمُ الخانةِ
+            //      `'س':` يسبقُ الرمزَ مباشرةً»، ومرساتُها `'س': [SEM056] (AR)`.
+            //      فالترتيبُ **مقصودٌ ومحروس**، والرقعةُ أحمرت البذرةَ (مقيسٌ ٨
+            //      أيلول) فنُقِضَت.
+            //      🔑 والدرس: **ذوقُ الصياغةِ ليس عطبًا** — وتغييرُ شكلِ تشخيصٍ
+            //      تحرسُه بذرةٌ قرارُ عقدٍ لا رقعةُ جودة.
+            // (EN) A review finding DISPROVEN by a written contract. It argued the code
+            //      should lead the line as on the parser path. The standing P1 seed
+            //      203_diagnostic_carries_one_code.ص enumerates three pinned properties,
+            //      the third being literally "the slot name precedes the code", anchored
+            //      on `'س': [SEM056] (AR)`. The order is deliberate and guarded; the
+            //      patch reddened the seed (measured) and was reverted. Wording taste is
+            //      not a defect, and changing a guarded diagnostic's shape is a contract
+            //      decision, not a quality patch.
+            // ════════════════════════════════════════════════════════════════
+            if (!carriesCatalogCode(message))
+                oss << "[Type Error] ";
             if (!variableName.empty())
                 oss << "'" << variableName << "': ";
             if (!message.empty())
@@ -94,7 +157,10 @@ namespace Sad
         std::string TypeCheckError::toArabicString() const
         {
             std::ostringstream oss;
-            oss << "[خطأ نوع] ";
+            // (AR) ونظيرُه العربيُّ — انظر النقضَ المُدوَّنَ أعلاه.
+            // (EN) The Arabic twin — see the recorded disproof above.
+            if (!carriesCatalogCode(arabicMessage))
+                oss << "[خطأ نوع] ";
             if (!variableName.empty())
                 oss << "'" << variableName << "': ";
             if (!arabicMessage.empty())
@@ -110,7 +176,7 @@ namespace Sad
         // ============================================================================
 
         TypeChecker::TypeChecker()
-            : useArabicMessages_(true), debugMode_(false), strictMode_(false), registry_(TypeRegistry::getInstance()), lastInferredType_(nullptr), expectedReturnType_(nullptr)
+            : useArabicMessages_(true), debugMode_(false), strictMode_(false), registry_(Sad::Types::SadTypeRegistry::instance()), lastInferredType_(nullptr), expectedReturnType_(nullptr)
         {
             // إنشاء بيئة الأنواع العامة / Create global type environment
             currentEnv_ = std::make_shared<TypeEnvironment>();
@@ -123,19 +189,19 @@ namespace Sad
             variableTypeIsInferred_.emplace_back();
 
             // تسجيل الدوال المدمجة / Register built-in functions
-            currentEnv_->bind("اطبع", registry_.getVoidType());        // print
-            currentEnv_->bind("اطبع_سطر", registry_.getVoidType());    // println
-            currentEnv_->bind("ادخل", registry_.getStringType());      // input
-            currentEnv_->bind("ادخل_رقم", registry_.getIntegerType()); // input_number
-            currentEnv_->bind("طول", registry_.getIntegerType());      // length
-            currentEnv_->bind("نوع", registry_.getStringType());       // typeof
+            currentEnv_->bind("اطبع", registry_.getVoid());        // print
+            currentEnv_->bind("اطبع_سطر", registry_.getVoid());    // println
+            currentEnv_->bind("ادخل", registry_.getString());      // input
+            currentEnv_->bind("ادخل_رقم", registry_.getInteger()); // input_number
+            currentEnv_->bind("طول", registry_.getInteger());      // length
+            currentEnv_->bind("نوع", registry_.getString());       // typeof
 
             // English aliases
-            currentEnv_->bind("print", registry_.getVoidType());
-            currentEnv_->bind("println", registry_.getVoidType());
-            currentEnv_->bind("input", registry_.getStringType());
-            currentEnv_->bind("len", registry_.getIntegerType());
-            currentEnv_->bind("type", registry_.getStringType());
+            currentEnv_->bind("print", registry_.getVoid());
+            currentEnv_->bind("println", registry_.getVoid());
+            currentEnv_->bind("input", registry_.getString());
+            currentEnv_->bind("len", registry_.getInteger());
+            currentEnv_->bind("type", registry_.getString());
         }
 
         // ============================================================================
@@ -325,34 +391,49 @@ namespace Sad
         //      هذا الجسر يُحذف في S-TS-P2.5a عند ترحيل حقول الـAST إلى SadTypeKind.
         // ============================================================================
 
-        TypePtr TypeChecker::sadKindToTypePtr(Types::SadTypeKind kind) const
+        Sad::Types::SadTypePtr TypeChecker::sadKindToTypePtr(Types::SadTypeKind kind) const
         {
             using K = Types::SadTypeKind;
             switch (kind)
             {
             case K::Integer:
-                return registry_.getIntegerType();
+                return registry_.getInteger();
             case K::Float:
-                return registry_.getFloatType();
+                return registry_.getFloat();
             case K::String:
-                return registry_.getStringType();
+                return registry_.getString();
             case K::Boolean:
-                return registry_.getBooleanType();
-            case K::Void:
-            case K::Null: // (AR) عدم — لا تمييز دلالي بعد (انظر S-TS-P9)؛ يُعامل كفراغ حاليًّا
-                return registry_.getVoidType();
+                return registry_.getBoolean();
+            case K::Unit:
+                return registry_.getVoid();
+            // (AR) 🔑 و«عدم» له نوعُه — وكان يُردُّ نوعَ الوحدةِ بتعليقٍ يقول
+            //      «لا تمييزَ دلاليًّا بعد». وكان ذلك بلا أثرٍ ما دامَ لا حارسَ
+            //      يقرأُ الصنف؛ فلمّا صُنِّفَ «خالي» في `operand_classes`
+            //      (2026-09-07) ورِثَ `عدم` حكمَه: `عدم س = لاشيء` ثمّ `س + 1`
+            //      يُرَدُّ بـSEM054 ونصُّه يقولُ «خالي» — رفضٌ كاذبٌ وتشخيصٌ
+            //      يُسمّي النوعَ باسمِ غيرِه.
+            //      ⚠️ ودرسُه أنّ **تسويةً بين نوعَين تنامُ حتّى يُوقِظَها حارس**:
+            //      لم يكن السطرُ خاطئًا يومَ كُتِب، بل صارَ خاطئًا يومَ صارَ
+            //      للصنفِ أثر.
+            // (EN) Null gets its own type. Sharing the unit type was inert while
+            //      nothing read the kind; once unit became a classified operand
+            //      class, null inherited its verdict — a false rejection whose
+            //      text names the wrong type. A type conflation sleeps until a
+            //      guard wakes it.
+            case K::Null:
+                return registry_.getNull();
             case K::Array:
-                return std::make_shared<ArrayType>(registry_.getAnyType()); // عنصر المصفوفة يُحدد لاحقاً
+                return registry_.makeArray(registry_.getAny()); // عنصر المصفوفة يُحدد لاحقاً
             case K::Map:
-                return std::make_shared<DictionaryType>(registry_.getStringType(), registry_.getAnyType()); // مفتاح/قيمة يُحددان لاحقاً
+                return registry_.makeMap(registry_.getString(), registry_.getAny()); // مفتاح/قيمة يُحددان لاحقاً
             case K::Function:
-                return std::make_shared<FunctionType>(TypeList{}, registry_.getVoidType()); // توقيع الدالة يُحدد لاحقاً
+                return registry_.makeFunction(std::vector<Sad::Types::SadTypePtr>{}, registry_.getVoid()); // توقيع الدالة يُحدد لاحقاً
             case K::Class:
-                return registry_.getAnyType(); // يُحدد من StructRegistry عند الوصول
+                return registry_.getAny(); // يُحدد من StructRegistry عند الوصول
             case K::Enum:
-                return registry_.getAnyType(); // يُحدد من EnumRegistry عند الوصول
+                return registry_.getAny(); // يُحدد من EnumRegistry عند الوصول
             case K::Tuple:
-                return std::make_shared<TupleType>(TypeList{}); // عناصر الصف تُحدد لاحقاً
+                return registry_.makeTuple(std::vector<Sad::Types::SadTypePtr>{}); // عناصر الصف تُحدد لاحقاً
             // (AR) 🔑 أسرةُ الأعراضِ الثمانية. وكانت `طبيعي8` وحدَها مذكورةً ههنا
             //      تُردُّ «رقمًا»، **والسبعُ الباقياتُ تسقطُ في `default` فتُردُّ
             //      «مجهولًا»** — و«المجهول» تُجيزُه `areTypesCompatible` مع كلِّ
@@ -371,9 +452,9 @@ namespace Sad
             case K::UInt16:
             case K::UInt32:
             case K::UInt64:
-                return registry_.internPrimitiveType(kind);
+                return registry_.getByKind(kind);
             case K::Error:
-                return registry_.getUnknownType();
+                return registry_.getUnknown();
             // (AR) [S-TS-P4] أنواع متقدّمة على مستوى الـkind (دون نوع داخلي هنا) → Any
             //      حتى لا يُطلِق المدقّق تحذيرات إسناد كاذبة لـ`رقم?` ونحوه. النوع الداخلي
             //      الغنيّ يُحمَل عبر sadType في العقد (تمثيل أغنى مخطّط لاحقًا).
@@ -381,7 +462,7 @@ namespace Sad
             case K::Result:
             case K::Future:
             case K::Generator:
-                return registry_.getAnyType();
+                return registry_.getAny();
             // (AR) 🔑 `أي` نوعٌ صريحٌ لا غيابُ نوع. كان يسقط في `default` فيُرَدَّ
             //      `Unknown`، فيُهمِله `visitVarDeclStmt` («المُصرَّحُ مجهولٌ ⇒ خُذ
             //      المُستنتَج») ويُقيَّد المتغيّرُ بنوعِ مُهيِّئه. والمقيس: `أي س = 5`
@@ -400,25 +481,18 @@ namespace Sad
             //      has always accepted Any; only the road to it was cut, which is why
             //      reading the compatibility authority does not expose this defect.
             case K::Any:
-                return registry_.getAnyType();
+                return registry_.getAny();
             case K::Unknown:
             default:
-                return registry_.getUnknownType();
+                return registry_.getUnknown();
             }
-        }
-
-        // (AR) جسر حدود الـAST (S-TS-P2): DataType→SadTypeKind→TypePtr. يُحذف في S-TS-P2.5a.
-        // (EN) AST-boundary bridge (S-TS-P2): DataType→SadTypeKind→TypePtr. Removed in S-TS-P2.5a.
-        TypePtr TypeChecker::dataTypeToTypePtr(Types::SadTypeKind dt) const
-        {
-            return sadKindToTypePtr(dt);
         }
 
         // ============================================================================
         // التحقق من توافق الأنواع / Check Type Compatibility
         // ============================================================================
 
-        bool TypeChecker::areTypesCompatible(TypePtr expected, TypePtr actual) const
+        bool TypeChecker::areTypesCompatible(Sad::Types::SadTypePtr expected, Sad::Types::SadTypePtr actual) const
         {
             if (!expected || !actual)
                 return true; // null types = no checking
@@ -446,6 +520,51 @@ namespace Sad
             if (expected->isArray() || actual->isArray())
                 return true;
 
+            // ════════════════════════════════════════════════════════════
+            // (AR) 📌 دَينٌ مُسمًّى: `خالي س = لاشيء` **يُحذَّرُ منه ولا يُرفَض**،
+            //      والعدمُ فيه لا يُخزَّن.
+            //
+            //      وُضِعَت ههنا ذراعُ رفضٍ (`متوقَّعٌ خالي` × `مُعطًى عدم`) ثمّ
+            //      **نُزِعَت لأنّ التنفيذَ لا يبلغُها**: `visitLiteralExpr`
+            //      يُسنِدُ لـ`لاشيء` النوعَ `Unknown` عمدًا — بتعليقٍ يقولُ
+            //      «متوافقٌ مع أيِّ نوعٍ لاحقٍ عند إعادةِ الإسناد» — فيُجيبُ
+            //      شرطُ `isUnknown()` أعلاه بالقبولِ قبلَ أن يُسأَلَ أيُّ شرطٍ
+            //      بعدَه. ⚠️ **وذراعٌ لا يبلغُها التنفيذُ أسوأُ من غيابِها**:
+            //      تُقرَأُ حراسةً فيُطمأَنُّ إليها.
+            //
+            //      والمقيسُ (2026-09-07): خانةُ الوحدةِ حاملٌ `i8` **لا يسعُ
+            //      حارسَ العدمِ** `kSadNullSentinel` (عرضُه ٦٤ بتًّا)، فيُبتَرُ
+            //      إلى صفرٍ = قيمةِ الوحدةِ نفسِها. فسائرُ الأنواعِ تحفظُ العدمَ
+            //      في خانتِها متمايزًا (‏`رقم س = لاشيء` يُجيبُ «عدم» ويعملُ
+            //      `؟؟` بعدَه)، والوحدةُ **لا تستطيع**. فالفرقُ قدرةُ الخانةِ
+            //      على حملِ الغياب، لا تشدّدٌ على نوع.
+            //
+            //      وما تغيّرَ فعلًا أنّ التشخيصَ صارَ يُبعَث: كان يمرُّ **بلا
+            //      شيءٍ البتّة** بينما يُحذَّرُ نظيرُه العدديُّ، وقد رُفِعَ
+            //      الاستثناءُ من `null_safety_analyzer.cpp` فصارَ يُحذَّرُ منه
+            //      كسائرِ الأنواع. ورفعُه إلى **رفضٍ** يلزمُه أن يحملَ
+            //      `visitLiteralExpr` نوعَ العدمِ حقًّا — وذلك يمسُّ كلَّ نوعٍ
+            //      في اللغةِ، فمشروعٌ يُقاسُ وحدَه لا سطرٌ يُدَسُّ ههنا.
+            // (EN) Named debt: `خالي س = لاشيء` is WARNED about, not rejected, and the
+            //      null is not stored. A rejection arm (expected unit × actual null) was
+            //      written here and then REMOVED because execution never reaches it:
+            //      visitLiteralExpr deliberately types the null literal as Unknown — its
+            //      comment says "compatible with any type on reassignment" — so the
+            //      isUnknown() test above accepts before any later test is asked. An arm
+            //      execution never reaches is worse than no arm: it reads as a guard and
+            //      is trusted. Measured: a unit slot is an i8 carrier that cannot hold the
+            //      64-bit null sentinel; it truncates to zero, which is the unit's own
+            //      value. Every other type keeps null distinguishable in its slot, so
+            //      `رقم س = لاشيء` answers «عدم» and `??` works after it; the unit cannot.
+            //      The dividing line is whether the slot can carry absence, not extra
+            //      severity for one type. What did change: the case now produces a
+            //      diagnostic at all — it passed in complete silence while its numeric
+            //      twin warned — since the exception was lifted in null_safety_analyzer.
+            //      Raising it to a REJECTION requires visitLiteralExpr to carry a real
+            //      null type, which touches every type in the language: a measured
+            //      project of its own, not a line smuggled in here.
+            // ════════════════════════════════════════════════════════════
+
             // Never يتوافق مع أي نوع / Never is subtype of everything
             if (actual->isNever())
                 return true;
@@ -458,15 +577,15 @@ namespace Sad
         // استنتاج نوع تعبير / Infer Expression Type
         // ============================================================================
 
-        TypePtr TypeChecker::inferExprType(AST::Expression *expr)
+        Sad::Types::SadTypePtr TypeChecker::inferExprType(AST::Expression *expr)
         {
             if (!expr)
-                return registry_.getUnknownType();
+                return registry_.getUnknown();
 
             lastInferredType_ = nullptr;
             expr->accept(*this);
 
-            TypePtr result = lastInferredType_;
+            Sad::Types::SadTypePtr result = lastInferredType_;
             if (!result)
             {
                 // (AR) Fallback: نوع الـAST (DataType) مُجسَّرًا إلى SadTypeKind — S-TS-P2
@@ -511,7 +630,7 @@ namespace Sad
                 variableTypeIsInferred_.pop_back();
         }
 
-        void TypeChecker::declareVariable(const std::string &name, TypePtr type)
+        void TypeChecker::declareVariable(const std::string &name, Sad::Types::SadTypePtr type)
         {
             currentEnv_->bind(name, type);
             // (AR) [SEM048] كلُّ رباطٍ يمرُّ من هنا يُسجَّلُ **مُصرَّحًا** ابتداءً:
@@ -567,7 +686,7 @@ namespace Sad
             return true;
         }
 
-        TypePtr TypeChecker::lookupVariable(const std::string &name) const
+        Sad::Types::SadTypePtr TypeChecker::lookupVariable(const std::string &name) const
         {
             auto type = currentEnv_->lookup(name);
             return type ? type : nullptr;
@@ -583,6 +702,46 @@ namespace Sad
                 return {0, 0};
             auto &pos = node->position;
             return {pos.line, pos.column};
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 **والحكمُ على اليقينِ لا على النوع.** كان الشرطُ
+        //      `getKind() == Unit` وحدَه، ومعاملُ قالبٍ أو معاملُ «عامل» بلا
+        //      تنميطٍ كان يُصنَّفُ `Unit` في المحلّل — فيُرَدُّ **برنامجٌ صحيحٌ**
+        //      بتشخيصٍ يُقرَأُ قاعدةَ لغة. وقد سُدَّ الجذرُ في المحلّلِ (الافتراضُ
+        //      `Unknown`)، ويُحرَسُ ههنا ثانيًا: مَن لا يُعرَفُ نوعُه لا يُحاكَم.
+        //      ⚠️ **والرفضُ الكاذبُ أخطرُ من الانهيار**: الانهيارُ يُقرَأُ عطبًا،
+        //      والرفضُ يُقرَأُ قاعدةً.
+        //      🔑 وكلمةُ العمليّةِ تصلُ من **معجمِ اللغة** (`KeywordTable`) لا
+        //      مؤلَّفةً في هذا الملفّ: كانت ثلاثَ سلاسلَ عربيّةٍ خامٍّ في `.cpp`
+        //      إحداها («شرطي») ليست كلمةَ لغةٍ أصلًا، وكانت تُحشى في المخرَجِ
+        //      الإنجليزيِّ فيحملُ **لغةَ الآخَر** في خانةٍ واحدة.
+        // (EN) Judge CERTAINTY, not the kind. The test was `getKind() == Unit`
+        //      alone while an untyped template/operator parameter was classified
+        //      Unit by the parser — rejecting CORRECT programs with a diagnosis that
+        //      reads as a language rule. The root is fixed in the parser; this is the
+        //      second guard: what is not known is not judged. The operation word now
+        //      comes from the language's keyword table, not from three raw Arabic
+        //      literals in this file (one of which was not a keyword at all) that
+        //      leaked Arabic into the English rendering.
+        // ════════════════════════════════════════════════════════════════════
+        void TypeChecker::rejectUnitCondition(const Sad::Types::SadTypePtr &condType,
+                                              AST::ASTNode *node,
+                                              Lexer::TokenType operationKeyword)
+        {
+            if (!condType || condType->getKind() != Types::SadTypeKind::Unit)
+                return;
+            const auto *entry = Lexer::KeywordTable::getEntry(operationKeyword);
+            const std::string operation = entry ? entry->primaryWord : std::string();
+            Errors::RenderContext ctx;
+            auto [line, col] = getLocation(node);
+            ctx.location = Errors::SourceLocation("<input>", line, col);
+            ctx.placeholders = {
+                {"operation", operation},
+                {"type", Types::sadTypeKindArabicName(Types::SadTypeKind::Unit)}};
+            recordTypeError("", "", "", node,
+                            Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID, ctx));
         }
 
         void TypeChecker::recordTypeError(const std::string &varName,
@@ -602,8 +761,35 @@ namespace Sad
 
             if (msg.empty())
             {
-                err.message = "Type mismatch: expected '" + expected + "' but got '" + actual + "'";
-                err.arabicMessage = "عدم تطابق الأنواع: متوقع '" + expected + "' لكن وُجد '" + actual + "'";
+                // ════════════════════════════════════════════════════════
+                // (AR) 🔑 من الكتالوجِ لا من نصٍّ مؤلَّفٍ ههنا. وهذه الذراعُ
+                //      **المصبُّ الافتراضيُّ لثمانيةِ باعثين**، فكان أشهرُ
+                //      خرقِ عقدٍ في اللغةِ يصلُ الكاتبَ بلا رمزٍ ولا علاج،
+                //      ولا تجدُ بذرةٌ سالبةٌ ما تُرسى عليه غيرَ **نصِّ
+                //      الرسالة** — مرسًى ينكسرُ بأوّلِ تحريرٍ ويَخضَرُّ على
+                //      رسالةٍ أخرى تحملُ العبارةَ نفسَها.
+                //      🔑 وكشفَه الحارسُ لا المراجعة: ثلاثُ بذورٍ جديدةٍ
+                //      رفعت عدّادَ «سالبٌ بلا رمز» فوقَ سقفِه النازل.
+                // (EN) From the catalog, not composed here. This arm is the
+                //      DEFAULT SINK for eight raisers, so the language's most
+                //      common contract breach reached the writer with no code
+                //      and no fix hint, and a negative seed had nothing but the
+                //      message TEXT to anchor on. Found by a guard, not a review.
+                // ════════════════════════════════════════════════════════
+                Errors::RenderContext ctx;
+                ctx.location = Errors::SourceLocation("<input>", line, col);
+                ctx.placeholders = {{"name", varName},
+                                    {"expected", expected},
+                                    {"found", actual}};
+                // (AR) ولا بادئةَ رمزٍ ههنا: `buildBilingualMessage` تُصدِّرُها
+                //      بنفسِها منذ 2026-09-03 — وإضافتُها ثانيةً تُخرِجُ
+                //      «[SEM056] [SEM056] …».
+                // (EN) No code prefix here: buildBilingualMessage emits it itself.
+                const std::string tagged =
+                    Errors::ErrorManager::getInstance().buildBilingualMessage(
+                        Errors::ErrorCode::SEM_SLOT_TYPE_MISMATCH, ctx);
+                err.message = tagged;
+                err.arabicMessage = tagged;
             }
             else
             {
@@ -669,27 +855,33 @@ namespace Sad
                 Errors::ErrorManager::getInstance().buildBilingualMessage(code, ctx);
 
             // ────────────────────────────────────────────────────────────────
-            // (AR) 🔑 `buildBilingualMessage` تُصيغُ «(AR) … / (EN) …» **بلا رمز**،
-            //      فكانَ كلُّ تشخيصٍ دلاليٍّ يصلُ الكاتبَ بلا هُويّةٍ مستقرّة:
-            //      المحلّلُ يطبعُ `⛔ [SYN010]` وفاحصُ الأنواعِ يطبعُ نثرًا مجرّدًا.
-            //      وأثرُ ذلك أنّ كلَّ بذرةٍ سالبةٍ تُرسي على **نصِّ** الرسالةِ لا
-            //      على رمزِها، فتنكسرُ بأيِّ تحريرٍ للنصِّ وتَخضَرُّ على رسالةٍ
-            //      أخرى تصادفَ أنّها تحملُ العبارةَ نفسَها.
-            //      والوصلُ هنا لا في `buildBilingualMessage`: مستدعوها ثلاثةٌ
-            //      وعشرونَ ملفًّا، وتغييرُها يمسُّ كلَّ تشخيصٍ في المشروعِ دفعةً
-            //      واحدة. **والرقعةُ تُوضَعُ في أضيقِ طبقةٍ تسعُ العلّة.**
-            //      وهي بادئةٌ لا إعادةَ صياغة، فالمراسي النصّيّةُ القائمةُ باقيةٌ
-            //      تعملُ — إذ لا بذرةَ تُرسي على مطلعِ الرسالة.
-            // (EN) 🔑 buildBilingualMessage renders "(AR) … / (EN) …" with no code,
-            //      so every semantic diagnostic reached the writer without a stable
-            //      identity while the parser prints `⛔ [SYN010]`. Seeds therefore
-            //      anchor on prose, which drifts and false-greens. Patched here, not
-            //      in buildBilingualMessage: 23 files call that, and it renders every
-            //      diagnostic in the project. Prefix only — existing prose anchors
-            //      keep matching, since none anchors on the message head.
+            // (AR) ⚠️ **تصويبٌ مُدوَّنٌ (2026-09-07)، ودرسُه أهمُّ من سطرِه.**
+            //      كان ههنا بادئةُ رمزٍ ثانيةٌ — `"[" + code + "] " + rendered` —
+            //      ونصُّها يقول: «`buildBilingualMessage` تُصيغُ بلا رمز، والرقعةُ
+            //      تُوضَعُ في أضيقِ طبقةٍ تسعُ العلّة». وكان ذلك **صادقًا يومَ
+            //      كُتِب**، ثمّ سُدَّت العلّةُ في المصبِّ نفسِه (2026-09-03) فصارت
+            //      الرسالةُ تحملُ رمزَها هناك — ولم يُنزَعِ الوصلُ ههنا.
+            //      فالنتيجةُ رقعتانِ لعلّةٍ واحدةٍ لا تعرفُ إحداهما بالأخرى،
+            //      وكلتاهما تحملُ حُجّةً مُقنِعة، والمخرَجُ **«[SEM054] [SEM054] …»**.
+            //
+            //      🔑 والقاعدةُ المستفادة: **رقعةٌ في طبقةٍ ضيّقةٍ دَينٌ حتّى
+            //      تُنزَع.** فحين تُسَدُّ العلّةُ في مصبِّها لا يبطلُ الالتفافُ
+            //      من تلقائِه، بل يبقى يعملُ **مرّتَين**. وتعليقُه هو ما يحميه:
+            //      يقرؤه المراجعُ فيراهُ مُبرَّرًا، ولا يسألُ أَبقيَ مُبرَّرًا.
+            //      وهي علّةُ «شفرةٌ صحيحةٌ تحتَ فرضيّةٍ انقلبت» نفسُها التي حكمت
+            //      هذا العملَ كلَّه — ههنا في تعليقٍ لا في `SadTypeKind`.
+            // (EN) Documented correction (2026-09-07). A SECOND code prefix lived
+            //      here, its comment arguing that buildBilingualMessage renders
+            //      without a code so the patch belongs in the narrowest layer. That
+            //      was TRUE when written; the sink itself was then fixed
+            //      (2026-09-03) and this workaround was never removed — two patches
+            //      for one defect, each persuasive, output «[SEM054] [SEM054] …».
+            //      The rule: a narrow-layer workaround is DEBT until removed. When
+            //      the root is fixed the workaround does not lapse — it runs twice.
+            //      Its own comment is what shields it: a reviewer reads the
+            //      justification and never asks whether it still holds.
             // ────────────────────────────────────────────────────────────────
-            const std::string tagged =
-                "[" + Errors::getErrorCodeString(code) + "] " + rendered;
+            const std::string tagged = rendered;
 
             TypeCheckError err;
             err.line = line;
@@ -699,7 +891,7 @@ namespace Sad
             currentResult_.addError(err);
         }
 
-        TypePtr TypeChecker::checkEnumConstruction(
+        Sad::Types::SadTypePtr TypeChecker::checkEnumConstruction(
             const std::string &variantName,
             const EnumVariantInfo &info,
             const std::vector<AST::ExprPtr> &args,
@@ -747,11 +939,11 @@ namespace Sad
                     else
                         continue; // (AR) نوع صنف/غير مدمج / (EN) class/non-built-in type
 
-                    TypePtr argT = inferExprType(args[i].get());
+                    Sad::Types::SadTypePtr argT = inferExprType(args[i].get());
                     if (!argT || argT->isUnknown() || argT->getKind() == SadTypeKind::Any)
                         continue; // (AR) نوع الوسيط غير معروف / (EN) unknown arg type
 
-                    TypePtr expT = sadKindToTypePtr(expKind);
+                    Sad::Types::SadTypePtr expT = sadKindToTypePtr(expKind);
                     if (expT && !areTypesCompatible(expT, argT))
                     {
                         reportCatalogError(
@@ -767,7 +959,24 @@ namespace Sad
             //      visitEnumDecl. codegen الاتّحاد الموسوم مؤجَّل لـأ-م٤.
             // (EN) Constructed value's type: Class placeholder (no EnumKind yet) — mirrors
             //      visitEnumDecl. Tagged-union codegen deferred to A-M4.
-            return registry_.internPrimitiveType(SadTypeKind::Class);
+            // (AR) 🔑 **فخٌّ مقيسٌ في الدمج، وهو أخطرُ ما كشفَته الموجة.**
+            //      كان النداءُ `internPrimitiveType(Class)` في سجلِّ الهرمِ
+            //      الثاني، وهو يردُّ `Any` صراحةً لـ`Class` و`Trait` («ليسا
+            //      بدائيَّين فلا PrimitiveType لهما»). ونظيرُه في سجلِّ الهرمِ
+            //      الواحدِ `getByKind` يردُّ لهما **`nullptr`**. فبدلٌ اسمِيٌّ
+            //      بين دالّتَين «متكافئتَين» كان يُسرِّبُ نوعًا عدميًّا إلى
+            //      `declareVariable` — **والشوطُ الكاملُ بقيَ أخضرَ**، لأنّ
+            //      النوعَ العدميَّ يُقرَأُ «لا نوعَ» فيُسكِتُ الفحصَ ولا يكسرُه.
+            //      ⚠️ ودرسُه أنّ **الأخضرَ لا يُثبِتُ التكافؤَ في طبقةٍ يُقرَأُ
+            //      غيابُها سكوتًا**؛ فالتكافؤُ يُقاسُ على الجدولَين لا على
+            //      المخرَج. فأُرسِيَ الموضعانِ على `sadKindToTypePtr` — وهي
+            //      خريطةُ الأصنافِ الواحدةُ في هذه الطبقة، وفيها `Class` ⇒ `Any`
+            //      حرفًا بحرفٍ كما كان.
+            // (EN) The merge's sharpest trap: internPrimitiveType(Class) returned
+            //      Any, while its "equivalent" getByKind(Class) returns nullptr —
+            //      and the full run stayed GREEN, because a null type reads as
+            //      "no type" and silences the check instead of breaking it.
+            return sadKindToTypePtr(SadTypeKind::Class);
         }
 
         // ============================================================================
@@ -781,25 +990,25 @@ namespace Sad
             switch (expr.token.getType())
             {
             case TT::NUMBER_INTEGER:
-                lastInferredType_ = registry_.getIntegerType();
+                lastInferredType_ = registry_.getInteger();
                 break;
             case TT::NUMBER_DOUBLE:
-                lastInferredType_ = registry_.getFloatType();
+                lastInferredType_ = registry_.getFloat();
                 break;
             case TT::STRING_LITERAL:
-                lastInferredType_ = registry_.getStringType();
+                lastInferredType_ = registry_.getString();
                 break;
             case TT::LITERAL_TRUE:
             case TT::LITERAL_FALSE:
-                lastInferredType_ = registry_.getBooleanType();
+                lastInferredType_ = registry_.getBoolean();
                 break;
             case TT::LITERAL_NULL:
                 // (AR) لاشيء = nullable — متوافق مع أي نوع لاحق عند إعادة الإسناد
                 // (EN) null literal = nullable — compatible with any type on reassignment
-                lastInferredType_ = registry_.getUnknownType();
+                lastInferredType_ = registry_.getUnknown();
                 break;
             default:
-                lastInferredType_ = registry_.getUnknownType();
+                lastInferredType_ = registry_.getUnknown();
                 break;
             }
 
@@ -839,7 +1048,7 @@ namespace Sad
             {
                 // متغير غير معرّف — ليس خطأ أنواع بل خطأ دلالي
                 // Undeclared variable — not a type error, semantic error
-                lastInferredType_ = registry_.getUnknownType();
+                lastInferredType_ = registry_.getUnknown();
 
                 if (strictMode_)
                 {
@@ -859,44 +1068,46 @@ namespace Sad
         {
             currentResult_.totalExpressions++;
 
-            TypePtr leftType = inferExprType(expr.left.get());
-            TypePtr rightType = inferExprType(expr.right.get());
+            Sad::Types::SadTypePtr leftType = inferExprType(expr.left.get());
+            Sad::Types::SadTypePtr rightType = inferExprType(expr.right.get());
 
-            // (AR) SEM045 (D8): «فراغ» ناتجَ **نداءٍ** طرفًا في عملية **حسابية**
-            //      يُرفض هنا لا في الإسناد وحده — `رقم س = لا_شيء() + 1` كانت تمرّ
-            //      صامتةً (الجمعُ يُسوّي الفراغَ Unknown فيطابق الخانة — قِيس في
-            //      المراجعة العدائية) بينما المفسّر يرفضها وقت التشغيل. الرفضُ
-            //      مقصورٌ على `CallExpr`: وصولُ العضو (`هذا.س`) قد يُستنتَج «فراغًا»
-            //      أثريًّا فأطلق الصياغةَ الأولى كذبًا على بذرة تحميل العوامل (قِيس).
-            //      والمقارناتُ خارجُ الرفض (عقد `فراغ == لاشيء` ⇒ «خطأ»، البذرة 100).
-            // (EN) SEM045 (D8): a CALL result typed Void as an ARITHMETIC operand is
-            //      rejected here — `رقم س = لا_شيء() + 1` compiled silently
-            //      (measured). Restricted to CallExpr: member access may infer Void
-            //      as an artifact (measured false positive on the operator-overload
-            //      seed). Comparisons stay out (seed 100 pins `فراغ == لاشيء`).
-            {
-                const bool arithmeticOp =
-                    expr.op == TT::OP_PLUS || expr.op == TT::OP_MINUS ||
-                    expr.op == TT::OP_MULTIPLY || expr.op == TT::OP_DIVIDE ||
-                    expr.op == TT::OP_FLOOR_DIVIDE || expr.op == TT::OP_MODULO;
-                const bool voidOperand =
-                    (leftType && leftType->getKind() == Types::SadTypeKind::Void &&
-                     dynamic_cast<AST::CallExpr *>(expr.left.get()) != nullptr) ||
-                    (rightType && rightType->getKind() == Types::SadTypeKind::Void &&
-                     dynamic_cast<AST::CallExpr *>(expr.right.get()) != nullptr);
-                if (arithmeticOp && voidOperand)
-                {
-                    // (AR) الرسالة الافتراضية «متوقع … وُجد …» (الوسيط الخامس يطغى
-                    //      على العربية — قِيس، فتُرك فارغًا).
-                    recordTypeError("", useArabicMessages_ ? "قيمة" : "a value",
-                                    leftType && leftType->getKind() == Types::SadTypeKind::Void
-                                        ? leftType->toString()
-                                        : rightType->toString(),
-                                    &expr);
-                    lastInferredType_ = registry_.getUnknownType();
-                    return;
-                }
-            }
+            // ════════════════════════════════════════════════════════════════
+            // (AR) ⚠️ **ذراعٌ حُذفت (2026-09-07) — ونصُّها يبقى لأنّ الدرسَ أبقى.**
+            //      كانت ههنا ذراعٌ مكتوبةٌ باليدِ ترفضُ «فراغًا ناتجَ نداءٍ طرفًا
+            //      في عمليّةٍ حسابيّة»: جدولُ عواملَ سِتٌّ مهجّاةٌ في الشفرة،
+            //      وقيدُ `CallExpr` أُضيفَ ترقيعًا لإيجابيّةٍ كاذبةٍ على وصولِ
+            //      العضو، ورسالةٌ بلا اسمِ خانةٍ ونوعُها المُعلَنُ **«قيمة»** —
+            //      وهي ليست نوعًا في اللغةِ أصلًا.
+            //
+            //      ومقيسٌ أنّ الذراعَ بعدَ رقعةِ `SEM056` صارت تُخرِج:
+            //          [SEM056] الخانة '' من نوع 'قيمة' وأُسند إليها 'خالي'
+            //          → … أو اجعلْها «متغير» فيُستنتَجَ نوعُها …
+            //      أي **رمزَ إسنادِ خانةٍ على خطأِ عامل**، بخانةٍ فارغةِ الاسم،
+            //      وعلاجٍ يوجّهُ إلى خانةٍ لا وجودَ لها.
+            //
+            //      🔑 وحُذفت لأنّ حكمَها صارَ **مُشتقًّا**: «خالي» صُنِّفَ في
+            //      `operand_classes` بمصدرِ الحقيقة، فيرفضُه كلُّ عاملٍ محروسٍ
+            //      بـ`SEM054` — بجدولٍ مولَّدٍ لا مهجًّى، وبنوّابٍ صادقةٍ
+            //      (`{op}` و`{left}` و`{right}`)، وبلا قيدِ `CallExpr` لأنّ
+            //      الحكمَ يقعُ على **النوعِ لا على شكلِ التعبير**.
+            //      ودرسُه: **ذراعٌ يدويّةٌ تبقى بعدَ أن يُشتَقَّ حكمُها لا تصيرُ
+            //      زائدةً بل مُنافِسةً** — تسبقُ المُشتقَّ فتُصدِرُ حكمَه برمزٍ
+            //      أدنى دقّةً، وهي نفسُها قاعدةُ «الرقعةُ الضيّقةُ دَينٌ حتّى
+            //      تُنزَع» التي أخرجت البادئةَ المكرَّرةَ قبلَ ساعات.
+            // (EN) A hand-written arm was DELETED here; the note stays because the
+            //      lesson does. It rejected "a call-typed Void as an arithmetic
+            //      operand" with a six-operator table spelled out in source, a
+            //      CallExpr restriction patched in against a false positive, and a
+            //      message with no slot name whose declared type was «قيمة» — not a
+            //      type in the language. After the SEM056 patch it emitted a
+            //      SLOT-assignment code for an OPERATOR error. Deleted because the
+            //      verdict is now DERIVED: unit is a classified operand class in the
+            //      SoT, so every guarded operator rejects it via SEM054 from a
+            //      generated table with truthful placeholders and no CallExpr
+            //      restriction — the judgement is on the TYPE, not the syntax.
+            //      A hand-written arm outliving its derivation is not redundant but
+            //      COMPETING: it runs first and answers with a less precise code.
+            // ════════════════════════════════════════════════════════════════
 
             // ════════════════════════════════════════════════════════════════
             // (AR) SEM048 — الخانةُ الثامنةُ وحدَها: «طبيعي» مع موقَّعٍ بعرضِه.
@@ -987,7 +1198,7 @@ namespace Sad
                             {{"left_type", Types::sadTypeKindArabicName(leftKind)},
                              {"right_type", Types::sadTypeKindArabicName(rightKind)}},
                             &expr);
-                        lastInferredType_ = registry_.getUnknownType();
+                        lastInferredType_ = registry_.getUnknown();
                         return;
                     }
                 }
@@ -1037,7 +1248,7 @@ namespace Sad
                      {"left", Types::sadTypeKindArabicName(leftType->getKind())},
                      {"right", Types::sadTypeKindArabicName(rightType->getKind())}},
                     &expr);
-                lastInferredType_ = registry_.getUnknownType();
+                lastInferredType_ = registry_.getUnknown();
                 return;
             }
 
@@ -1050,18 +1261,18 @@ namespace Sad
                 {
                     if (leftType->isString() || rightType->isString())
                     {
-                        lastInferredType_ = registry_.getStringType();
+                        lastInferredType_ = registry_.getString();
                     }
                     else if (leftType->isNumeric() && rightType->isNumeric())
                     {
                         // float يسود / float dominates
                         if (leftType->isFloat() || rightType->isFloat())
                         {
-                            lastInferredType_ = registry_.getFloatType();
+                            lastInferredType_ = registry_.getFloat();
                         }
                         else
                         {
-                            lastInferredType_ = registry_.getIntegerType();
+                            lastInferredType_ = registry_.getInteger();
                         }
                     }
                     else
@@ -1076,12 +1287,12 @@ namespace Sad
                         //      no Arabic. The verdict moved to the domain guard above,
                         //      which emits SEM054 from the catalog by default and never
                         //      fires on unknowns. What reaches here is unclassified.
-                        lastInferredType_ = registry_.getUnknownType();
+                        lastInferredType_ = registry_.getUnknown();
                     }
                 }
                 else
                 {
-                    lastInferredType_ = registry_.getUnknownType();
+                    lastInferredType_ = registry_.getUnknown();
                 }
                 break;
 
@@ -1098,15 +1309,15 @@ namespace Sad
                         if (expr.op == TT::OP_FLOOR_DIVIDE)
                         {
                             // (AR) القسمة الصحيحة // دائماً تنتج عدد صحيح
-                            lastInferredType_ = registry_.getIntegerType();
+                            lastInferredType_ = registry_.getInteger();
                         }
                         else if (leftType->isFloat() || rightType->isFloat() || expr.op == TT::OP_DIVIDE)
                         {
-                            lastInferredType_ = registry_.getFloatType();
+                            lastInferredType_ = registry_.getFloat();
                         }
                         else
                         {
-                            lastInferredType_ = registry_.getIntegerType();
+                            lastInferredType_ = registry_.getInteger();
                         }
                     }
                     else
@@ -1114,12 +1325,12 @@ namespace Sad
                         // (AR) انظر الملحوظةَ في ذراعِ `+` أعلاه: الحكمُ صارَ في
                         //      حارسِ النطاقِ برمزِ `SEM054`، والنصُّ الخامُّ حُذف.
                         // (EN) See the note on the `+` arm above.
-                        lastInferredType_ = registry_.getUnknownType();
+                        lastInferredType_ = registry_.getUnknown();
                     }
                 }
                 else
                 {
-                    lastInferredType_ = registry_.getUnknownType();
+                    lastInferredType_ = registry_.getUnknown();
                 }
                 break;
 
@@ -1130,17 +1341,17 @@ namespace Sad
             case TT::OP_LESS_EQUAL:
             case TT::OP_GREATER:
             case TT::OP_GREATER_EQUAL:
-                lastInferredType_ = registry_.getBooleanType();
+                lastInferredType_ = registry_.getBoolean();
                 break;
 
             // عمليات منطقية / Logical
             case TT::OP_AND:
             case TT::OP_OR:
-                lastInferredType_ = registry_.getBooleanType();
+                lastInferredType_ = registry_.getBoolean();
                 break;
 
             default:
-                lastInferredType_ = registry_.getUnknownType();
+                lastInferredType_ = registry_.getUnknown();
                 break;
             }
         }
@@ -1148,7 +1359,7 @@ namespace Sad
         void TypeChecker::visitUnaryExpr(AST::UnaryExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr operandType = inferExprType(expr.operand.get());
+            Sad::Types::SadTypePtr operandType = inferExprType(expr.operand.get());
 
             switch (expr.op)
             {
@@ -1159,7 +1370,7 @@ namespace Sad
                 }
                 else
                 {
-                    lastInferredType_ = registry_.getUnknownType();
+                    lastInferredType_ = registry_.getUnknown();
                     if (strictMode_)
                     {
                         recordTypeError("", "numeric",
@@ -1170,11 +1381,11 @@ namespace Sad
                 break;
 
             case TT::OP_NOT:
-                lastInferredType_ = registry_.getBooleanType();
+                lastInferredType_ = registry_.getBoolean();
                 break;
 
             default:
-                lastInferredType_ = operandType ? operandType : registry_.getUnknownType();
+                lastInferredType_ = operandType ? operandType : registry_.getUnknown();
                 break;
             }
         }
@@ -1182,9 +1393,9 @@ namespace Sad
         void TypeChecker::visitTernaryExpr(AST::TernaryExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr condType = inferExprType(expr.condition.get());
-            TypePtr trueType = inferExprType(expr.trueExpr.get());
-            TypePtr falseType = inferExprType(expr.falseExpr.get());
+            Sad::Types::SadTypePtr condType = inferExprType(expr.condition.get());
+            Sad::Types::SadTypePtr trueType = inferExprType(expr.trueExpr.get());
+            Sad::Types::SadTypePtr falseType = inferExprType(expr.falseExpr.get());
 
             // الشرط يجب أن يكون منطقي / Condition should be boolean
             if (strictMode_ && condType && !condType->isBoolean() && !condType->isUnknown())
@@ -1192,6 +1403,13 @@ namespace Sad
                 recordTypeError("", "boolean", condType->toString(), &expr,
                                 "Ternary condition should be boolean");
             }
+            // (AR) وموضعُ التشخيصِ من عقدةِ **الشرطِ** لا من عقدةِ الجملة: كان
+            //      «اذا (())» في السطرِ الأوّلِ يُبلَّغُ عنه في سطرِ «نهاية».
+            // (EN) The location comes from the CONDITION node, not the statement's.
+            rejectUnitCondition(condType,
+                                expr.condition ? static_cast<AST::ASTNode *>(expr.condition.get())
+                                               : static_cast<AST::ASTNode *>(&expr),
+                                Lexer::TokenType::KEYWORD_IF);
 
             // إذا تطابق الفرعين / If branches match
             if (trueType && falseType && trueType->getKind() == falseType->getKind())
@@ -1201,14 +1419,14 @@ namespace Sad
             else
             {
                 // Union type would be ideal, fall back to broader type
-                lastInferredType_ = trueType ? trueType : registry_.getUnknownType();
+                lastInferredType_ = trueType ? trueType : registry_.getUnknown();
             }
         }
 
         void TypeChecker::visitAssignExpr(AST::AssignExpr &expr)
         {
             currentResult_.totalExpressions++;
-            TypePtr valueType = inferExprType(expr.value.get());
+            Sad::Types::SadTypePtr valueType = inferExprType(expr.value.get());
 
             auto varType = lookupVariable(expr.name);
             if (varType && valueType)
@@ -1309,9 +1527,9 @@ namespace Sad
                 //      لا نختطف نداءً إلى دالّة مستخدم اسمُها يطابق اسم معامل تعداد.
                 // (EN) A variant loses to an explicitly declared function/symbol (Amelia 🔴-2):
                 //      do not hijack a call to a user function whose name matches a variant.
-                TypeSystem::TypePtr declared = lookupVariable(calleeVar->name);
+                Sad::Types::SadTypePtr declared = lookupVariable(calleeVar->name);
                 const bool isDeclaredCallable =
-                    declared && std::dynamic_pointer_cast<TypeSystem::FunctionType>(declared) != nullptr;
+                    declared && std::dynamic_pointer_cast<const Sad::Types::SadFunctionType>(declared) != nullptr;
                 if (!isDeclaredCallable)
                 {
                     std::string owningEnum;
@@ -1405,12 +1623,12 @@ namespace Sad
             }
 
             // استنتج نوع الإرجاع من المُستدعى / Infer return type from callee
-            TypePtr calleeType = inferExprType(expr.callee.get());
+            Sad::Types::SadTypePtr calleeType = inferExprType(expr.callee.get());
 
             // إذا كان CalleeType function type، استخرج نوع الإرجاع
             if (calleeType && calleeType->getKind() == SadTypeKind::Function)
             {
-                auto *fnType = static_cast<FunctionType *>(calleeType.get());
+                auto *fnType = static_cast<const Sad::Types::SadFunctionType *>(calleeType.get());
 
                 // (AR) [Zone 2] فحص أنواع الوسائط مقابل أنواع المعاملات المُصرَّحة.
                 //      نُقارن عدد الوسائط وأنواعها. نتجاهل المعاملات ذات النوع UNKNOWN/ANY.
@@ -1423,8 +1641,8 @@ namespace Sad
                 {
                     if (!expr.arguments[i])
                         continue;
-                    TypePtr paramT = paramTypes[i];
-                    TypePtr argT = inferExprType(expr.arguments[i].get());
+                    Sad::Types::SadTypePtr paramT = paramTypes[i];
+                    Sad::Types::SadTypePtr argT = inferExprType(expr.arguments[i].get());
                     // (AR) تجاهل المعاملات غير المعروفة الأنواع أو ANY
                     // (EN) Skip unknown/any parameter types
                     if (!paramT || paramT->isUnknown() || paramT->getKind() == SadTypeKind::Any)
@@ -1446,10 +1664,10 @@ namespace Sad
                     }
                 }
 
-                TypePtr retType = fnType->getReturnType();
+                Sad::Types::SadTypePtr retType = fnType->getReturnType();
                 // (AR) إذا لم يُحدَّد نوع الإرجاع، نفترض رقم (مثل int في C)
                 // (EN) If return type is unspecified, default to integer (like C's implicit int)
-                lastInferredType_ = retType ? retType : registry_.getIntegerType();
+                lastInferredType_ = retType ? retType : registry_.getInteger();
             }
             else
             {
@@ -1464,7 +1682,7 @@ namespace Sad
                 //      certainly-void from undeclared-value-returning (Unknown), so no
                 //      defensive conversion happens here — a blanket Void→Unknown lost
                 //      D8 for genuinely void templates (measured).
-                lastInferredType_ = calleeType ? calleeType : registry_.getUnknownType();
+                lastInferredType_ = calleeType ? calleeType : registry_.getUnknown();
             }
         }
 

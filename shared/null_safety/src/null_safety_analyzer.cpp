@@ -293,14 +293,34 @@ namespace Sad
             d.column = column;
             d.symbol = slotName;
             d.fatal = (strictness_ == Strictness::Fatal);
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 **الرمزُ `SEM056` لا `SEM045`.** كان هذا النصُّ يطبعُ رمزًا
+            //      **حذفَه الفرقُ نفسُه** من الكتالوجِ (فجوةٌ محجوزةٌ عمدًا في
+            //      `error_codes.h`)، ويذكرُ لفظَ النوعِ «فراغ» الذي أُزيلَ من
+            //      اللغة — فيقرأُ المستعمِلُ رمزًا لا وجودَ له عن نوعٍ لا وجودَ له.
+            //      و`SEM056` («قيمةٌ لا توافقُ نوعَ خانتِها») هو المصبُّ الحيُّ
+            //      لهذه الحالِ عينِها، فيُسمّى باسمِه.
+            //      ⚠️ **ولم تُحذَفِ الذراعُ** وإن بدت مكرَّرة: القياسُ (٨ أيلول)
+            //      أنّ التصريحَ يُبلَّغُ مرّتَين — ههنا وبـ`SEM056` من فاحصِ
+            //      الأنواع — أمّا **إعادةُ الإسناد** فلا يراها إلّا هذا الحارس.
+            //      فحذفُه كان يُسقِطُ تغطيةً لا يقيسُها أحد. والتكرارُ يُسَدُّ
+            //      عندَ مُناديه في موضعِ التصريحِ لا بحذفِ الحارس.
+            // (EN) The code is SEM056, not SEM045: this text printed a code the same
+            //      diff DELETED from the catalog, naming a type («فراغ») removed from
+            //      the language. SEM056 is the live sink for exactly this case. The arm
+            //      is NOT deleted despite looking redundant: measured, the declaration
+            //      is reported twice (here and by the type checker) while REASSIGNMENT
+            //      is seen by this guard alone — deleting it would drop coverage nobody
+            //      measures. The duplication is closed at the declaration call site.
+            // ════════════════════════════════════════════════════════════════
             d.messageAr =
-                "SEM045: الخانة '" + slotName + "' من نوع '" + typeName +
+                "[SEM056] الخانة '" + slotName + "' من نوع '" + typeName +
                 "' أُسند إليها ناتجُ الدالة '" + calleeName +
-                "' وهي لا تُرجِع قيمةً ('فراغ') — غيابُ نتيجةٍ لا قيمة، فلا يصلح حشوًا لخانةٍ أعلنت نوعَها";
+                "' وهي لا تُرجِع قيمةً — غيابُ نتيجةٍ لا قيمة، فلا يصلح حشوًا لخانةٍ أعلنت نوعَها";
             d.messageEn =
-                "SEM045: slot '" + slotName + "' of type '" + typeName +
+                "[SEM056] slot '" + slotName + "' of type '" + typeName +
                 "' is assigned the result of function '" + calleeName +
-                "' which returns no value (void) — the absence of a result is not a value";
+                "' which yields no value — the absence of a result is not a value";
             result.addDiagnostic(d);
         }
 
@@ -318,11 +338,43 @@ namespace Sad
                 return;
             if (!isNullLiteral(decl.initializer.get()))
                 return;
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 **الاستثناءُ يسقطُ ولا يُعادُ تسميتُه.**
+            //
+            //      كان في هذه القائمةِ `SadTypeKind::Void` — وهو الاسمُ الذي
+            //      حُذِفَ من مصدرِ الحقيقةِ في هذه الحملة. وأصنافُ القائمةِ
+            //      الأربعةُ الباقيةُ تشتركُ في معنًى واحد: **خانةٌ لا يُعرَفُ
+            //      نوعُها أو تقبلُ الغيابَ أصلًا**. و«خالي» لم تعُدْ منها:
+            //      نوعُ قيمةٍ مصرَّحٌ تامُّ اليقين، غيرُ اختياريّ.
+            //
+            //      والمقيسُ قبلَ هذا التغيير: `خالي س = لاشيء` يمرُّ **بلا
+            //      تشخيصٍ البتّة** بينما `رقم س = لاشيء` و`نص س = لاشيء`
+            //      يُحذِّرانِ — استثناءٌ لنوعٍ واحدٍ بلا سببٍ باقٍ.
+            //
+            //   ⚠️ ونظائرُه الثلاثةُ في هذا الملفِّ (حارسُ SEM045) **أُبقيت
+            //      كما هي بتغييرِ الاسمِ وحدَه**: إدخالُ «خالي» في «الخاناتِ
+            //      المصنَّفة» هناك يجعلُ `خالي س = دالة_خالي()` — وهو برنامجٌ
+            //      صحيحٌ اليوم — رفضًا بـSEM045. **ورفضٌ كاذبٌ يُقرَأُ قاعدةَ
+            //      لغةٍ أسوأُ من صمتٍ**، وهو درسُ `SEM_UNKNOWN_MEMBER` المُدوَّن.
+            //      فالمواضعُ الأربعةُ تحملُ الاسمَ نفسَه ولا تحملُ الحكمَ نفسَه.
+            // (EN) The exception is DROPPED, not renamed. This list held
+            //      SadTypeKind::Void — the name this campaign removed from the SoT. The
+            //      four remaining entries share one meaning: a slot whose type is unknown
+            //      or which admits absence by construction. خالي is no longer one of
+            //      those: it is a declared, fully determined, non-optional value type.
+            //      Measured before this change: `خالي س = لاشيء` passed with NO
+            //      diagnostic at all while `رقم س = لاشيء` and `نص س = لاشيء` warned — a
+            //      single-type exception with no surviving reason. Its three siblings in
+            //      this file (the SEM045 guard) are kept as they are, renamed only:
+            //      admitting خالي into "typed slots" there would reject
+            //      `خالي س = f()` — a program that is valid today — and a FALSE
+            //      REJECTION reads as a language rule, which is worse than silence.
+            //      Four sites, one name, and not one judgment.
+            // ════════════════════════════════════════════════════════════════
             if (decl.type == Types::SadTypeKind::Unknown ||
                 decl.type == Types::SadTypeKind::Optional ||
                 decl.type == Types::SadTypeKind::Any ||
-                decl.type == Types::SadTypeKind::Null ||
-                decl.type == Types::SadTypeKind::Void)
+                decl.type == Types::SadTypeKind::Null)
                 return;
 
             // (AR) صرامة Ignore (نظير --gc): لا تشخيص إطلاقًا.
@@ -339,13 +391,30 @@ namespace Sad
 
             // (AR) نُبقي صيغة الرسالة مطابِقةً لفرض P9 القديم (توافق المخرجات).
             // (EN) Keep message identical to the legacy P9 enforcement (output parity).
+            // (AR) 🔑 والعلاجُ لا يُقترَحُ إلّا إن كان **يُترجَم**: «خالي؟» خطأٌ
+            //      نحويٌّ مقيس (٨ أيلول) — «بعد كلمة النوع 'خالي' يجب أن يأتي اسم
+            //      المتغير». وكان هذا التحذيرُ يُفتَحُ لأوّلِ مرّةٍ لنوعِ الوحدةِ
+            //      بهذا الفرقِ نفسِه، فوُلِدَ يوجّهُ إلى شفرةٍ لا تُقبَل. **وعلاجٌ
+            //      لا يُترجَمُ أسوأُ من لا علاج**: يُنفِقُ المستعمِلُ محاولةً على
+            //      طريقٍ مسدود، ويظنُّ العطبَ في نفسِه.
+            // (EN) A remedy is suggested only if it COMPILES: «خالي؟» is a measured
+            //      syntax error, and this warning was opened for the unit type by this
+            //      very diff — born pointing at code the parser rejects. An
+            //      uncompilable remedy is worse than none.
+            const bool hasOptionalForm =
+                decl.sadType->getKind() != Sad::Types::SadTypeKind::Unit;
             d.messageAr =
                 "تحذير: إسناد 'لاشيء' (عدم) لمتغير '" + decl.name +
-                "' من نوع غير اختياري '" + decl.sadType->arabicName() +
-                "'. اجعله اختياريًّا: '" + decl.sadType->arabicName() + "؟'";
+                "' من نوع غير اختياري '" + decl.sadType->arabicName() + "'." +
+                (hasOptionalForm
+                     ? (" اجعله اختياريًّا: '" + decl.sadType->arabicName() + "؟'")
+                     : std::string(" ولنوعِ الوحدةِ قيمةٌ واحدةٌ حاضرةٌ دائمًا — اكتبْ '()'."));
             d.messageEn =
                 "Assigning 'null' to non-optional variable '" + decl.name +
-                "' of type '" + decl.sadType->englishName() + "'. Make it optional: 'T?'";
+                "' of type '" + decl.sadType->englishName() + "'." +
+                (hasOptionalForm ? std::string(" Make it optional: 'T?'")
+                                 : std::string(" The unit type has one always-present"
+                                               " value — write '()'."));
 
             result.addDiagnostic(d);
         }
@@ -585,14 +654,16 @@ namespace Sad
                 const bool typedSlot =
                     vd->sadType && vd->type != Types::SadTypeKind::Unknown &&
                     vd->type != Types::SadTypeKind::Any &&
-                    vd->type != Types::SadTypeKind::Void &&
+                    vd->type != Types::SadTypeKind::Unit &&
                     vd->type != Types::SadTypeKind::Null;
-                std::string voidCallee;
-                if (typedSlot && isStaticVoidCall(vd->initializer.get(), voidCallee))
-                {
-                    reportVoidCrossing(vd->name, vd->sadType->arabicName(), voidCallee,
-                                       vd->position.line, vd->position.column, result);
-                }
+                // (AR) 🔑 ولا يُبلَّغُ **التصريحُ** ههنا: فاحصُ الأنواعِ يردُّه
+                //      بـ`SEM056` (مقيسٌ ٨ أيلول: العلّةُ الواحدةُ كانت تُطبَعُ
+                //      مرّتَين، تحذيرًا ثمّ خطأً). ويبقى هذا الحارسُ لموضعِ
+                //      **إعادةِ الإسناد** وحدَه، وهو الموضعُ الذي لا يراه سواه.
+                // (EN) The DECLARATION is not reported here: the type checker rejects it
+                //      with SEM056 (measured: one defect printed twice). This guard is
+                //      kept for REASSIGNMENT, which nothing else sees.
+                (void)typedSlot;
                 declareName(vd->name);
                 // (AR) الربطُ غيرُ المصنَّف يُسجَّل شاهدَ حجبٍ (سلسلة فارغة) لا مسحًا —
                 //      المسحُ المحلّيُّ كان يُبقي تصنيفَ النطاقِ الخارجيّ حاكمًا (قِيس).
@@ -760,7 +831,7 @@ namespace Sad
                     const bool typedParam =
                         p.sadType && p.type != Types::SadTypeKind::Unknown &&
                         p.type != Types::SadTypeKind::Any &&
-                        p.type != Types::SadTypeKind::Void &&
+                        p.type != Types::SadTypeKind::Unit &&
                         p.type != Types::SadTypeKind::Null;
                     declareTypedSlot(p.name,
                                      typedParam ? p.sadType->arabicName() : std::string());
@@ -783,7 +854,7 @@ namespace Sad
                     const bool typedParam =
                         p.sadType && p.type != Types::SadTypeKind::Unknown &&
                         p.type != Types::SadTypeKind::Any &&
-                        p.type != Types::SadTypeKind::Void &&
+                        p.type != Types::SadTypeKind::Unit &&
                         p.type != Types::SadTypeKind::Null;
                     declareTypedSlot(p.name,
                                      typedParam ? p.sadType->arabicName() : std::string());

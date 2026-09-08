@@ -17,11 +17,10 @@
 #include "token.h"
 #include "class_nodes.h"
 #include "pattern_nodes.h"    // (AR) [أ-م٢] MatchStmt / CaseClause / ConstructorPattern / أنماط
-#include "types/composite_type_classes.h"
+
 // (AR) SEM045 (D8): قاعدة «الفراغ اليقيني» المشتركة — لا نسخة ثالثة في الفاحص
 #include "null_safety/null_safety_analyzer.h"
-#include "types/enum_types.h"
-#include "types/struct_types.h"
+#include "builtin_enum_names.h"
 
 #include <iostream>
 #include <algorithm>
@@ -33,7 +32,7 @@ namespace Sad
     namespace Semantic
     {
 
-        using namespace TypeSystem;
+        using namespace Sad::Types;
         using TT = Lexer::TokenType;
 
         void TypeChecker::visitExprStmt(AST::ExprStmt &stmt)
@@ -49,17 +48,17 @@ namespace Sad
             currentResult_.totalVariables++;
 
             // النوع المُصرّح / Declared type
-            TypePtr declaredType = dataTypeToTypePtr(stmt.type);
+            Sad::Types::SadTypePtr declaredType = sadKindToTypePtr(stmt.type);
 
             // النوع المُستنتج من القيمة / Inferred type from initializer
-            TypePtr initType = nullptr;
+            Sad::Types::SadTypePtr initType = nullptr;
             if (stmt.initializer)
             {
                 initType = inferExprType(stmt.initializer.get());
             }
 
             // تسجيل نوع المتغير
-            TypePtr finalType = declaredType;
+            Sad::Types::SadTypePtr finalType = declaredType;
 
             // إذا كان النوع المُصرّح unknown، استخدم المُستنتج
             // (AR) [SEM048] هل استُنتِجَ نوعُ هذا الاسمِ من مُهيِّئِه؟ يُحفَظُ هنا
@@ -134,8 +133,7 @@ namespace Sad
                     {
                         // (AR) باني صنف معروف؟
                         // (EN) Known class constructor?
-                        if (StructRegistry::instance().isStructType(ve->name) ||
-                            userClassNames_.count(ve->name))
+                        if (userClassNames_.count(ve->name))
                             className = ve->name;
                     }
                 }
@@ -159,12 +157,21 @@ namespace Sad
             // تحقق من نوع الشرط / Check condition type
             if (stmt.condition)
             {
-                TypePtr condType = inferExprType(stmt.condition.get());
+                Sad::Types::SadTypePtr condType = inferExprType(stmt.condition.get());
                 if (strictMode_ && condType && !condType->isBoolean() && !condType->isUnknown())
                 {
                     recordTypeError("", "boolean", condType->toString(), &stmt,
                                     "If condition should be boolean");
                 }
+                // (AR) والاسمُ **الهجاءُ المُعلَنُ** لا مرادفُه: `keywords.yaml` يجعلُ
+                //      «إذا» الكلمةَ و«اذا» لقبًا لها (`aliases`)، فتشخيصٌ يُسمّي
+                //      اللقبَ يُرسِلُ القارئَ يبحثُ عمّا لا يجدُه في المصدر.
+                // (EN) The name is the DECLARED spelling, not its alias: keywords.yaml
+                //      makes «إذا» the word and «اذا» one of its aliases.
+                rejectUnitCondition(condType,
+                                    stmt.condition ? static_cast<AST::ASTNode *>(stmt.condition.get())
+                                                   : static_cast<AST::ASTNode *>(&stmt),
+                                    Lexer::TokenType::KEYWORD_IF);
             }
 
             // فحص الفرعين / Check both branches
@@ -186,12 +193,16 @@ namespace Sad
         {
             if (stmt.condition)
             {
-                TypePtr condType = inferExprType(stmt.condition.get());
+                Sad::Types::SadTypePtr condType = inferExprType(stmt.condition.get());
                 if (strictMode_ && condType && !condType->isBoolean() && !condType->isUnknown())
                 {
                     recordTypeError("", "boolean", condType->toString(), &stmt,
                                     "While condition should be boolean");
                 }
+                rejectUnitCondition(condType,
+                                    stmt.condition ? static_cast<AST::ASTNode *>(stmt.condition.get())
+                                                   : static_cast<AST::ASTNode *>(&stmt),
+                                    Lexer::TokenType::KEYWORD_WHILE);
             }
 
             if (stmt.body)
@@ -226,10 +237,10 @@ namespace Sad
             }
 
             // تسجيل متغير الحلقة / Register loop variable
-            declareVariable(stmt.variable, registry_.getUnknownType());
+            declareVariable(stmt.variable, registry_.getUnknown());
             if (!stmt.valueVar.empty())
             {
-                declareVariable(stmt.valueVar, registry_.getUnknownType());
+                declareVariable(stmt.valueVar, registry_.getUnknown());
             }
 
             if (stmt.body)
@@ -239,7 +250,7 @@ namespace Sad
 
         void TypeChecker::visitSwitchStmt(AST::SwitchStmt &stmt)
         {
-            TypePtr switchType = nullptr;
+            Sad::Types::SadTypePtr switchType = nullptr;
             if (stmt.expression)
             {
                 switchType = inferExprType(stmt.expression.get());
@@ -249,7 +260,7 @@ namespace Sad
             {
                 if (caseBranch.value)
                 {
-                    TypePtr caseType = inferExprType(caseBranch.value.get());
+                    Sad::Types::SadTypePtr caseType = inferExprType(caseBranch.value.get());
                     if (switchType && caseType && !areTypesCompatible(switchType, caseType))
                     {
                         recordTypeError("", switchType->toString(), caseType->toString(),
@@ -425,11 +436,11 @@ namespace Sad
                     return;
                 if (auto *v = dynamic_cast<AST::VariablePattern *>(pat))
                 {
-                    declareVariable(v->name, registry_.getUnknownType());
+                    declareVariable(v->name, registry_.getUnknown());
                 }
                 else if (auto *b = dynamic_cast<AST::BindingPattern *>(pat))
                 {
-                    declareVariable(b->name, registry_.getUnknownType());
+                    declareVariable(b->name, registry_.getUnknown());
                     declareBindings(b->pattern.get());
                 }
                 else if (auto *c = dynamic_cast<AST::ConstructorPattern *>(pat))
@@ -493,7 +504,7 @@ namespace Sad
 
         void TypeChecker::visitReturnStmt(AST::ReturnStmt &stmt)
         {
-            TypePtr retType = registry_.getVoidType();
+            Sad::Types::SadTypePtr retType = registry_.getVoid();
             if (stmt.value)
             {
                 retType = inferExprType(stmt.value.get());
@@ -504,10 +515,23 @@ namespace Sad
             {
                 if (!areTypesCompatible(expectedReturnType_, retType))
                 {
-                    recordTypeError(currentFunction_,
-                                    expectedReturnType_->toString(), retType->toString(),
-                                    &stmt,
-                                    "Return type mismatch in function '" + currentFunction_ + "'");
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 من الكتالوجِ لا من نصٍّ مؤلَّفٍ ههنا. وكان النصُّ
+                    //      **إنجليزيًّا خامًّا** بلا رمزٍ ولا عربيّةٍ ولا علاج،
+                    //      فكان أشهرُ خطأِ عقدٍ في اللغةِ خارجَ الكتالوجِ كلِّه:
+                    //      لا بذرةَ تُرسى عليه برمز، ولا قارئَ عربيَّ يفهمُه.
+                    //      وكشفَه حارسُ «وسمٌ سالبٌ بلا رمزِ خطأ» حين كُتبت له
+                    //      أوّلُ بذرةٍ سالبة (2026-09-07).
+                    // (EN) From the catalog, not composed here. The text used to be
+                    //      raw English with no code, no Arabic and no fix hint — the
+                    //      language's most common contract error, outside the catalog.
+                    // ════════════════════════════════════════════════════════
+                    reportCatalogError(
+                        ::Sad::Errors::ErrorCode::SEM_RETURN_TYPE_MISMATCH,
+                        {{"name", currentFunction_},
+                         {"expected", expectedReturnType_->toString()},
+                         {"found", retType->toString()}},
+                        &stmt);
                 }
             }
         }
@@ -555,7 +579,7 @@ namespace Sad
                 enterScope();
                 if (!clause.exceptionVar.empty())
                 {
-                    declareVariable(clause.exceptionVar, dataTypeToTypePtr(clause.exceptionType));
+                    declareVariable(clause.exceptionVar, sadKindToTypePtr(clause.exceptionType));
                 }
                 if (clause.body)
                     clause.body->accept(*this);
@@ -583,7 +607,7 @@ namespace Sad
             enterScope();
             if (stmt.resource)
             {
-                TypePtr resType = inferExprType(stmt.resource.get());
+                Sad::Types::SadTypePtr resType = inferExprType(stmt.resource.get());
                 if (!stmt.alias.empty())
                 {
                     declareVariable(stmt.alias, resType);
@@ -629,7 +653,7 @@ namespace Sad
             enterScope();
             if (!stmt.bindVar.empty())
             {
-                declareVariable(stmt.bindVar, registry_.getUnknownType());
+                declareVariable(stmt.bindVar, registry_.getUnknown());
             }
             for (auto &s : stmt.body)
             {
@@ -766,12 +790,12 @@ namespace Sad
                         &decl);
                 }
                 if (decl.returnType != Types::SadTypeKind::Unknown &&
-                    decl.returnType != Types::SadTypeKind::Void)
+                    decl.returnType != Types::SadTypeKind::Unit)
                 {
                     reportCatalogError(
                         Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
                         {{"detail",
-                          "«" + decl.name + "»: عائدُ معالجِ المقاطعةِ فراغٌ حصرًا — "
+                          "«" + decl.name + "»: عائدُ معالجِ المقاطعةِ خالٍ حصرًا — "
                           "العودةُ بـiretq لا تحمل قيمةً"}},
                         &decl);
                 }
@@ -815,19 +839,36 @@ namespace Sad
             }
 
             std::string prevFunction = currentFunction_;
-            TypePtr prevReturnType = expectedReturnType_;
+            Sad::Types::SadTypePtr prevReturnType = expectedReturnType_;
 
             currentFunction_ = decl.name;
             // (AR) إذا كان نوع الإرجاع غير معروف أو فراغ — محور SadTypeKind (S-TS-P2)
             // (EN) If return type is Unknown or Void — SadTypeKind-centric (S-TS-P2)
-            if (decl.returnType == Types::SadTypeKind::Unknown ||
-                decl.returnType == Types::SadTypeKind::Void)
+            // (AR) 🔑 التصريحُ الصريحُ بـ«خالي» **ليس غيابَ تصريح** (2026-09-07).
+            //      كان جمعُه مع `Unknown` صوابًا يومَ كان «فراغ» يعني «لا يُرجِعُ
+            //      شيئًا»؛ وقد صارَ نوعًا مُصرَّحًا كسائرِ الأنواع. والجمعُ يُسقِطُ
+            //      التصريحَ في استدلالٍ لا يخصُّه: جسدٌ فيه `ارجع ()` لا «يُرجِعُ
+            //      لا شيءَ يقينًا»، فيسقطُ إلى `nullptr` فيقرأُ موضعُ النداءِ
+            //      الافتراضيَّ الضمنيَّ «رقم» — فيُرَدُّ «خالي ن = وحدتي()» بـ
+            //      «متوقع 'خالي' وُجد 'رقم'»: **رفضٌ كاذبٌ لبرنامجٍ صحيح**، وهو
+            //      أسوأُ من جوابٍ خاطئ لأنّه يُقرَأُ قاعدةَ لغةٍ لا عطبَ مترجِم.
+            // (EN) An EXPLICIT unit return type is not the ABSENCE of one. Lumping it
+            //      with Unknown was right while «فراغ» meant "returns nothing"; unit is
+            //      now a declared type. The lumping dropped the declaration into
+            //      inference that does not apply and call sites read the implicit-int
+            //      default, FALSELY REJECTING a correct program.
+            if (decl.returnType == Types::SadTypeKind::Unit && !decl.isExtern)
+            {
+                expectedReturnType_ = registry_.getVoid();
+            }
+            else if (decl.returnType == Types::SadTypeKind::Unknown ||
+                     decl.returnType == Types::SadTypeKind::Unit)
             {
                 if (decl.isExtern)
                 {
                     // (AR) الدوال الخارجية بدون نوع إرجاع تُفترض رقم (I64)
                     // (EN) Extern functions without return type default to integer
-                    expectedReturnType_ = registry_.getIntegerType();
+                    expectedReturnType_ = registry_.getInteger();
                 }
                 else if (!decl.is_async && !decl.isGenerator && !decl.isNoReturn &&
                          Sad::NullSafety::NullSafetyAnalyzer::bodyCertainlyReturnsNothing(
@@ -844,7 +885,7 @@ namespace Sad
                     //      falsely rejected `نص س = لا_شيء()` and silently passed
                     //      `رقم س = لا_شيء()` (measured). Same shared rule as the
                     //      null-safety analyzer — no third copy.
-                    expectedReturnType_ = registry_.getVoidType();
+                    expectedReturnType_ = registry_.getVoid();
                 }
                 else
                 {
@@ -853,16 +894,16 @@ namespace Sad
             }
             else
             {
-                expectedReturnType_ = dataTypeToTypePtr(decl.returnType);
+                expectedReturnType_ = sadKindToTypePtr(decl.returnType);
             }
 
             // (AR) تسجيل الدالة بنوع دالة كامل (معاملات + إرجاع)
-            TypeList paramTypes;
+            std::vector<Sad::Types::SadTypePtr> paramTypes;
             for (auto &param : decl.parameters)
             {
-                paramTypes.push_back(dataTypeToTypePtr(param.type));
+                paramTypes.push_back(sadKindToTypePtr(param.type));
             }
-            auto fnType = std::make_shared<FunctionType>(std::move(paramTypes), expectedReturnType_);
+            auto fnType = registry_.makeFunction(std::move(paramTypes), expectedReturnType_);
             declareVariable(decl.name, fnType);
 
             enterScope();
@@ -870,7 +911,7 @@ namespace Sad
             // تسجيل المعاملات / Register parameters
             for (auto &param : decl.parameters)
             {
-                TypePtr paramType = dataTypeToTypePtr(param.type);
+                Sad::Types::SadTypePtr paramType = sadKindToTypePtr(param.type);
                 declareVariable(param.name, paramType);
             }
 
@@ -900,11 +941,15 @@ namespace Sad
 
             enterScope();
 
-            // (AR) التحقق من وجود الصنف في StructRegistry
-            bool isKnown = StructRegistry::instance().isStructType(decl.name);
-            declareVariable(decl.name, isKnown
-                                           ? registry_.internPrimitiveType(SadTypeKind::Class)
-                                           : registry_.getUnknownType());
+            // (AR) 🔑 **وكان ههنا نداءُ `StructRegistry` وحارسُه.** وقِيسَ أنّ
+            //      السجلَّ **لا يملؤه أحدٌ في المستودعِ كلِّه**: `registerStruct`
+            //      لا مُنادِيَ له إلّا `StructBuilder::build()` — وهو نفسُه بلا
+            //      مُنادٍ. أمرُ القياس (⇒ لا شيءَ خارجَ الملفِّ الميّت):
+            //        grep -rn "registerStruct" shared compiler apps tools tests
+            //      فكان الحارسُ **كاذبًا أبدًا** والكتلةُ داخلَه لا تُنفَّذُ قطُّ.
+            //      فحُذِفَت هي والسجلُّ معًا — الميّتُ يُحذَفُ ولا يُنقَل.
+            //      guard on it was permanently false and its body dead code.
+            declareVariable(decl.name, registry_.getUnknown());
 
             // (AR) SEM045 (حقول الأصناف): الشقيقُ الثاني لتصريحِ الصنف — يُدوَّن هنا
             //      أيضًا وإلّا بقيت حقولُ هذا الشكلِ خارجَ الحارس (درسُ الأشقاء).
@@ -944,12 +989,12 @@ namespace Sad
 
         void TypeChecker::visitFieldDecl(AST::FieldDecl &decl)
         {
-            TypePtr fieldType = dataTypeToTypePtr(decl.type);
+            Sad::Types::SadTypePtr fieldType = sadKindToTypePtr(decl.type);
             declareVariable(decl.name, fieldType);
 
             if (decl.initializer)
             {
-                TypePtr initType = inferExprType(decl.initializer.get());
+                Sad::Types::SadTypePtr initType = inferExprType(decl.initializer.get());
                 if (initType && fieldType && !areTypesCompatible(fieldType, initType))
                 {
                     recordTypeError(decl.name,
@@ -964,26 +1009,44 @@ namespace Sad
             currentResult_.totalFunctions++;
 
             std::string prevFunction = currentFunction_;
-            TypePtr prevReturnType = expectedReturnType_;
+            Sad::Types::SadTypePtr prevReturnType = expectedReturnType_;
 
             currentFunction_ = decl.name;
-            // (AR) إذا كان نوع الإرجاع غير معروف أو فراغ، لا نفحص نوع return — محور SadTypeKind (S-TS-P2)
-            // (EN) If return type is Unknown or Void, skip return type checking — SadTypeKind-centric (S-TS-P2)
-            if (decl.returnType == Types::SadTypeKind::Unknown ||
-                decl.returnType == Types::SadTypeKind::Void)
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 **والطريقةُ تُحاكَمُ كنظيرتِها الحرّة.** أُصلِحَ عقدُ العائدِ
+            //      للدوالِّ الحرّةِ (انظر `visitFunctionDecl` أعلاه) وبقيَ ههنا
+            //      يجمعُ «خالي» مع `Unknown`، فكانت
+            //      «صنف أ / دالة خالي م() ارجع ٥» تمرُّ **صامتةً تمامًا** بينما
+            //      نظيرتُها الحرّةُ تُرَدُّ بـSEM055 — عقدٌ واحدٌ يُحاكَمُ في موضعٍ
+            //      ويُهمَلُ في آخر، والفارقُ أنّ إحداهما داخلَ صنف. وسببُ الجمعِ
+            //      كان في المحلّل (افتراضُ الطريقةِ `Unit`) وقد سُدَّ هناك، فصارَ
+            //      التمييزُ ههنا ذا معنًى.
+            // (EN) A method is judged like its free-function peer. The return contract
+            //      was fixed for free functions and left lumping declared-unit with
+            //      Unknown here, so a declared-unit method returning a value passed in
+            //      total silence while its free peer was rejected with SEM055 — one
+            //      contract judged in one place and ignored in another, the difference
+            //      being membership in a class. The parser default that made the two
+            //      indistinguishable is fixed, so the distinction now carries meaning.
+            // ════════════════════════════════════════════════════════════════
+            if (decl.returnType == Types::SadTypeKind::Unit)
+            {
+                expectedReturnType_ = registry_.getVoid();
+            }
+            else if (decl.returnType == Types::SadTypeKind::Unknown)
             {
                 expectedReturnType_ = nullptr;
             }
             else
             {
-                expectedReturnType_ = dataTypeToTypePtr(decl.returnType);
+                expectedReturnType_ = sadKindToTypePtr(decl.returnType);
             }
 
             enterScope();
 
             for (auto &param : decl.parameters)
             {
-                declareVariable(param.name, dataTypeToTypePtr(param.type));
+                declareVariable(param.name, sadKindToTypePtr(param.type));
             }
 
             if (decl.body)
@@ -1009,7 +1072,7 @@ namespace Sad
             enterScope();
             for (auto &param : decl.parameters)
             {
-                declareVariable(param.name, dataTypeToTypePtr(param.type));
+                declareVariable(param.name, sadKindToTypePtr(param.type));
             }
             if (decl.body)
                 decl.body->accept(*this);
@@ -1026,11 +1089,34 @@ namespace Sad
 
         void TypeChecker::visitEnumDecl(AST::EnumDecl &decl)
         {
-            // (AR) التحقق من وجود التعداد في EnumRegistry
-            bool isKnown = EnumRegistry::instance().isEnumType(decl.name);
+            // (AR) 🔑 وكان ههنا نداءُ سجلِّ التعدادات `isEnumType(...)`، وسجلُّه
+            //      **لا يحملُ إلّا التعدادَينِ المدمَجَين** اللذَينِ يُسجّلُهما
+            //      مُنشِئُه — لا مُعبِّئَ له سواه (مقيس: `registerEnum` بلا مُنادٍ
+            //      من الإنتاج). فالجوابُ أربعةُ أسماء، وهي اليومَ مُعلَنةٌ في
+            //      `builtin_enum_names.h` بدلَ ٨٣٧ سطرًا تُبنى ليُسأَلَ عنها.
+            // (EN) That registry only ever held the two built-ins its own ctor
+            //      registered; the answer is four names, now declared directly.
+            bool isKnown = Types::isBuiltinEnumName(decl.name);
+            // (AR) 🔑 **فخٌّ مقيسٌ في الدمج، وهو أخطرُ ما كشفَته الموجة.**
+            //      كان النداءُ `internPrimitiveType(Class)` في سجلِّ الهرمِ
+            //      الثاني، وهو يردُّ `Any` صراحةً لـ`Class` و`Trait` («ليسا
+            //      بدائيَّين فلا PrimitiveType لهما»). ونظيرُه في سجلِّ الهرمِ
+            //      الواحدِ `getByKind` يردُّ لهما **`nullptr`**. فبدلٌ اسمِيٌّ
+            //      بين دالّتَين «متكافئتَين» كان يُسرِّبُ نوعًا عدميًّا إلى
+            //      `declareVariable` — **والشوطُ الكاملُ بقيَ أخضرَ**، لأنّ
+            //      النوعَ العدميَّ يُقرَأُ «لا نوعَ» فيُسكِتُ الفحصَ ولا يكسرُه.
+            //      ⚠️ ودرسُه أنّ **الأخضرَ لا يُثبِتُ التكافؤَ في طبقةٍ يُقرَأُ
+            //      غيابُها سكوتًا**؛ فالتكافؤُ يُقاسُ على الجدولَين لا على
+            //      المخرَج. فأُرسِيَ الموضعانِ على `sadKindToTypePtr` — وهي
+            //      خريطةُ الأصنافِ الواحدةُ في هذه الطبقة، وفيها `Class` ⇒ `Any`
+            //      حرفًا بحرفٍ كما كان.
+            // (EN) The merge's sharpest trap: internPrimitiveType(Class) returned
+            //      Any, while its "equivalent" getByKind(Class) returns nullptr —
+            //      and the full run stayed GREEN, because a null type reads as
+            //      "no type" and silences the check instead of breaking it.
             declareVariable(decl.name, isKnown
-                                           ? registry_.internPrimitiveType(SadTypeKind::Class) // استخدام Class كبديل لحين يتوفر EnumKind
-                                           : registry_.getUnknownType());
+                                           ? sadKindToTypePtr(SadTypeKind::Class) // استخدام Class كبديل لحين يتوفر EnumKind
+                                           : registry_.getUnknown());
 
             // (AR) [أ-م٢] تسجيل معاملات التعداد بحمولة (ADT) في السجلّ الدلاليّ.
             //      يُمكّن حسم هويّة نمط الباني «عندما عدد(ق)» وتعبير البناء «عدد(٥)»،
@@ -1068,7 +1154,7 @@ namespace Sad
 
                 // (AR) تسجيل الوحدة كنطاق اسم — كل أعضائها Any حتى يتم ربط الوحدات
                 // (EN) Register module as namespace — members are Any until module linking
-                declareVariable(effectiveName, registry_.getAnyType());
+                declareVariable(effectiveName, registry_.getAny());
 
                 // (AR) تسجيل مسار الوحدة لمرحلة الربط في SIR
                 // (EN) Record module path for SIR linking phase
@@ -1088,7 +1174,7 @@ namespace Sad
             {
                 std::string name = item.getEffectiveName();
                 // (AR) كل رمز مستورد يبدأ كـ Any — سيُحدَّث عند ربط الوحدات
-                declareVariable(name, registry_.getAnyType());
+                declareVariable(name, registry_.getAny());
             }
         }
 
@@ -1121,12 +1207,12 @@ namespace Sad
             // (EN) [Phase 8] Save return context and set expected return type
             //      to enable checking of return statements inside template body.
             std::string prevFunction = currentFunction_;
-            TypePtr prevReturnType = expectedReturnType_;
+            Sad::Types::SadTypePtr prevReturnType = expectedReturnType_;
             currentFunction_ = decl.name;
             // (AR) محور SadTypeKind (S-TS-P2): Unknown/Void/Class → لا فحص للإرجاع
             // (EN) SadTypeKind-centric (S-TS-P2): Unknown/Void/Class → skip return checking
             if (decl.returnType == Types::SadTypeKind::Unknown ||
-                decl.returnType == Types::SadTypeKind::Void ||
+                decl.returnType == Types::SadTypeKind::Unit ||
                 decl.returnType == Types::SadTypeKind::Class)
             {
                 // (AR) نوع غير معروف أو معامل نوع T → لا فحص للإرجاع
@@ -1137,7 +1223,7 @@ namespace Sad
             {
                 // (AR) نوع إرجاع محدد (رقم/نص/عشري/منطقي) → فعّل الفحص
                 // (EN) Concrete return type (int/str/float/bool) → enable check
-                expectedReturnType_ = dataTypeToTypePtr(decl.returnType);
+                expectedReturnType_ = sadKindToTypePtr(decl.returnType);
             }
 
             // (AR) [Phase 5] تسجيل القالب مع معاملاته (تشمل القيود) و whereClause
@@ -1181,13 +1267,13 @@ namespace Sad
             // (AR) تسجيل معاملات النوع كمتغيرات نوع معممة
             for (auto &tp : decl.typeParameters)
             {
-                declareVariable(tp.name, registry_.getUnknownType());
+                declareVariable(tp.name, registry_.getUnknown());
             }
 
             // تسجيل معاملات الدالة / Register function parameters
             for (auto &param : decl.parameters)
             {
-                declareVariable(param.name, dataTypeToTypePtr(param.type));
+                declareVariable(param.name, sadKindToTypePtr(param.type));
             }
 
             if (decl.body)
@@ -1212,17 +1298,17 @@ namespace Sad
             //      bodyCertainlyReturnsNothing) stays Void so D8 still fires; an
             //      undeclared value-returning body registers as Unknown.
             if (decl.returnType == Types::SadTypeKind::Unknown ||
-                decl.returnType == Types::SadTypeKind::Void)
+                decl.returnType == Types::SadTypeKind::Unit)
             {
                 declareVariable(decl.name,
                                 Sad::NullSafety::NullSafetyAnalyzer::bodyCertainlyReturnsNothing(
                                     decl.body.get())
-                                    ? registry_.getVoidType()
-                                    : registry_.getUnknownType());
+                                    ? registry_.getVoid()
+                                    : registry_.getUnknown());
             }
             else
             {
-                declareVariable(decl.name, dataTypeToTypePtr(decl.returnType));
+                declareVariable(decl.name, sadKindToTypePtr(decl.returnType));
             }
 
             // (AR) [Phase 8] استعادة سياق الإرجاع السابق
@@ -1268,7 +1354,7 @@ namespace Sad
 
             for (auto &tp : decl.typeParameters)
             {
-                declareVariable(tp.name, registry_.getUnknownType());
+                declareVariable(tp.name, registry_.getUnknown());
             }
 
             for (auto &member : decl.members)
@@ -1279,11 +1365,15 @@ namespace Sad
 
             exitScope();
 
-            // (AR) تسجيل الصنف المعمم — البحث في StructRegistry
-            bool isKnown = StructRegistry::instance().isStructType(decl.name);
-            declareVariable(decl.name, isKnown
-                                           ? registry_.internPrimitiveType(SadTypeKind::Class)
-                                           : registry_.getUnknownType());
+            // (AR) 🔑 **وكان ههنا نداءُ `StructRegistry` وحارسُه.** وقِيسَ أنّ
+            //      السجلَّ **لا يملؤه أحدٌ في المستودعِ كلِّه**: `registerStruct`
+            //      لا مُنادِيَ له إلّا `StructBuilder::build()` — وهو نفسُه بلا
+            //      مُنادٍ. أمرُ القياس (⇒ لا شيءَ خارجَ الملفِّ الميّت):
+            //        grep -rn "registerStruct" shared compiler apps tools tests
+            //      فكان الحارسُ **كاذبًا أبدًا** والكتلةُ داخلَه لا تُنفَّذُ قطُّ.
+            //      فحُذِفَت هي والسجلُّ معًا — الميّتُ يُحذَفُ ولا يُنقَل.
+            //      guard on it was permanently false and its body dead code.
+            declareVariable(decl.name, registry_.getUnknown());
         }
 
         void TypeChecker::visitTemplateInstantiation(AST::TemplateInstantiation &inst)
@@ -1305,7 +1395,7 @@ namespace Sad
                 err.message = "Undefined template: '" + inst.templateName + "'";
                 err.arabicMessage = "قالب غير معرّف: '" + inst.templateName + "'";
                 currentResult_.addError(err);
-                lastInferredType_ = registry_.getUnknownType();
+                lastInferredType_ = registry_.getUnknown();
             }
             else
             {
@@ -1447,11 +1537,11 @@ namespace Sad
             }
             traitMethods_[decl.name] = std::move(sigs);
 
-            auto &reg = TypeSystem::TraitRegistry::instance();
+            auto &reg = Sad::Types::TraitRegistry::instance();
             auto traitObj = reg.findTrait(decl.name);
             if (!traitObj)
             {
-                traitObj = std::make_shared<TypeSystem::Trait>(decl.name, decl.name);
+                traitObj = std::make_shared<Sad::Types::Trait>(decl.name, decl.name);
                 reg.registerTrait(traitObj);
             }
             // (AR) [Phase 5b] انشر دوال السمة داخل كائن Trait العالمي حتى
@@ -1463,13 +1553,13 @@ namespace Sad
             {
                 if (traitObj->findMethod(m.name))
                     continue;
-                TypeSystem::TraitMethod tm;
+                Sad::Types::TraitMethod tm;
                 tm.arabicName = m.name;
                 tm.englishName = m.name;
                 tm.paramTypes.reserve(m.params.size());
                 for (size_t i = 0; i < m.params.size(); ++i)
-                    tm.paramTypes.push_back(registry_.getUnknownType());
-                tm.returnType = registry_.getUnknownType();
+                    tm.paramTypes.push_back(registry_.getUnknown());
+                tm.returnType = registry_.getUnknown();
                 tm.hasDefaultImpl = (m.defaultImpl != nullptr);
                 tm.isStatic = false;
                 tm.requiresSelf = true;
@@ -1584,7 +1674,7 @@ namespace Sad
         {
             if (userTraits_.count(traitName))
                 return true;
-            return TypeSystem::TraitRegistry::instance().findTrait(traitName) != nullptr;
+            return Sad::Types::TraitRegistry::instance().findTrait(traitName) != nullptr;
         }
 
         bool TypeChecker::typeSatisfiesTrait(const std::string &typeName,
@@ -1682,14 +1772,32 @@ namespace Sad
         {
             currentResult_.totalFunctions++;
 
+            // (AR) 🔑 وعقدُ عائدِ «عامل» **لم يكن يُحاكَمُ البتّة**: لا يُحفَظُ
+            //      `expectedReturnType_` ولا يُصفَّر، فـ`ارجع` داخلَ جسمِه يُحاكَمُ
+            //      بعقدِ السياقِ الخارجيِّ أو لا يُحاكَمُ أصلًا — تسرُّبُ حالةٍ بين
+            //      تصريحَين. وكلُّ تصريحٍ آخرَ في هذا الزائرِ يحفظُ ويستعيد.
+            // (EN) The operator's return contract was never judged: expectedReturnType_
+            //      was neither saved nor cleared, so a `return` in its body was judged
+            //      against the enclosing context's contract or not at all — state
+            //      leaking between declarations, unlike every other declaration here.
+            std::string prevFunction = currentFunction_;
+            Sad::Types::SadTypePtr prevReturnType = expectedReturnType_;
+            currentFunction_ = decl.operatorSymbol;
+            expectedReturnType_ = (decl.returnType == Types::SadTypeKind::Unknown)
+                                      ? nullptr
+                                      : sadKindToTypePtr(decl.returnType);
+
             enterScope();
             for (auto &param : decl.parameters)
             {
-                declareVariable(param.name, dataTypeToTypePtr(param.type));
+                declareVariable(param.name, sadKindToTypePtr(param.type));
             }
             if (decl.body)
                 decl.body->accept(*this);
             exitScope();
+
+            expectedReturnType_ = prevReturnType;
+            currentFunction_ = prevFunction;
         }
 
         // ====================================================================
@@ -1905,7 +2013,7 @@ namespace Sad
                 return "دالة";
             case K::Enum:
                 return "تعداد";
-            case K::Void:
+            case K::Unit:
             case K::Null:
                 return "لاشيء";
             case K::Class:
@@ -1972,13 +2080,13 @@ namespace Sad
                 if (t)
                 {
                     // أنواع بدائية → نُرجع اسماً عربياً.
-                    if (t->getKind() == TypeSystem::SadTypeKind::Integer)
+                    if (t->getKind() == Sad::Types::SadTypeKind::Integer)
                         return "رقم";
-                    if (t->getKind() == TypeSystem::SadTypeKind::Float)
+                    if (t->getKind() == Sad::Types::SadTypeKind::Float)
                         return "عشري";
-                    if (t->getKind() == TypeSystem::SadTypeKind::String)
+                    if (t->getKind() == Sad::Types::SadTypeKind::String)
                         return "نص";
-                    if (t->getKind() == TypeSystem::SadTypeKind::Boolean)
+                    if (t->getKind() == Sad::Types::SadTypeKind::Boolean)
                         return "منطقي";
                     // ====================================================
                     // (AR) [Phase 5c] صنف مُسجَّل: اقرأ اسمه من
@@ -1986,7 +2094,7 @@ namespace Sad
                     // (EN) [Phase 5c] Registered class: read its name
                     //      from variableClassNames_ (innermost scope).
                     // ====================================================
-                    if (t->getKind() == TypeSystem::SadTypeKind::Class)
+                    if (t->getKind() == Sad::Types::SadTypeKind::Class)
                     {
                         for (auto it = variableClassNames_.rbegin();
                              it != variableClassNames_.rend(); ++it)
@@ -2024,8 +2132,7 @@ namespace Sad
             {
                 if (auto *ve = dynamic_cast<AST::VariableExpr *>(call->callee.get()))
                 {
-                    if (StructRegistry::instance().isStructType(ve->name) ||
-                        userClassNames_.count(ve->name))
+                    if (userClassNames_.count(ve->name))
                     {
                         return ve->name;
                     }

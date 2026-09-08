@@ -104,7 +104,7 @@ namespace Sad
                     //      «any» is not a typed slot (it accepts Void by contract).
                     if (varInfo.declaredSurfaceType != SadTypeKind::Unknown &&
                         varInfo.declaredSurfaceType != SadTypeKind::Any &&
-                        varInfo.declaredSurfaceType != SadTypeKind::Void &&
+                        varInfo.declaredSurfaceType != SadTypeKind::Unit &&
                         varInfo.declaredSurfaceType != SadTypeKind::Null)
                     {
                         currentFunction_->declaredTypedSlots[varInfo.name] =

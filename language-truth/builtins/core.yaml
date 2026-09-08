@@ -66,8 +66,17 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: إرجاع طول مجموعة أو نص
-  description_en: Return length of a collection or string
+  description_ar: >-
+    إرجاع طول مجموعة أو نص. و«خالي» (نوع الوحدة) طولُه **صفرٌ بالتعريف**: هو
+    الصفُّ الفارغُ نفسُه فلا عنصرَ فيه يُعَدّ — ولا يُقرَأُ له حقلُ طولٍ، إذ لا
+    ترويسةَ لقيمةٍ واحدةٍ لا تحمل معلومة. (قِيس 2026-09-07: قبلَ إعلانِ هذه
+    القاعدة كان «طول(())» يسقطُ إلى STRING_LEN فيُرفَض زمنيًّا بـRUN033.)
+  description_en: >-
+    Return length of a collection or string. Unit («خالي») has length ZERO BY
+    DEFINITION: it IS the empty tuple, so there is nothing to count — and no
+    length field is read, since a single information-free value has no header.
+    (Measured 2026-09-07: before this rule was declared, طول(()) fell through to
+    STRING_LEN and was rejected at runtime with RUN033.)
   params:
   - قيمة
   returns: رقم

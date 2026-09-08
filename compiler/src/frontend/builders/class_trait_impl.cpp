@@ -142,8 +142,17 @@ namespace Sad
                     //      for string-returning functions (e.g. وصف() in trait impl)
                     //      Fix: use b_.inferReturnTypeFromBody as in buildClass
                     SIR::SadTypeKind retType;
-                    if (funcDecl->returnType == Types::SadTypeKind::Unknown ||
-                        funcDecl->returnType == Types::SadTypeKind::Void)
+                    // (AR) 🔑 و«خالي» **تصريحٌ مُحترَم** لا غيابُ تصريح: بعدَ أن
+                    //      صارَ المحلِّلُ يفرّقُ بينهما (`Unknown` لِما لم يُذكَرْ)،
+                    //      بقاءُ `|| Unit` ههنا يجعلُ استنتاجَ الجسمِ **يدوسُ**
+                    //      تصريحًا صريحًا — وهو العطبُ نفسُه الذي أُصلِحَ للدوالِّ
+                    //      الحرّةِ وبقيَ حيًّا في ستّةِ مواضع.
+                    // (EN) A declared Unit is an HONOURED declaration, not its
+                    //      absence: with the parser now separating the two, keeping
+                    //      `|| Unit` let body inference override an explicit
+                    //      declaration — the defect fixed for free functions and
+                    //      left live at six sites.
+                    if (funcDecl->returnType == Types::SadTypeKind::Unknown)
                     {
                         // (AR) تعيين الصنف الحالي مؤقتاً لتمكين b_.inferReturnTypeFromBody
                         //      من الوصول لحقول الصنف عبر b_.module_->getClass(b_.currentClassName_)
@@ -289,7 +298,7 @@ namespace Sad
                             if (!hasTerminator)
                             {
                                 SIR::SIRInstruction retInst;
-                                if (retType == SIR::SadTypeKind::Void)
+                                if (retType == SIR::SadTypeKind::Unit)
                                 {
                                     retInst.opcode = SIR::SIROpcode::RET_VOID;
                                 }
@@ -400,8 +409,7 @@ namespace Sad
                                             //      [إصلاح BF-04] نفس إصلاح buildImpl الأساسي
                                             // (EN) Convert return type — with automatic inference
                                             SIR::SadTypeKind retType;
-                                            if (traitMethod.returnType == Types::SadTypeKind::Unknown ||
-                                                traitMethod.returnType == Types::SadTypeKind::Void)
+                                            if (traitMethod.returnType == Types::SadTypeKind::Unknown)
                                             {
                                                 auto savedClassName = b_.currentClassName_;
                                                 b_.currentClassName_ = className;
@@ -513,7 +521,7 @@ namespace Sad
                                                 if (!hasTerminator)
                                                 {
                                                     SIR::SIRInstruction retInst;
-                                                    if (retType == SIR::SadTypeKind::Void)
+                                                    if (retType == SIR::SadTypeKind::Unit)
                                                     {
                                                         retInst.opcode = SIR::SIROpcode::RET_VOID;
                                                     }

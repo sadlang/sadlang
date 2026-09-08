@@ -103,7 +103,7 @@ namespace Sad
                             if (!hasTerminator)
                             {
                                 SIRInstruction retInst;
-                                if (propType == SadTypeKind::Void)
+                                if (propType == SadTypeKind::Unit)
                                 {
                                     retInst.opcode = SIROpcode::RET_VOID;
                                 }
@@ -132,7 +132,7 @@ namespace Sad
                     if (propDecl->setter)
                     {
                         std::string setterName = functionPrefix + "__set_" + propDecl->name;
-                        auto setterFunc = std::make_shared<SIRFunction>(setterName, SadTypeKind::Void);
+                        auto setterFunc = std::make_shared<SIRFunction>(setterName, SadTypeKind::Unit);
 
                         // (AR) معامل self + معامل القيمة
                         // (EN) self parameter + value parameter

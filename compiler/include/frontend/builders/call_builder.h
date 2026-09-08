@@ -47,6 +47,15 @@ namespace Sad
 
                 BuildResult buildFunctionCall(Sad::AST::CallExpr *call);
 
+                /**
+                 * @brief (AR) تجسيدُ قيمةِ الوحدةِ لنتيجةِ نداءٍ لا سِجِلَّ لها
+                 * @brief (EN) Materialize the unit value for a register-less call result
+                 *
+                 * (AR) مخرَجٌ واحدٌ لكلِّ مسارات النداء — التفصيلُ في `call_main.cpp`.
+                 * (EN) One exit for every call path — see call_main.cpp.
+                 */
+                BuildResult materializeUnitResult(BuildResult result);
+
                 std::optional<BuildResult> buildMacroCallExpansion(Sad::AST::CallExpr *call, const std::string &funcName);
 
                 std::optional<BuildResult> buildCallableObjectInvoke(Sad::AST::CallExpr *call, const std::string &funcName);

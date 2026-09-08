@@ -61,7 +61,7 @@ target_include_directories(sad_ownership
 target_link_libraries(sad_ownership
     PUBLIC
         sad_shared
-        sad_type_system
+
         sad_semantic_shared  # (AR) لاستخدام type_checker إن لزم
 )
 

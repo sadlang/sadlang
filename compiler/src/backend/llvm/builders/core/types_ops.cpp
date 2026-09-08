@@ -28,93 +28,23 @@ namespace Sad
     namespace LLVM
     {
 
-        // ====================================================================
-        // (AR) تحويل الأنواع / (EN) Type Conversions
-        // ====================================================================
+        // ════════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 وكان ههنا هرمُ أنواعٍ **ثالثٌ** اسمُه `Sad::LLVM::Type` —
+        //      قاعدةٌ مجرّدةٌ وثلاثةُ فروعٍ (`TupleType` · `TaggedUnionType` ·
+        //      `FunctionPointerType`) في `llvm_type_mapper_composite.h`. وقِيسَ
+        //      أنّ **لا موضعَ في المستودعِ كلِّه يُنشئُ واحدًا منها**: لا
+        //      `make_shared` ولا `new`؛ وكلُّ ما كان يمسُّها `dynamic_cast` من
+        //      مؤشّرٍ لا يُملأُ أبدًا — فالهرمُ كان يُقرأُ ولا يُكتَب.
+        //      أمرُ القياس (⇒ صفر):
+        //        grep -rEn "make_shared<TupleType>|new TupleType" compiler shared
+        //      فحُذِفَ الهرمُ ومعه عنقودُه المغلق: مُحوِّلاتُ الأنواعِ الخمسةُ في
+        //      LLVMTypeMapper وطريقتا التحويلِ في TypesCodeGen — لا مُنادِيَ
+        //      لواحدةٍ منها من خارجِ العنقود.
+        // (EN) A THIRD type hierarchy (Sad::LLVM::Type + 3 subclasses) lived
+        //      here. Measured: nothing in the tree ever constructs one, so the
+        //      whole closed cluster consuming it was dead code. Removed.
+        // ════════════════════════════════════════════════════════════════════════
 
-        /**
-         * (AR) تحويل نوع Sad إلى نوع LLVM. يستخدم typeMapper_ إن وُجد،
-         *      وإلا يقع على نظام تحويل يدوي احتياطي.
-         * (EN) Convert Sad type to LLVM type. Uses typeMapper_ when available,
-         *      otherwise falls back to manual conversion.
-         */
-        llvm::Type *TypesCodeGen::convertType(std::shared_ptr<Type> sadType)
-        {
-            if (!sadType)
-            {
-                return getVoidType();
-            }
-
-            // (AR) استخدام محول الأنواع LLVMTypeMapper للتحويل الصحيح
-            // (EN) Use LLVMTypeMapper for proper conversion
-            if (cg_.typeMapper_)
-            {
-                return cg_.typeMapper_->mapSadType(sadType);
-            }
-
-            // (AR) احتياطي: إذا لم يُهيَّأ محول الأنواع بعد، نستخدم التحويل اليدوي
-            // (EN) Fallback: manual conversion when typeMapper_ not initialized
-            if (sadType->isVoid())
-                return getVoidType();
-            if (sadType->isBoolean())
-                return getInt1Type();
-            if (sadType->isInteger())
-            {
-                switch (sadType->getBitWidth())
-                {
-                case 8:
-                    return getInt8Type();
-                case 16:
-                    return getInt16Type();
-                case 32:
-                    return getInt32Type();
-                case 64:
-                    return getInt64Type();
-                default:
-                    return llvm::Type::getIntNTy(*cg_.context_, sadType->getBitWidth());
-                }
-            }
-            if (sadType->isFloat())
-            {
-                return sadType->isFloat32() ? getFloatType() : getDoubleType();
-            }
-            if (sadType->isString())
-                return getInt8PtrType();
-            if (sadType->isPointer())
-                return llvm::PointerType::get(*cg_.context_, 0);
-
-            // (AR) نوع غير معروف — نُرجع i64 كاحتياطي
-            // (EN) Unknown type — fallback to i64
-            return getInt64Type();
-        }
-
-        /**
-         * (AR) تحويل نوع دالة Sad إلى نوع دالة LLVM.
-         * (EN) Convert Sad function type to LLVM function type.
-         */
-        llvm::FunctionType *TypesCodeGen::convertFunctionType(
-            std::shared_ptr<Type> returnType,
-            const std::vector<std::shared_ptr<Type>> &paramTypes,
-            bool isVarArg)
-        {
-            // (AR) استخدام محول الأنواع إذا كان مُهيّأ
-            // (EN) Use typeMapper_ when available
-            if (cg_.typeMapper_)
-            {
-                return cg_.typeMapper_->mapFunctionType(returnType, paramTypes, isVarArg);
-            }
-
-            // (AR) احتياطي: بناء نوع الدالة يدوياً
-            // (EN) Fallback: build function type manually
-            llvm::Type *retType = convertType(returnType);
-            std::vector<llvm::Type *> llvmParamTypes;
-            llvmParamTypes.reserve(paramTypes.size());
-            for (const auto &paramType : paramTypes)
-            {
-                llvmParamTypes.push_back(convertType(paramType));
-            }
-            return llvm::FunctionType::get(retType, llvmParamTypes, isVarArg);
-        }
 
         // ====================================================================
         // (AR) الأنواع الأساسية / (EN) Primitive Types

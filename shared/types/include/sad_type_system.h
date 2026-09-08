@@ -67,117 +67,31 @@ namespace Sad
         // دوال مساعدة للتعداد / Helper functions for the enum
         // ═══════════════════════════════════════════════════════════════════════════════════
 
-        /** @brief (AR) الاسم العربي المختصر للنوع */
-        inline std::string sadTypeKindToArabic(SadTypeKind kind)
-        {
-            switch (kind)
-            {
-            case SadTypeKind::Void:
-                return "فراغ";
-            case SadTypeKind::Null:
-                return "عدم";
-            case SadTypeKind::Integer:
-                return "رقم";
-            case SadTypeKind::Float:
-                return "عشري";
-            case SadTypeKind::Boolean:
-                return "منطقي";
-            case SadTypeKind::String:
-                return "نص";
-            case SadTypeKind::Int8:
-                return "رقم8";
-            case SadTypeKind::Int16:
-                return "رقم16";
-            case SadTypeKind::Int32:
-                return "رقم32";
-                return "رقم";
-            case SadTypeKind::UInt8:
-                return "طبيعي8";
-            case SadTypeKind::UInt16:
-                return "طبيعي16";
-            case SadTypeKind::UInt32:
-                return "طبيعي32";
-            case SadTypeKind::UInt64:
-                return "طبيعي";
-            case SadTypeKind::Float32:
-                return "عشري32";
-                return "عشري";
-            case SadTypeKind::Char:
-                return "حرف";
-            case SadTypeKind::Array:
-                return "مصفوفة";
-            case SadTypeKind::Map:
-                return "خريطة";
-            case SadTypeKind::Tuple:
-                return "صف";
-            case SadTypeKind::Slice:
-                return "شريحة";
-            case SadTypeKind::Class:
-                return "صنف";
-            case SadTypeKind::Struct:
-                return "بنية";
-            case SadTypeKind::Enum:
-                return "تعداد";
-            case SadTypeKind::Trait:
-                return "سمة";
-            case SadTypeKind::Function:
-                return "دالة";
-            case SadTypeKind::Closure:
-                return "إغلاق";
-            case SadTypeKind::Union:
-                return "اتحاد";
-            case SadTypeKind::Intersection:
-                return "تقاطع";
-            case SadTypeKind::Optional:
-                return "اختياري";
-            case SadTypeKind::Result:
-                return "نتيجة";
-            case SadTypeKind::Generic:
-                return "عام";
-            case SadTypeKind::TypeParameter:
-                return "معامل_نوع";
-            case SadTypeKind::TypeAlias:
-                return "مستعار";
-            case SadTypeKind::Pointer:
-                return "مؤشر";
-            case SadTypeKind::Reference:
-                return "مرجع";
-            case SadTypeKind::MutableRef:
-                return "مرجع_متغير";
-            case SadTypeKind::Any:
-                return "أي";
-            case SadTypeKind::Never:
-                return "أبداً";
-            case SadTypeKind::Unknown:
-                return "مجهول";
-            case SadTypeKind::Error:
-                return "خطأ";
-            case SadTypeKind::Future:
-                return "مستقبل";
-            case SadTypeKind::Generator:
-                return "مولّد";
-            case SadTypeKind::Comprehension:
-                return "استيعاب";
-            case SadTypeKind::Color:
-                return "لون";
-            case SadTypeKind::Widget:
-                return "عنصر_واجهة";
-            case SadTypeKind::Window:
-                return "نافذة";
-            case SadTypeKind::Event:
-                return "حدث";
-            case SadTypeKind::Vector:
-                return "متجه";
-            }
-            return "مجهول";
-        }
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 **حُذف `sadTypeKindToArabic`** (٨ أيلول ٢٠٢٦) — كان **الجدولَ
+        //      الثانيَ** من أربعةٍ تُسمّي النوعَ بالعربيّة، وواحدٌ منها فقط مشتقٌّ
+        //      من مصدرِ الحقيقة. وقد قِيسَ أنّ المولَّدَ يغطّي ٤٩ نوعًا وهذا ٤٧،
+        //      **ولا نوعَ فيه خارجَ المولَّد** — فالحذفُ لا يفقدُ شيئًا.
+        //      وكلُّ مُنادٍ نُقِلَ إلى `sadTypeKindArabicName` في
+        //      `generated/sad_type_kind_generated.h`.
+        //      ⚠️ والانجرافُ لم يكن فرضيًّا: قِيسَ `صنف/كائن` و`قاموس/خريطة`
+        //      و`واجهة/سمة` و`أبداً/أبدا` — أي أنّ سؤالَ «ما نوعُ هذه القيمة؟»
+        //      كان له جوابانِ بحسبِ البابِ الذي يُسأَلُ منه.
+        // (EN) sadTypeKindToArabic was DELETED: it was the second of four Arabic
+        //      type-name tables, only one of which is derived from the SoT. Measured:
+        //      the generated table covers 49 kinds against this one's 47, with no kind
+        //      exclusive to it — so nothing is lost. Every caller now reads
+        //      sadTypeKindArabicName. The drift was not hypothetical: class/object,
+        //      dictionary/map, interface/trait and two spellings of «never» — one
+        //      question with two answers depending on which door asked.
+        // ════════════════════════════════════════════════════════════════════
 
         /** @brief (EN) English name for debugging */
         inline std::string sadTypeKindToEnglish(SadTypeKind kind)
         {
             switch (kind)
             {
-            case SadTypeKind::Void:
+            case SadTypeKind::Unit:
                 return "Void";
             case SadTypeKind::Null:
                 return "Null";
@@ -280,7 +194,7 @@ namespace Sad
         /** @brief (AR) هل النوع بدائي؟ */
         inline bool isPrimitiveKind(SadTypeKind k)
         {
-            return k == SadTypeKind::Void || k == SadTypeKind::Integer || k == SadTypeKind::Float || k == SadTypeKind::Boolean || k == SadTypeKind::String || k == SadTypeKind::UInt8 || (k >= SadTypeKind::Int8 && k <= SadTypeKind::Char);
+            return k == SadTypeKind::Unit || k == SadTypeKind::Integer || k == SadTypeKind::Float || k == SadTypeKind::Boolean || k == SadTypeKind::String || k == SadTypeKind::UInt8 || (k >= SadTypeKind::Int8 && k <= SadTypeKind::Char);
         }
 
         /**
@@ -366,6 +280,37 @@ namespace Sad
             bool isNumeric() const { return isNumericKind(kind_); }
             bool isComposite() const { return isCompositeKind(kind_); }
             bool isCallable() const { return isCallableKind(kind_); }
+
+            // ─── فحوصُ الصنفِ الواحد / Single-kind checks ───
+            // (AR) 🔑 وكانت هذه الفحوصُ ساكنةً في هرمٍ **ثانٍ** اسمُه
+            //      `Sad::TypeSystem::Type` — نسخةً ثانيةً من السؤالِ نفسِه فوقَ
+            //      التعدادِ المولَّدِ نفسِه. فلمّا أُذيبَ الهرمُ الثاني في هذا
+            //      نُقِلَت الفحوصُ إلى أصلِها، ولم يبقَ للسؤالِ إلّا جوابٌ واحد.
+            // (EN) These predicates lived on a SECOND hierarchy over the very
+            //      same generated enum. Dissolving it moved them home.
+            bool isUnit() const { return kind_ == SadTypeKind::Unit; }
+            bool isVoid() const { return kind_ == SadTypeKind::Unit; }
+            bool isNull() const { return kind_ == SadTypeKind::Null; }
+            bool isInteger() const { return kind_ == SadTypeKind::Integer; }
+            bool isFloat() const { return kind_ == SadTypeKind::Float; }
+            bool isBoolean() const { return kind_ == SadTypeKind::Boolean; }
+            bool isString() const { return kind_ == SadTypeKind::String; }
+            bool isArray() const { return kind_ == SadTypeKind::Array; }
+            bool isDictionary() const { return kind_ == SadTypeKind::Map; }
+            bool isTuple() const { return kind_ == SadTypeKind::Tuple; }
+            bool isFunction() const { return kind_ == SadTypeKind::Function; }
+            bool isClass() const { return kind_ == SadTypeKind::Class; }
+            bool isInterface() const { return kind_ == SadTypeKind::Trait; }
+            bool isGeneric() const { return kind_ == SadTypeKind::Generic; }
+            bool isTypeParameter() const { return kind_ == SadTypeKind::TypeParameter; }
+            bool isUnion() const { return kind_ == SadTypeKind::Union; }
+            bool isOptional() const { return kind_ == SadTypeKind::Optional; }
+            bool isAny() const { return kind_ == SadTypeKind::Any; }
+            bool isNever() const { return kind_ == SadTypeKind::Never; }
+            bool isUnknown() const { return kind_ == SadTypeKind::Unknown; }
+            bool isError() const { return kind_ == SadTypeKind::Error; }
+            bool isIntegerNumeric() const { return ::Sad::Types::sadTypeKindIsIntegerNumeric(kind_); }
+            bool isFloatNumeric() const { return ::Sad::Types::sadTypeKindIsFloatNumeric(kind_); }
             // (AR) ISSUE-113: كان «فراغ» هو المعدودَ قابلًا للعدمِ و«عدم» **ليس** — أي أنّ
             //      نوعَ العدمِ نفسَه لم يكن عدميًّا. وهو أثرُ الالتباسِ ذاتِه: يومَ كان
             //      لفظُ «عدم» يُخفَّض إلى Void كان الشرطُ يبدو صحيحًا، ولمّا فُصلا انقلب
@@ -455,7 +400,7 @@ namespace Sad
         public:
             explicit SadPrimitiveType(SadTypeKind kind) : SadType(kind) {}
 
-            std::string arabicName() const override { return sadTypeKindToArabic(kind_); }
+            std::string arabicName() const override { return sadTypeKindArabicName(kind_); }
             std::string englishName() const override { return sadTypeKindToEnglish(kind_); }
 
             bool equals(const SadType *other) const override
@@ -467,7 +412,7 @@ namespace Sad
             {
                 switch (kind_)
                 {
-                case SadTypeKind::Void:
+                case SadTypeKind::Unit:
                     return 0;
                 // (AR) ISSUE-113: «عدم» يُنزَل إلى i64 بحارسِ kSadNullSentinel، فحجمُه
                 //      ثمانيةٌ لا صفر. صفرٌ هنا يعني «لا تمثيلَ له» وهو وصفُ «فراغ»
@@ -499,7 +444,7 @@ namespace Sad
         public:
             explicit SadSpecialType(SadTypeKind kind) : SadType(kind) {}
 
-            std::string arabicName() const override { return sadTypeKindToArabic(kind_); }
+            std::string arabicName() const override { return sadTypeKindArabicName(kind_); }
             std::string englishName() const override { return sadTypeKindToEnglish(kind_); }
 
             bool equals(const SadType *other) const override
@@ -706,7 +651,7 @@ namespace Sad
                     r += paramTypes_[i] ? paramTypes_[i]->arabicName() : "أي";
                 }
                 r += ") -> ";
-                r += returnType_ ? returnType_->arabicName() : "فراغ";
+                r += returnType_ ? returnType_->arabicName() : "خالي";
                 return r;
             }
             std::string englishName() const override
@@ -1294,7 +1239,7 @@ namespace Sad
             {
                 switch (kind)
                 {
-                case SadTypeKind::Void:
+                case SadTypeKind::Unit:
                     return void_;
                 case SadTypeKind::Integer:
                     return integer_;
@@ -1448,7 +1393,7 @@ namespace Sad
         private:
             SadTypeRegistry()
             {
-                void_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Void);
+                void_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Unit);
                 null_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Null); // (AR) عدم — S-TS-P1
                 integer_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Integer);
                 float_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Float);
@@ -1545,7 +1490,7 @@ namespace Sad
             if (target->getKind() == SadTypeKind::Optional)
             {
                 auto opt = static_cast<const SadOptionalType *>(target);
-                if (kind_ == SadTypeKind::Null || kind_ == SadTypeKind::Void)
+                if (kind_ == SadTypeKind::Null || kind_ == SadTypeKind::Unit)
                     return true;
                 if (opt->getInnerType() && isAssignableTo(opt->getInnerType().get()))
                     return true;

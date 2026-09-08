@@ -412,7 +412,7 @@ namespace Sad
                 if (funcName == Bn::CompilerIo::IO_0)
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerIo::IO_0, argResults.size()))
-                        return BuildResult("", SadTypeKind::Void);
+                        return BuildResult("", SadTypeKind::Unit);
                     SIRInstruction inst(SIROpcode::BUILTIN_SLEEP);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -420,7 +420,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 3. اخرج / exit
@@ -436,7 +436,7 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // 4. النوع / type_of
@@ -627,6 +627,20 @@ namespace Sad
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::TypeCtor::TO_BOOL, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
+
+                    // (AR) 🔑 ورابعُ بواني التحويلِ يُوصَلُ بالمُعينِ نفسِه: وُصِلَ
+                    //      `رقم` و`عشري` وأُفرِدَت لـ`نص` ذراعٌ خاصّة، وبقيَ `منطقي`
+                    //      وحدَه فيمرُّ حاملُ الوحدةِ `i8` إلى `BUILTIN_TO_BOOL` —
+                    //      وهو عينُ مسارِ `INT011` «خطأ مترجم داخلي… يُرجى الإبلاغ»
+                    //      الذي كُتِبَ هذا المُعينُ لسدِّه. ومُعينٌ يُوصَلُ بثلاثةٍ من
+                    //      أربعةٍ يترك العطبَ حيًّا ويبدو مسدودًا.
+                    // (EN) The fourth conversion builder wired to the same helper: int,
+                    //      float and (specially) string were done and bool alone was
+                    //      left, passing the i8 unit carrier into BUILTIN_TO_BOOL — the
+                    //      very INT011 path this helper exists to close.
+                    if (rejectUnitConversionArg(b_.errors_, funcName, argResults[0].type))
+                        return rejectedConversionResult(SadTypeKind::Boolean);
+
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_TO_BOOL);
@@ -659,7 +673,7 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_CLEAR_SCREEN);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 return std::nullopt;

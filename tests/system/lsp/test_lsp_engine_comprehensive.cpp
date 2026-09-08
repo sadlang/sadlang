@@ -779,7 +779,7 @@ TEST(LspInlayHints, حرفيّة_العدم_تُستنتَج_عدم_لا_فرا�
     for (const auto& h : hints) {
         if (h.label.find(u8"عدم") != std::string::npos) saw_null = true;
         // «فراغ» (Void) لا يصحّ لحرفيّة null — نوعان متمايزان في types.yaml.
-        ASSERT_TRUE(h.label.find(u8"فراغ") == std::string::npos);
+        ASSERT_TRUE(h.label.find(u8"خالي") == std::string::npos);
     }
     ASSERT_TRUE(saw_null);
 }
@@ -798,7 +798,7 @@ TEST(LspInlayHints, إرجاع_فراغ_لا_يُظهر_تلميح_نوع) {
 
     for (const auto& h : hints) {
         // لا يجوز ظهور «فراغ» في أيّ تلميح نوع إرجاع (Void = لا قيمة تُؤشَّر).
-        ASSERT_TRUE(h.label.find(u8"فراغ") == std::string::npos);
+        ASSERT_TRUE(h.label.find(u8"خالي") == std::string::npos);
     }
 }
 

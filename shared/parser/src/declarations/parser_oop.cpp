@@ -159,12 +159,11 @@ namespace Sad
                     fieldType = resolveTypeWordName(typeName);
                 }
 
-                // (AR) «فراغ» لا يصلح خانةً — والحقلُ خانةٌ كالمتغيّر. كان يمرُّ قبلَ
-                //      الإصلاحِ أعلاه لأنّه كان يُقرأ Unknown، فيُرفَض الآن بالعقدِ
-                //      نفسِه الذي يرفضه متغيّرًا ومعامِلًا (SEM040).
-                // (EN) Void is not a slot type, and a field is a slot. It slipped
-                //      through only because it used to read as Unknown.
-                fieldType = rejectVoidAsSlotType(fieldType, current_.getValue());
+                // (AR) 🔑 كان ههنا رفضُ «فراغ» حقلًا (SEM040). وقد حُذف «فراغ» وحلَّ
+                //      محلَّه «خالي» — نوعُ الوحدة، والحقلُ يحملُه كما يحملُه المتغيّرُ
+                //      والمعامل. ولا يبقى إسنادٌ إلى الذاتِ مكانَ البوّابةِ المحذوفة.
+                // (EN) The SEM040 field gate lost its subject with «فراغ»; a unit
+                //      field is a slot like any other. No self-assignment left behind.
             }
             else if (check(TT::IDENTIFIER))
             {
@@ -344,7 +343,17 @@ namespace Sad
             // (AR) نوع الإرجاع (اختياري - يأتي قبل اسم الطريقة)
             // (EN) Return type (optional - comes BEFORE method name)
             // Spec: docs\language_spec\rules\03_oop.md §1 - method_decl ::= ... 'دالة' [type] IDENTIFIER ...
-            Types::SadTypeKind returnType = Types::SadTypeKind::Void;
+            // (AR) 🔑 والافتراضُ **`Unknown` لا `Unit`**: عائدٌ غيرُ مذكورٍ معناه
+            //      «لم يُصرَّحْ»، وهو غيرُ «صُرِّحَ خالي». وخلطُهما يُبطِلُ عقدَ
+            //      العائدِ للطرائقِ خاصّةً: «صنف أ / دالة خالي م() ارجع 5» كانت
+            //      تمرُّ **صامتةً** بينما نظيرتُها الحرّةُ تُرَدُّ بـSEM055 — إذ لا
+            //      يتمايزُ التصريحُ من غيابِه. والتصريحُ الصريحُ «خالي» يُضبَطُ
+            //      أدناه حين يُذكَر.
+            // (EN) Unknown, not Unit: an unmentioned return type means "not declared",
+            //      which is not "declared unit". Conflating them voided the return
+            //      contract for methods — a declared-unit method returning a value
+            //      passed silently while its free-function peer was rejected.
+            Types::SadTypeKind returnType = Types::SadTypeKind::Unknown;
             std::string returnTypeName; // (AR) [Phase 5e] لأنواع الأصناف المُعرَّفة من المستخدم
 
             // Check if next token is a type (keyword like رقم، نص) or identifier (for method name)
@@ -556,7 +565,7 @@ namespace Sad
                         // (EN) Two statements, not one: C++ argument evaluation order is
                         //      unspecified, and the name was read before the type was consumed.
                         const Types::SadTypeKind parsedParamType = parseType();
-                        paramType = rejectVoidAsSlotType(parsedParamType, current_.getValue());
+                        paramType = parsedParamType;
                         Token paramToken = consume(TT::IDENTIFIER, "");
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         ExprPtr defaultValue = nullptr;
@@ -628,7 +637,7 @@ namespace Sad
                     {
                         // (AR) نوع المعامل / (EN) Parameter type
                         const Types::SadTypeKind parsedParamType = parseType();
-                        paramType = rejectVoidAsSlotType(parsedParamType, current_.getValue());
+                        paramType = parsedParamType;
 
                         // (AR) اسم المعامل / (EN) Parameter name
                         Token paramToken = consume(TT::IDENTIFIER, "");
@@ -794,7 +803,7 @@ namespace Sad
                     {
                         // (AR) نوع صريح موجود متبوع باسم معامل / (EN) Explicit type present followed by param name
                         const Types::SadTypeKind parsedParamType = parseType();
-                        paramType = rejectVoidAsSlotType(parsedParamType, current_.getValue());
+                        paramType = parsedParamType;
                         Token paramToken = consume(TT::IDENTIFIER, "");
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         if (match(TT::OP_ASSIGN))
@@ -825,7 +834,7 @@ namespace Sad
                         // (EN) Optional type annotation: name : type
                         if (match(TT::COLON))
                         {
-                            paramType = rejectVoidAsSlotType(parseType(), paramToken.getValue());
+                            paramType = parseType();
                         }
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         if (match(TT::OP_ASSIGN))
@@ -847,7 +856,7 @@ namespace Sad
                         // (EN) Optional type annotation: name : type
                         if (match(TT::COLON))
                         {
-                            paramType = rejectVoidAsSlotType(parseType(), paramToken.getValue());
+                            paramType = parseType();
                         }
                         if (match(TT::OP_ASSIGN))
                         {

@@ -220,7 +220,7 @@ categories:
       - { id: "KW-TYP-002", subcategory: "numeric", since: "1.0.0", word: "عشري",    tokenType: TYPE_DOUBLE,  english: double }
       - { id: "KW-TYP-003", subcategory: "text", since: "1.0.0", word: "نص",      tokenType: TYPE_STRING,  english: string }
       - { id: "KW-TYP-004", subcategory: "logic", since: "1.0.0", word: "منطقي",   tokenType: TYPE_BOOLEAN, english: boolean }
-      - { id: "KW-TYP-005", subcategory: "special", since: "1.0.0", word: "فراغ",    tokenType: TYPE_VOID,    english: void }
+      - { id: "KW-TYP-005", subcategory: "special", since: "1.0.0", word: "خالي",    tokenType: TYPE_UNIT,    english: unit }
       - { id: "KW-TYP-006", subcategory: "special", since: "1.0.0", word: "عدم",     tokenType: TYPE_NULL,    english: "null" }
       - { id: "KW-TYP-007", subcategory: "composite", since: "1.0.0", word: "مصفوفة",  tokenType: TYPE_ARRAY,   english: array }
       - { id: "KW-TYP-008", subcategory: "composite", since: "1.0.0", word: "خريطة",   tokenType: TYPE_MAP,     english: map }

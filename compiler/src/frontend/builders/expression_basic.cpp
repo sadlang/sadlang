@@ -578,7 +578,7 @@ namespace Sad
 
                     BuildResult result(loadReg, varInfo->type);
                     result.isParameter = varInfo->isParameter;
-                    if (varInfo->elementType != SadTypeKind::Void)
+                    if (varInfo->elementType != SadTypeKind::Unknown)
                     {
                         result.elementType = varInfo->elementType;
                     }
@@ -650,7 +650,7 @@ namespace Sad
 
                 // (AR) نقل نوع عنصر المصفوفة إلى BuildResult لدعم حلقات foreach
                 // (EN) Propagate array element type to BuildResult for foreach support
-                if (varInfo->elementType != SadTypeKind::Void)
+                if (varInfo->elementType != SadTypeKind::Unknown)
                 {
                     result.elementType = varInfo->elementType;
                 }

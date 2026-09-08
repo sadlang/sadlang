@@ -1476,8 +1476,21 @@ namespace Sad
                             break;
                         }
 
+                        // (AR) 🔑 والافتراضُ **`Unknown` لا `Unit`**: معاملٌ بلا تنميطٍ
+                        //      معناه «لم يُصرَّحْ نوعُه»، لا «نوعُه خالي». وكان اللفظانِ
+                        //      شيئًا واحدًا يومَ كان `Void` غيرَ مُصنَّفٍ في
+                        //      `isClassified`؛ فلمّا صارَ «خالي» نوعًا مُعلَنًا صارَ
+                        //      «لا أعرف» **يقينًا كاذبًا**، فيُرَدُّ برنامجٌ صحيحٌ:
+                        //      «قالب <نوع ت>» ثمّ «دالة ضاعف(س) ارجع س * 2» تُرفَضُ
+                        //      بـSEM054 «العامل '*' لا يقبل 'خالي'» (مقيس). ونظيرُه
+                        //      السليمُ في `parser_helpers.cpp:1535`.
+                        // (EN) Unknown, not Unit: an untyped parameter means "no type was
+                        //      declared", not "its type is unit". The two were one while
+                        //      Void was unclassified; once Unit became a classified kind,
+                        //      "don't know" turned into a false certainty and rejected
+                        //      correct programs (measured).
                         std::string paramName;
-                        Types::SadTypeKind paramType = Types::SadTypeKind::Void;
+                        Types::SadTypeKind paramType = Types::SadTypeKind::Unknown;
                         std::string templateTypeName; // (AR) لحفظ اسم نوع القالب / (EN) To store template type name
 
                         // (AR) معامل يبدأ بالنوع أو الاسم
@@ -1550,7 +1563,17 @@ namespace Sad
 
                 // (AR) تحليل نوع الإرجاع
                 // (EN) Parse return type
-                Types::SadTypeKind returnType = Types::SadTypeKind::Void;
+                // (AR) 🔑 والافتراضُ **`Unknown` لا `Unit`**: عائدٌ غيرُ مذكورٍ معناه
+                //      «لم يُصرَّحْ»، وهو غيرُ «صُرِّحَ خالي». وخلطُهما يُبطِلُ عقدَ
+                //      العائدِ للطرائقِ خاصّةً: «صنف أ / دالة خالي م() ارجع 5» كانت
+                //      تمرُّ **صامتةً** بينما نظيرتُها الحرّةُ تُرَدُّ بـSEM055 — إذ لا
+                //      يتمايزُ التصريحُ من غيابِه. والتصريحُ الصريحُ «خالي» يُضبَطُ
+                //      أدناه حين يُذكَر.
+                // (EN) Unknown, not Unit: an unmentioned return type means "not declared",
+                //      which is not "declared unit". Conflating them voided the return
+                //      contract for methods — a declared-unit method returning a value
+                //      passed silently while its free-function peer was rejected.
+                Types::SadTypeKind returnType = Types::SadTypeKind::Unknown;
                 std::string returnTypeName;
 
                 // (AR) البحث عن نوع الإرجاع بعد المعاملات مع كلمة "ترجع" الاختيارية
@@ -2264,7 +2287,20 @@ namespace Sad
                     std::string paramName = current_.getValue();
                     advance();
 
-                    Types::SadTypeKind paramType = Types::SadTypeKind::Void;
+                    // (AR) 🔑 والافتراضُ **`Unknown` لا `Unit`**: معاملٌ بلا تنميطٍ
+                    //      معناه «لم يُصرَّحْ نوعُه»، لا «نوعُه خالي». وكان اللفظانِ
+                    //      شيئًا واحدًا يومَ كان `Void` غيرَ مُصنَّفٍ في
+                    //      `isClassified`؛ فلمّا صارَ «خالي» نوعًا مُعلَنًا صارَ
+                    //      «لا أعرف» **يقينًا كاذبًا**، فيُرَدُّ برنامجٌ صحيحٌ:
+                    //      «قالب <نوع ت>» ثمّ «دالة ضاعف(س) ارجع س * 2» تُرفَضُ
+                    //      بـSEM054 «العامل '*' لا يقبل 'خالي'» (مقيس). ونظيرُه
+                    //      السليمُ في `parser_helpers.cpp:1535`.
+                    // (EN) Unknown, not Unit: an untyped parameter means "no type was
+                    //      declared", not "its type is unit". The two were one while
+                    //      Void was unclassified; once Unit became a classified kind,
+                    //      "don't know" turned into a false certainty and rejected
+                    //      correct programs (measured).
+                    Types::SadTypeKind paramType = Types::SadTypeKind::Unknown;
                     if (match(TT::COLON))
                     {
                         if (isTypeToken(current_.getType()))
@@ -2304,7 +2340,17 @@ namespace Sad
 
             // (AR) تحليل نوع الإرجاع — يأتي مباشرة بعد القوس (بدون سهم)
             // (EN) Parse return type — bare type after closing paren (no arrow)
-            Types::SadTypeKind returnType = Types::SadTypeKind::Void;
+            // (AR) 🔑 والافتراضُ **`Unknown` لا `Unit`**: عائدٌ غيرُ مذكورٍ معناه
+            //      «لم يُصرَّحْ»، وهو غيرُ «صُرِّحَ خالي». وخلطُهما يُبطِلُ عقدَ
+            //      العائدِ للطرائقِ خاصّةً: «صنف أ / دالة خالي م() ارجع 5» كانت
+            //      تمرُّ **صامتةً** بينما نظيرتُها الحرّةُ تُرَدُّ بـSEM055 — إذ لا
+            //      يتمايزُ التصريحُ من غيابِه. والتصريحُ الصريحُ «خالي» يُضبَطُ
+            //      أدناه حين يُذكَر.
+            // (EN) Unknown, not Unit: an unmentioned return type means "not declared",
+            //      which is not "declared unit". Conflating them voided the return
+            //      contract for methods — a declared-unit method returning a value
+            //      passed silently while its free-function peer was rejected.
+            Types::SadTypeKind returnType = Types::SadTypeKind::Unknown;
             if (isTypeToken(current_.getType()))
             {
                 returnType = mapTokenTypeToKind(current_.getType());

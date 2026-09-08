@@ -33,7 +33,7 @@
 #include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (RUN_METHOD_NOT_FOUND)
 #include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 #include "error_codes.h"   // (AR) ErrorCode::RUN_METHOD_NOT_FOUND
-#include "types/type.h"    // (AR) typeKindToArabic — اسمُ النوعِ بالعربيّة في التشخيص
+#include "sad_type_kind_generated.h" // (AR) sadTypeKindArabicName — اسمُ النوعِ من مصدرِ الحقيقة
 #include "builders/builtin_arity_check.h" // (AR) فحصُ رتبةِ طريقةِ النوعِ من مصدرِ الحقيقة
 #include "sad_debug_log.h"
                            //      (‏sirTypeToString يُرجع اسمًا خلفيًّا إنجليزيًّا كـ«i64»)
@@ -674,7 +674,7 @@ namespace Sad
 
                 // (AR) تحديد نوع الإرجاع
                 // (EN) Determine return type
-                SadTypeKind returnType = SadTypeKind::Void;
+                SadTypeKind returnType = SadTypeKind::Unit;
                 if (b_.functionTable_.find(fullMethodName) != b_.functionTable_.end())
                 {
                     returnType = b_.functionTable_[fullMethodName].returnType;
@@ -699,7 +699,7 @@ namespace Sad
                 // (EN) Track closure lambda name and return type
                 //      Needed for higher-order array methods (map/filter/reduce/forEach)
                 std::string firstClosureLambdaName;
-                SadTypeKind firstClosureRetType = SadTypeKind::Void;
+                SadTypeKind firstClosureRetType = SadTypeKind::Unit;
                 // (② rfcs#46) اسم أوّل معالِجٍ (لامدا أو دالّة مسمّاة مرجعيّة) لبصمة حدث
                 //   الواجهة؛ منفصلٌ عن firstClosureLambdaName كي لا يمسّ طرقَ المصفوفات العليا.
                 std::string firstEventHandlerName;
@@ -794,7 +794,7 @@ namespace Sad
                             if (i < fwdDefaulted.size() && fwdDefaulted[i] &&
                                 fwdParams[i].type == SadTypeKind::Integer &&
                                 args[i].dataType != SadTypeKind::Integer &&
-                                args[i].dataType != SadTypeKind::Void &&
+                                args[i].dataType != SadTypeKind::Unit &&
                                 args[i].dataType != SadTypeKind::Unknown)
                             {
                                 fwdParams[i].type = args[i].dataType;
@@ -919,8 +919,8 @@ namespace Sad
                                     methodCallExpr->object.get()))
                             {
                                 VariableInfo *arrVar = b_.lookupVariable(varExpr->name);
-                                if (arrVar && arrVar->elementType == SadTypeKind::Void &&
-                                    args.size() > 1 && args[1].dataType != SadTypeKind::Void)
+                                if (arrVar && arrVar->elementType == SadTypeKind::Unknown &&
+                                    args.size() > 1 && args[1].dataType != SadTypeKind::Unit)
                                 {
                                     arrVar->elementType = args[1].dataType;
                                 }
@@ -975,7 +975,7 @@ namespace Sad
                         Sad::Errors::RenderContext ctx;
                         ctx.placeholders = {
                             {"method", methodName},
-                            {"class", Sad::TypeSystem::typeKindToArabic(objResult.type)},
+                            {"class", Sad::Types::sadTypeKindArabicName(objResult.type)},
                             {"suggestion_clause", ""},
                             {"suggestion_clause_en", ""}};
                         b_.errors_.push_back(
@@ -1377,7 +1377,7 @@ namespace Sad
                     Sad::Errors::RenderContext ctx;
                     ctx.placeholders = {
                         {"method", methodCallExpr->methodName},
-                        {"class", Sad::TypeSystem::typeKindToArabic(objResult.type)},
+                        {"class", Sad::Types::sadTypeKindArabicName(objResult.type)},
                         {"suggestion_clause", ""},
                         {"suggestion_clause_en", ""}};
                     b_.errors_.push_back(
@@ -1689,7 +1689,7 @@ namespace Sad
                 //      onto the method-call result so a later index reads the slot tagged,
                 //      not as an integer (sibling of call_main for free functions).
                 if (ftIt != b_.functionTable_.end() &&
-                    ftIt->second.returnElementType != SadTypeKind::Void)
+                    ftIt->second.returnElementType != SadTypeKind::Unknown)
                 {
                     methodResult.elementType = ftIt->second.returnElementType;
                 }

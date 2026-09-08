@@ -124,8 +124,17 @@ namespace Sad
                 // (AR) استنتاج نوع الإرجاع إذا لم يُحدد
                 // (EN) Infer return type if not specified
                 SadTypeKind returnType;
-                if (operatorDecl->returnType == Types::SadTypeKind::Unknown ||
-                    operatorDecl->returnType == Types::SadTypeKind::Void)
+                // (AR) 🔑 و«خالي» **تصريحٌ مُحترَم** لا غيابُ تصريح: بعدَ أن
+                //      صارَ المحلِّلُ يفرّقُ بينهما (`Unknown` لِما لم يُذكَرْ)،
+                //      بقاءُ `|| Unit` ههنا يجعلُ استنتاجَ الجسمِ **يدوسُ**
+                //      تصريحًا صريحًا — وهو العطبُ نفسُه الذي أُصلِحَ للدوالِّ
+                //      الحرّةِ وبقيَ حيًّا في ستّةِ مواضع.
+                // (EN) A declared Unit is an HONOURED declaration, not its
+                //      absence: with the parser now separating the two, keeping
+                //      `|| Unit` let body inference override an explicit
+                //      declaration — the defect fixed for free functions and
+                //      left live at six sites.
+                if (operatorDecl->returnType == Types::SadTypeKind::Unknown)
                 {
                     auto savedClassName = b_.currentClassName_;
                     b_.currentClassName_ = classDecl->name;
@@ -150,7 +159,7 @@ namespace Sad
                     SadTypeKind paramType = b_.astTypeToSIRType(param.type);
                     // (AR) معاملات العوامل بدون نوع صريح → I64 افتراضياً (الكائنات تُمرر كـ i64 pointer)
                     // (EN) Operator params without explicit type → default to I64 (objects passed as i64 pointer)
-                    if (paramType == SadTypeKind::Void)
+                    if (paramType == SadTypeKind::Unit)
                     {
                         paramType = SadTypeKind::Integer;
                     }
@@ -210,7 +219,7 @@ namespace Sad
                         paramInfo.type = b_.astTypeToSIRType(param.type);
                         // (AR) معاملات العوامل بدون نوع صريح → I64
                         // (EN) Operator params without explicit type → I64
-                        if (paramInfo.type == SadTypeKind::Void)
+                        if (paramInfo.type == SadTypeKind::Unit)
                         {
                             paramInfo.type = SadTypeKind::Integer;
                         }
@@ -244,7 +253,7 @@ namespace Sad
                             opSym != "[]" && opSym != "[]=" && opSym != "()" &&
                             opSym != "**" && opSym != "<<" && opSym != ">>";
                         if (paramIsClassPeer &&
-                            (param.type == Types::SadTypeKind::Unknown || param.type == Types::SadTypeKind::Void ||
+                            (param.type == Types::SadTypeKind::Unknown || param.type == Types::SadTypeKind::Unit ||
                              param.type == Types::SadTypeKind::Class))
                         {
                             b_.classInstanceTypes_[param.name] = classDecl->name;
@@ -296,7 +305,7 @@ namespace Sad
                         if (!hasTerminator)
                         {
                             SIRInstruction retInst;
-                            if (returnType == SadTypeKind::Void)
+                            if (returnType == SadTypeKind::Unit)
                             {
                                 retInst.opcode = SIROpcode::RET_VOID;
                             }

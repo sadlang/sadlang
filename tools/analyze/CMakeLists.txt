@@ -37,12 +37,12 @@ target_include_directories(sad_analyze_engine PUBLIC
 )
 
 # (AR) م4 (RFC sadlang-rfcs#10): أداة التحليل الساكن لا تستعمل رموز المفسّر ⇒ تربط
-#      sad_shared + sad_type_system بدل sad_core (المفسّر الكامل).
+#      sad_shared + sad_shared بدل sad_core (المفسّر الكامل).
 # (EN) Phase-4: static-analysis tool uses no interpreter symbols ⇒ links sad_shared
-#      + sad_type_system instead of sad_core.
+#      + sad_shared instead of sad_core.
 target_link_libraries(sad_analyze_engine PUBLIC
     sad_shared
-    sad_type_system
+
 )
 
 target_compile_features(sad_analyze_engine PUBLIC cxx_std_17)

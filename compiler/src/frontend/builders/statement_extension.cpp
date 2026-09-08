@@ -73,7 +73,7 @@ namespace Sad
 
                         // (AR) استنتاج نوع الإرجاع
                         // (EN) Infer return type
-                        SadTypeKind inferredReturnType = SadTypeKind::Void;
+                        SadTypeKind inferredReturnType = SadTypeKind::Unit;
                         if (funcDecl->body)
                         {
                             inferredReturnType = b_.inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);

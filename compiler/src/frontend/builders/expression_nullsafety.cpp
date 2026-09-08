@@ -5,6 +5,7 @@
 // ============================================================================
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
+#include "builders/template_builder.h" // (AR) fieldKindIsReadAsDeclared — قلبُ قائمةِ السماحِ الواحد
 #include "error_catalog.h" // (AR) getTemplate(code)->id — الرمزُ من الكتالوج لا حرفًا
 #include "error_manager.h" // (AR) reportFromCatalog + buildBilingualMessage
 #include "sad_debug_log.h"
@@ -85,10 +86,43 @@ namespace Sad
                             memberType = fieldIt->second;
                     }
                 }
-                const bool useDyn = (memberType == SadTypeKind::String ||
-                                     memberType == SadTypeKind::Integer ||
-                                     memberType == SadTypeKind::Float ||
-                                     memberType == SadTypeKind::Boolean);
+                // ═══════════════════════════════════════════════════════════
+                // (AR) 🔑 `Unit` تنضمُّ — وهذه **النسخةُ الرابعةُ** من قائمةِ
+                //      السماحِ نفسِها، ولم تكن مُسمّاةً في أيِّ تعليق.
+                //
+                //      الثلاثُ المعروفةُ قارئانِ للحقلِ وكاتبٌ له؛ وهذه رابعةٌ في
+                //      مسارٍ **مختلفٍ كلَّ الاختلاف**: الوصولُ الآمن `؟.`.
+                //      فمن أحصى القوائمَ بالبحثِ عن «الحقلِ» لم يجدْها.
+                //
+                //   ⚠️ **والاتّجاهُ هو أسوأُ ما فيها**: `ك.ح` يُجيبُ «خالي»
+                //      و`ك؟.ح` يُجيبُ «رقم» (مقيسٌ 2026-09-07) — أي أنّ الصيغةَ
+                //      **الآمنةَ تُتلِفُ ما تُصيبُه الخامّة**. والكاتبُ يختارُ
+                //      `؟.` حرصًا، فيُعاقَبُ على حرصِه بنوعٍ كاذب.
+                //
+                //   📌 و`مصفوفة` تُخطئُ ههنا كذلك (مقيس) ولم تُضَفْ: التعليقُ
+                //      فوقَ هذا السطرِ يُصرِّحُ أنّ الأعضاءَ الكائنيّةَ والمصفوفيّةَ
+                //      تبقى على مسارِ `i64` **عمدًا** (بلا انحدار). فتوسيعُها
+                //      قرارُ تمثيلٍ يُقاسُ وحدَه، لا سطرٌ يُدَسُّ في رقعةِ وحدة.
+                // (EN) Unit joins — and this is the FOURTH copy of the same allow-list,
+                //      named in no comment. The three known ones are two field readers
+                //      and a field writer; this one lives on a wholly different path,
+                //      optional chaining, so whoever enumerated the lists by searching
+                //      for "field" never found it. The direction is the worst part:
+                //      `k.f` answers «خالي» while `k?.f` answers «رقم» — the SAFE form
+                //      corrupts what the raw form gets right, so an author who reaches
+                //      for `?.` out of caution is punished with a lying type. Array is
+                //      wrong here too and is deliberately NOT added: the comment above
+                //      states that object/array members stay on the i64 path on purpose.
+                // ═══════════════════════════════════════════════════════════
+                // (AR) والقائمةُ من قلبِها الواحد، و`مصفوفة` مستثناةٌ ههنا بالسببِ
+                //      المُدوَّنِ أعلاه فيُمرَّرُ صريحًا؛ و`رقم` يبقى مذكورًا لأنّه
+                //      قناةُ هذا المسارِ الافتراضيّةُ لا استثناءً من القائمة.
+                // (EN) From the single heart; Array's exclusion is passed explicitly for
+                //      the documented reason above, and Integer stays because it is this
+                //      path's default channel, not an allow-list exception.
+                const bool useDyn = (memberType == SadTypeKind::Integer ||
+                                     TemplateBuilder::fieldKindIsReadAsDeclared(
+                                         memberType, /*arrayReadsAsDeclared=*/false));
                 const SadTypeKind accessType = useDyn ? memberType : SadTypeKind::Integer;
                 const SadTypeKind nullIncomingType = useDyn ? SadTypeKind::Null : SadTypeKind::Integer;
                 const SadTypeKind resultType = useDyn ? SadTypeKind::Any : SadTypeKind::Integer;
@@ -446,6 +480,47 @@ namespace Sad
                     return leftResult;
                 }
 
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 و«خالي» أولى بهذا القِصَرِ من المنطقيّ: قيمتُه **واحدةٌ
+                //      وحاضرةٌ دائمًا**، فلا تكونُ «لاشيء» أبدًا — والعاملُ `؟؟`
+                //      سؤالُه «أغائبٌ هو؟» وجوابُه ههنا معلومٌ سكونيًّا: لا.
+                //
+                //      ومقيسٌ (2026-09-07) أنّ غيابَ هذه الذراعِ كان يُخرِجُ
+                //      **جوابًا ثالثًا لا هو اليسارُ ولا اليمين**:
+                //          `وحدة() ؟؟ 5`  ⇒  يطبعُ `0`
+                //      لا `()` ولا `5`. والسببُ أنّ الخانةَ حاملُ `i8` يُقارَنُ
+                //      بحارسِ العدمِ `i64`، وهو بعينُه بترُ الحارسِ الموصوفُ
+                //      أعلاه للمنطقيّ — فالعلّةُ واحدةٌ والذراعُ واحدة.
+                //
+                //      ⚠️ **ولا انهيارَ ولا رفض**: قيمةٌ حاضرةٌ تُقرَأُ غائبةً
+                //      فيُؤخَذُ البديلُ، ثمّ يُطبَعُ صفرٌ ليس هو البديلَ أيضًا.
+                //      وذلك أخطرُ من الانهيارِ: البرنامجُ يمضي بجوابٍ معقولِ
+                //      المظهرِ لا أثرَ فيه للخطأ.
+                // (EN) Unit deserves this short-circuit even more than boolean: it
+                //      has exactly one value and is ALWAYS present, so it is never
+                //      null — and `??` asks precisely "is it absent?", a question
+                //      statically answered here. Measured: without this arm
+                //      `وحدة() ?? 5` printed `0` — neither the left nor the right.
+                //      The cause is the same sentinel truncation described above for
+                //      booleans: an i8 slot compared against the i64 null sentinel.
+                //      Neither a crash nor a rejection: a present value read as
+                //      absent, then a third answer that is not even the fallback.
+                // ════════════════════════════════════════════════════════════
+                // (AR) ⚠️ والشرطُ **قيمةُ وحدةٍ** لا «النوعُ خالي»: بنّاءُ
+                //      `BuildResult` الافتراضيُّ نوعُه `Unit` وسِجِلُّه فارغ، فصارَ
+                //      **سِجِلُّ الخطأِ وقيمةُ الوحدةِ لا يُفرَّقان**. ومسارُ رفضٍ
+                //      في الطرفِ الأيسرِ كان يُقصَرُ عليه فيُسلَّمُ سِجِلٌّ معدومٌ
+                //      لما بعدَه ⇒ `Register("")` ⇒ «التِّلْو»: تشخيصٌ صحيحٌ يتلوه
+                //      اتّهامٌ كاذبٌ للمترجِم.
+                // (EN) The test is a unit VALUE, not the kind: the default BuildResult
+                //      is {Unit, ""}, so an error result and a unit value became
+                //      indistinguishable, and a rejected left operand short-circuited
+                //      into an empty register name — the التِّلْو shape.
+                if (leftResult.isUnitValue())
+                {
+                    return leftResult;
+                }
+
                 // (AR) إنشاء الكتل: فحص null → يسار / يمين
                 // (EN) Create blocks: null check → left / right
                 std::string leftLabel = b_.newLabel("nc_left");
@@ -548,7 +623,7 @@ namespace Sad
                 // (EN) When the left is the literal null, the result always comes from the
                 //      right, so adopt the right's type — otherwise a boolean/float fallback
                 //      is mis-typed as i64 and corrupted at MOVE (e.g. "true" fails stoll→0).
-                if (resultType == SadTypeKind::Void || resultType == SadTypeKind::Unknown ||
+                if (resultType == SadTypeKind::Unit || resultType == SadTypeKind::Unknown ||
                     resultType == SadTypeKind::Null)
                 {
                     resultType = rightResult.type;

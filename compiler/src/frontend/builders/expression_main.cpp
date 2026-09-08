@@ -456,7 +456,7 @@ namespace Sad
                     //      read as an integer whatever it holds — measured: 2.5 → 2, and a
                     //      string → an address.
                     // ════════════════════════════════════════════════════════
-                    SadTypeKind promiseValueType = SadTypeKind::Void;
+                    SadTypeKind promiseValueType = SadTypeKind::Unit;
                     if (auto *innerCall =
                             dynamic_cast<Sad::AST::CallExpr *>(awaitExpr->expression.get()))
                     {
@@ -480,7 +480,7 @@ namespace Sad
                     //      وُضِع لقيمةٍ **ليست وعدًا** أصلًا، ولو سبقَ لَابتلعَ الانتظارَ.
                     // (EN) The coroutine case precedes the scalar identity path below, which
                     //      exists for values that are NOT promises and would swallow the await.
-                    if (promiseValueType != SadTypeKind::Void)
+                    if (promiseValueType != SadTypeKind::Unit)
                     {
                         std::string coroResultReg = b_.newTempRegister();
                         SIRInstruction coroSuspend;

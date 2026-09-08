@@ -42,12 +42,39 @@ dyn_kinds:
   #      here — lifting it as 6 would make native's Void read as LLVM's Map, the
   #      exact silent tag-space drift this file exists to prevent (static_assert
   #      guards it there).
-  - { name: kDynKindVoid, value: 9, ar: "فراغ (Void) — «لا قيمةَ هنا» (مفتاحُ خريطةٍ غائب)، متمايزٌ عن «عدم» القيمةِ الصريحة؛ كلاهما يُعرَض «لاشيء»" }
+  - { name: kDynKindMissing, value: 9, ar: "مفقود (Missing) — «لا قيمةَ هنا» (مفتاحُ خريطةٍ غائب)، متمايزٌ عن «عدم» القيمةِ الصريحة؛ كلاهما يُعرَض «لاشيء». 🔑 وكان اسمُه kDynKindVoid وحُذف اللفظُ لا السلوك: «فراغ» زالَ من اللغةِ (2026-09-07) وحلَّ محلَّه «خالي» نوعَ قيمةٍ كامل، وهذا الحارسُ الزمنيُّ **شيءٌ آخر** — غيابُ مفتاحٍ لا قيمةُ وحدة" }
+  # (AR) 🔑 وسمُ قيمةِ الوحدة «خالي» — وُلِد 2026-09-07 حين سُدَّ دَينٌ مُعلَنٌ في
+  #      `sad_dyn_repr.cpp`: كان نوعُ الوحدةِ يُوسَمُ بوسمِ **الغياب** (Missing)،
+  #      فيصيرُ `نوع(مفتاحٍ غائبٍ من خريطة)` يطبعُ «خالي» — أي **قيمةٌ حقيقيّةٌ
+  #      لا تُميَّزُ عن لا‑قيمة**. وكان يُدوَّنُ أنّ سدَّه «يلزمُه اسمٌ سطحيٌّ في
+  #      مصدرِ الحقيقة» — والاسمُ كان مُعلَنًا سلفًا في موضعَين: `types.yaml`
+  #      يُسمّي النوعَ «خالي»، وهذا الملفُّ يُعلِن عرضَه `kUnitDisplay`. فلم يكن
+  #      الدَّينُ قرارَ لغةٍ بل خانةَ وسمٍ لم تُحجَز.
+  #      والقيمةُ 10 لا 6: الستُّ إلى الثامنةِ محجوزةٌ لوسومِ LLVM كما أعلاه.
+  # (EN) Unit («خالي») runtime tag. Before this, unit borrowed the ABSENCE tag,
+  #      so an absent map key and a real unit value were indistinguishable.
+  - { name: kDynKindUnit, value: 10, ar: "خالي (Unit) — قيمةُ الوحدة، القيمةُ الوحيدةُ لنوعِ `خالي`؛ تُعرَض «()». متمايزةٌ عن «مفقود» (لا قيمة) وعن «عدم» (قيمةٌ فارغةٌ صريحة)" }
 
 # (AR) نصوصُ عرضِ القيم (ما تُنتجه «نص()»/الطباعة لقيمةٍ) — قيمٌ مرئيّةٌ للمستخدم.
 #      «عدم»/«فراغ» أسماءُ أنواعٍ لا عرضُ قيمة ⇒ لا تُدرَج هنا.
 # (EN) User-facing value display texts (what نص()/print emit for a value).
 display_texts:
+  # (AR) 🔑 عرضُ قيمةِ الوحدة «خالي» — نصٌّ مرئيٌّ للمستعمِل يُعلَن ههنا لا يُؤلَّف
+  #      في الخلفيّة. وهو «()» نفسُها: اللفظُ الذي يكتبه المستعمِلُ هو الذي يقرؤه،
+  #      فلا يتعلّم صيغتَين لشيءٍ واحد. وكان «نص(())» يطبعُ **عنوانًا** لأنّ «()»
+  #      كانت تُخصَّصُ صفًّا في الكومة (مقيسٌ 2026-09-07: 3142254033712).
+  # (EN) Display of the unit value «خالي» — a user-visible string declared here, not
+  #      composed in the backend. It is «()» itself: what the user writes is what the
+  #      user reads. «نص(())» used to print a heap ADDRESS.
+  # (AR) 🔑 اسمُ النوعِ الذي يُجيبُ به `نوع()` لوسمِ **الغياب** — وليس عرضَ قيمة.
+  #      وقبلَ 2026-09-07 كان يُجيبُ «فراغ»، ثمّ زالَ اللفظُ من اللغةِ فورِثَ الوسمُ
+  #      اسمَ **نوعِ الوحدة** «خالي» — أي صارَ غيابُ المفتاحِ يُسمّى باسمِ قيمةٍ
+  #      حقيقيّة. والاسمُ المستقلُّ يردُّ التمييزَ الذي وُضِعَ الوسمُ لأجلِه أصلًا.
+  # (EN) The type name typeof() answers for the ABSENCE tag - not a value display.
+  #      It used to answer «فراغ»; when that word left the language the tag
+  #      inherited the UNIT type name, i.e. an absence named after a value.
+  - { name: kMissingTypeName,  value: "مفقود", ar: "اسمُ النوعِ لوسمِ الغياب (Missing) — ما يُجيبُ به «نوع()» لمفتاحٍ غائبٍ من خريطة" }
+  - { name: kUnitDisplay,      value: "()",     ar: "عرضُ قيمةِ الوحدة (خالي) — «()»، وهي الصيغةُ التي تُكتَبُ بها" }
   - { name: kNullDisplay,      value: "لاشيء", ar: "عرضُ قيمةِ العدم/الفراغ (Null/Void) — يطابق Value::toString والمفسّر وdynToString" }
   - { name: kBoolTrueDisplay,  value: "صحيح",  ar: "عرضُ القيمةِ المنطقيّةِ الصادقة" }
   - { name: kBoolFalseDisplay, value: "خطأ",   ar: "عرضُ القيمةِ المنطقيّةِ الكاذبة" }

@@ -9,18 +9,18 @@ guard: scripts/codegen/check_grammar_terminal_refs.py
 harness: scripts/codegen/calibrate_grammar_terminal_refs.py
 guard_sha256: 481f029de83273327d6da79eead8751afc1e96bfc1c2e9c1f25d03f467fdb7c9
 harness_sha256: 0d66890b706396dcc4a3731a2900917715be9a74e48844d24a43eaf68c69cd8c
-calibrated_at: 2026-09-06
+calibrated_at: 2026-09-07
 probes_total: 19
 probes_passed: 19
 result: 19/19
 targets_sha256:
-  language-truth/grammar/60_advanced.yaml: 81434d1bd4f5587a1db539d5499c61fbf36161bb60058246da1ff9ca2cff3fec
+  language-truth/grammar/60_advanced.yaml: f736d3e55e2c5b7e8910b1bf96ac3346e2850d4be176989ba32136394c60c130
   language-truth/grammar/_notation.yaml: 7b6ca155f13f67458009ea74877150991fa1415c506e3c11d5fe170759861958
-  language-truth/keywords.yaml: 9b8ac51bbd87e68fdd5a67b33c05977d1041f4c6ef918ec5cd9a8260ed36693f
-  language-truth/operators.yaml: ce1f556bd699769ff2592457ef3de255310b5a5b48865a5cbf78a9c6d6b67f8a
+  language-truth/keywords.yaml: 21a516ed37402747abe4ce5736abd0858204d808b5f316e60c2bb44da3c921d9
+  language-truth/operators.yaml: b3c41d3e162ac33bbe624e092a2e488bcfa606b522a05e168c418a643bc91ef0
   scripts/codegen/_lib/calibration.py: 4a1ea36c8d928fdf3193300df557e5db99af52842a2888eeedcdd756028fbf34
   scripts/codegen/_lib/guard_exit.py: cd19d6a1a3634f9f76e77440b3570a2627aa7bba120f3129db15469568fa133a
-  shared/lexer/include/token.h: 8ad039b59bc710e6e90d5e55341d4be5ce19a3347f1e19be8d59db1a7bc775bf
+  shared/lexer/include/token.h: 55495b39ff935763ab46cb0158fda3e92e622950e7175f9a63db95c72d1e55b5
 probes:
   - name: "① إحالةٌ شبحيّةٌ في `ref` تُحمِّر"
     target: language-truth/grammar/60_advanced.yaml

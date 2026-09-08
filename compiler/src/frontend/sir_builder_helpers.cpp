@@ -149,8 +149,8 @@ namespace Sad
                 {
                 // ─── هويّة: أنواعٌ لها تمثيلٌ أوّليٌّ في SIR وفي مُخطِّط أنواع LLVM ───
                 // ─── Identity: kinds with a first-class SIR / LLVM lowering ───
-                case Types::SadTypeKind::Void:
-                    return SadTypeKind::Void;
+                case Types::SadTypeKind::Unit:
+                    return SadTypeKind::Unit;
                 case Types::SadTypeKind::Integer:
                     return SadTypeKind::Integer;
                 case Types::SadTypeKind::Float:
@@ -554,10 +554,37 @@ namespace Sad
             // (EN) The single dynamic-slot door (ISSUE-138 + SEM045): a typeless
             //      slot — with no initializer, or with a Void-inferred one
             // ================================================================
+            bool SIRBuilder::initializerYieldsValueSyntactically(
+                const Sad::AST::Expression *init, SadTypeKind resolvedKind)
+            {
+                // (AR) ما ليس وحدةً فهو قيمةٌ قطعًا — لا سؤالَ فيه.
+                // (EN) Anything not Unit is unambiguously a value.
+                if (resolvedKind != SadTypeKind::Unit || init == nullptr)
+                {
+                    return true;
+                }
+                // (AR) «()» صفٌّ فارغٌ في الشجرةِ وهي قيمةٌ حقيقيّة؛ ونداءٌ نتيجتُه
+                //      وحدةٌ لا يُنتِجُ شيئًا يُقرَأ. وهذا هو الفصلُ نفسُه الذي
+                //      يقيمُه `BuildResult::isAbsentValue` بالسِّجِلّ — غيرَ أنّ
+                //      السِّجِلَّ غيرُ موجودٍ في المسارِ العامِّ ولا في المسحِ
+                //      التمهيديّ، فيُقامُ ههنا بالشكل.
+                // (EN) «()» is an empty TupleExpr and a real value; a Unit-returning
+                //      call yields nothing readable. Same split as
+                //      BuildResult::isAbsentValue, made syntactically because no
+                //      register exists on the global/pre-scan paths.
+                if (dynamic_cast<const Sad::AST::TupleExpr *>(init) != nullptr)
+                {
+                    return true;
+                }
+                return dynamic_cast<const Sad::AST::CallExpr *>(init) == nullptr &&
+                       dynamic_cast<const Sad::AST::MethodCallExpr *>(init) == nullptr;
+            }
+
             SadTypeKind SIRBuilder::resolveBareSlotStorageKind(
                 const Sad::Types::SadTypeKind &declaredKind,
                 bool hasInitializer,
-                SadTypeKind resolvedKind)
+                SadTypeKind resolvedKind,
+                bool initializerYieldsValue)
             {
                 // (AR) الشرطان لازمان معًا: `Unknown` **مع** مُهيِّئٍ يستبدله الاستنتاجُ
                 //      فعلًا فلا يُمَسّ، و`Unknown` بلا مُهيِّئٍ لا يستبدله شيء.
@@ -580,11 +607,50 @@ namespace Sad
                 //      a lying zero. The measured interpreter makes the slot dynamic,
                 //      holding Void (نوع()=فراغ, prints «لاشيء», ==null false) — exactly
                 //      the ISSUE-138 dynamic-slot contract, so it becomes Any (%SadDyn).
-                if (declaredKind == Types::SadTypeKind::Unknown &&
-                    resolvedKind == SadTypeKind::Void)
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 والفارقُ الحاسمُ **قيمةٌ أم لا قيمة**، لا النوعُ وحدَه:
+                //      • «متغير س = فراغية()» — نداءٌ لا يُنتِجُ قيمةً أصلًا: لا سجلَّ
+                //        يُقرَأُ، فتبقى الخانةُ ديناميّةً (`أي`) تحملُ حارسَ الغياب،
+                //        ويبقى الأثرُ الجانبيُّ للنداء. وهذه هي الحالُ التي وُجِدَ
+                //        التحويلُ لأجلِها، وهي قائمةٌ لم تتغيّر.
+                //      • «متغير ف = ()» — قيمةُ وحدةٍ لها سجلٌّ حقيقيّ: الخانةُ
+                //        تحملُها نوعًا (`خالي`)، وتحويلُها إلى `أي` **يُتلِفُها**.
+                //      ⚠️ وأوّلُ رقعةٍ لهذا أسقطت التحويلَ للحالتَينِ معًا فانفجرَ
+                //        المولِّدُ بـINT007 على `102_void_bare_slot_and_indexed_write.ص`
+                //        (مقيسٌ 2026-09-07): رقعةٌ أوسعُ من علّتِها تُصلِحُ عطبًا
+                //        وتفتحُ آخر.
+                // (EN) The decisive distinction is VALUE vs NO VALUE, not the type alone.
+                //      A value-less call has no readable register, so its slot stays
+                //      dynamic — that is the case this coercion exists for, unchanged.
+                //      A unit VALUE has a real register and must keep its type; coercing
+                //      it destroys it. The first patch dropped the coercion for BOTH and
+                //      blew up codegen with INT007 — a patch wider than its defect.
+                if (!initializerYieldsValue)
                 {
                     return SadTypeKind::Any;
                 }
+                // (AR) 🔑 وقد **زالت علّةُ هذا التحويلِ** لقيمةِ الوحدةِ (2026-09-07): كان يُحوَّلُ
+                //      إلى `أي` لأنّ خانةَ Void «تُفجّر LLVM» ولا تمثيلَ لها. واليومَ
+                //      «خالي» نوعُ الوحدة — **قيمةٌ لها تمثيلُ تخزينٍ حقيقيّ** (`i8`
+                //      في الخانتَينِ العامّةِ والمحلّيّة)، فالخانةُ تحملُه بلا انفجار.
+                //      والتحويلُ إلى `أي` صارَ **يُتلِفُ القيمة**: تُوسَمُ الخانةُ
+                //      الديناميّةُ بحارسِ الغيابِ فتُقرَأُ «لاشيء» لا «()»، ويُرفَض
+                //      «طول(ف)» زمنيًّا بـRUN033 «النوع NULL غير مدعوم».
+                //      ومقيسٌ أنّ العطبَ كان **نصفيًّا فيبدو سليمًا**: «خالي ف = ()»
+                //      يعملُ لأنّ نوعَه مُصرَّح، و«متغير ف = ()» يكذبُ لأنّ الاستنباطَ
+                //      يمرُّ ههنا. والتصريحُ الصادقُ بجانبِ استنباطٍ كاذبٍ أخطرُ من
+                //      عطبٍ يعمُّ الاثنَين: نصفُه العاملُ يشهدُ زورًا أنّ الميزةَ تعمل.
+                //      ⚠️ ويبقى تحويلُ **النداءِ الذي لا يُنتِجُ قيمة** قائمًا: ذاك
+                //      لا سجلَّ له، ويقعُ حكمُه في مواضعِ التخزينِ لا ههنا.
+                // (EN) The reason for this coercion is GONE (2026-09-07): it existed
+                //      because a Void slot had no representation and tripped LLVM. Unit
+                //      now HAS a storage representation (i8, both global and local), so
+                //      the slot holds it. Coercing to Any now DESTROYS the value: the
+                //      dynamic slot is tagged with the absence sentinel, reads back as
+                //      «لاشيء» instead of «()», and طول(ف) is rejected with RUN033.
+                //      The bug was HALF-working and therefore convincing: the annotated
+                //      form told the truth while inference lied.
+                // ════════════════════════════════════════════════════════════════
                 return resolvedKind;
             }
 

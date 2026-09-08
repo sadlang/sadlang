@@ -1,0 +1,75 @@
+# @rule: gr.oop.field
+# @description: حقلٌ نوعُه «خالي» يحملُ قيمةَ الوحدةِ — لا صفرًا ولا غيابًا
+# @priority: P0
+# @expected خالي\n()\nلا يساوي صفرا\nوحدة\n9
+
+# ============================================================
+# (AR) 🔑 هذه البذرةُ تحرسُ ما لم تكن في المستودعِ كلِّه بذرةٌ تمسُّه:
+#      **نوعُ الوحدةِ في موضعِ حقل**. وقد قِيسَ (2026-09-07) أنّ بذورَ
+#      `خالي` الثمانَ عشرةَ كلَّها في `10_statements` و`20_declarations`
+#      و`40_expressions`، و**صفرٌ منها في `30_oop`** — وهناك بعينِه كانت
+#      الأعطابُ الأربعةُ التي سُدَّت. فموضعُ الصمتِ في الاختبارِ كان موضعَ
+#      العطبِ حرفًا بحرف، وليس ذلك مصادفةً بل هو الآليّة.
+#
+#      وكان `متغير خالي ح` يُقرَأُ **«رقم»** ويطبعُ **`0`**، و`ح + 1`
+#      يطبعُ `1` — قيمةٌ مُلفَّقةٌ لا حمولةَ لها أصلًا. وأخبثُ منه أنّ
+#      الخانةَ كانت تُجيبُ **بنوعَينِ متناقضَينِ حسبَ مَن يسأل**: حارسُ
+#      التساوي في الخلفيّةِ يحكمُ بنوعِ المُعامِلِ فيرى وحدةً، و`نوع()`
+#      يقولُ «رقم»، و`== 0` يُجيبُ صحيحًا كذلك.
+#
+#   ⚠️ **والجذرُ ثلاثُ نسخٍ من قائمةِ سماحٍ واحدة**: قارئانِ متوأمانِ
+#      (`expression_members.cpp` و`expression_objects.cpp`) وكاتبٌ
+#      (`statement_types.cpp`)، تبدأ ثلاثتُها بـ«رقم» ثمّ تستثني أنواعًا
+#      مُسمّاةً واحدًا واحدًا. فأُصلِحَ القارئانِ **فلم يتغيّرِ المخرَجُ حرفًا
+#      في المرّتَين** — القارئُ لا يقرأُ إلّا ما كُتِب. ولم يكشفْ ذلك إلّا
+#      مخرَجُ LLVM: `%class = type { ptr, i64 }`.
+#      🔑 والدرس: **حين تُصلِحُ قارئًا فلا يتغيّرُ شيءٌ فالكاتبُ هو المتّهمُ
+#      لا رقعتُك**؛ والبحثُ عن «نوعٍ غائبٍ من قائمة» ينتهي عندَ أوّلِ قائمةٍ
+#      يجدُها الباحثُ، والقوائمُ ثلاث.
+#
+#   🔑 و«لا مُهيِّئَ لها» شقٌّ ثانٍ: `memset(0)` يترك الوسمَ صفرًا،
+#      **والصفرُ في فضاءِ الأوسامِ غيابٌ لا وحدة**، فكانت تُقرَأُ «عدم».
+#      والوحدةُ أوضحُ أنواعِ اللغةِ في هذا الباب: «نص» له قيمةٌ افتراضيّةٌ
+#      **مختارة**، وقيمةُ الوحدةِ **مفروضةٌ بتعريفِ النوع** — لا ثانيةَ لها
+#      تُختارُ من بينهما.
+#
+#   والسطرُ الأخيرُ (`9`) ليس زينة: حقلٌ عاديٌّ **بعدَ** حقلِ الوحدة، يحرسُ
+#   ألّا يكونَ تصحيحُ عرضِ خانةِ الوحدةِ قد أزاحَ تخطيطَ البنية.
+# (EN) The first seed in the repository to touch the unit type in a FIELD
+#      position. Measured: all 18 خالي seeds lived in statements, declarations
+#      and expressions, and ZERO in 30_oop — which is exactly where four
+#      defects were found. A unit field read back as «رقم» and printed 0, and
+#      `f + 1` printed 1: a fabricated value for a type with no payload. Worse,
+#      one slot answered with two contradictory types depending on who asked.
+#      The root was THREE copies of one allow-list: two twin readers and a
+#      writer. Fixing both readers changed the output by not one character,
+#      because a reader can only read what was written. Lesson: when fixing a
+#      reader changes nothing, the WRITER is the suspect, not your patch.
+#      The no-initializer half is separate: memset(0) leaves a zero tag, and
+#      zero in the TAG space is absence, not the unit — so it read as «عدم».
+#      The trailing 9 guards that fixing the unit slot's width did not shift
+#      the struct layout.
+# ============================================================
+
+بنية ب
+    متغير خالي ح
+    متغير رقم ع = 9
+نهاية
+
+متغير ك = ب()
+اطبع_سطر(نوع(ك.ح))
+اطبع_سطر(ك.ح)
+
+اذا (ك.ح == 0)
+    اطبع_سطر("يساوي صفرا")
+والا
+    اطبع_سطر("لا يساوي صفرا")
+نهاية
+
+اذا (ك.ح == ())
+    اطبع_سطر("وحدة")
+والا
+    اطبع_سطر("ليست وحدة")
+نهاية
+
+اطبع_سطر(ك.ع)

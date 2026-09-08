@@ -125,7 +125,7 @@ namespace sad
         ///
         /// كل نوع بيانات في لغة ص له اسم عربي يُعرض في LSP:
         ///   INTEGER → "رقم"    | FLOAT → "عشري"   | STRING → "نص"
-        ///   BOOLEAN → "منطقي"  | VOID → "فراغ"    | NULL → "عدم"
+        ///   BOOLEAN → "منطقي"  | UNIT → "خالي"    | NULL → "عدم"
         ///   ARRAY → "مصفوفة"   | MAP → "خريطة"    | TUPLE → "صف"
         ///   FUNCTION → "دالة"  | OBJECT → "كائن"  | ENUM → "تعداد"
         ///   BYTE → "بايت"      | ERROR → "خطأ"    | غير معروف → "غير_محدد" (مستنتج)
@@ -147,7 +147,7 @@ namespace sad
             case Sad::Types::SadTypeKind::Float:
             case Sad::Types::SadTypeKind::String:
             case Sad::Types::SadTypeKind::Boolean:
-            case Sad::Types::SadTypeKind::Void:
+            case Sad::Types::SadTypeKind::Unit:
             case Sad::Types::SadTypeKind::Array:
             case Sad::Types::SadTypeKind::Map:
             case Sad::Types::SadTypeKind::Tuple:

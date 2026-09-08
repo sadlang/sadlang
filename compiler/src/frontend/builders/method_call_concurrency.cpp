@@ -77,7 +77,7 @@ namespace Sad
 
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_SEND);
-                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Void);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Unit);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(valueOp);
                     if (b_.currentBlock_)
@@ -93,7 +93,7 @@ namespace Sad
                             b_.channelTypeMap_[ident->name] = valueOp.dataType;
                     }
 
-                    return BuildResult(resultReg, SadTypeKind::Void);
+                    return BuildResult(resultReg, SadTypeKind::Unit);
                 }
 
                 // حاول_ارسل / try_send — غير حاجب
@@ -214,11 +214,11 @@ namespace Sad
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_CLOSE);
-                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Void);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Unit);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(resultReg, SadTypeKind::Void);
+                    return BuildResult(resultReg, SadTypeKind::Unit);
                 }
 
                 // مغلقة / isClosed / is_closed
@@ -301,7 +301,7 @@ namespace Sad
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // افتح / unlock
@@ -312,7 +312,7 @@ namespace Sad
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // مقفل / is_locked — يقرأ حالة القفل من بنية [handle, flag]
@@ -370,7 +370,7 @@ namespace Sad
                     inst.operands.push_back(valueOp);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // احصل / get — الحصول على النتيجة (حجب)
@@ -451,7 +451,7 @@ namespace Sad
                     inst.operands.push_back(countOp);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // أنهي / done — إنقاص العداد بواحد
@@ -462,7 +462,7 @@ namespace Sad
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // انتظر / wait — حجب حتى العداد = 0
@@ -472,7 +472,7 @@ namespace Sad
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult("", SadTypeKind::Void);
+                    return BuildResult("", SadTypeKind::Unit);
                 }
 
                 // العداد / count — قراءة العداد الحالي

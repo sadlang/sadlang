@@ -34,16 +34,12 @@
 #include "expressions.h"
 #include "statements.h"
 #include "declarations.h"
-#include "types/type.h"
-#include "types/type_registry.h"
-#include "types/primitive_type.h"
-#include "types/type_inferencer.h"
-#include "types/arabic_types.h"
-#include "types/struct_types.h"
-#include "types/enum_types.h"
-#include "types/generics.h"
-#include "types/trait_system.h"
-#include "types/union_types.h"
+#include "lexer_keywords.h" // (AR) KeywordTable — كلمةُ العمليّةِ من المعجمِ لا سلسلةً
+#include "sad_type_system.h"
+#include "type_environment.h"
+
+#include "trait_system.h"
+
 #include "sad_type_system.h" // (AR) SadTypeKind — محور المدقّق بعد S-TS-P2
 #include "error_codes.h"     // (AR) [أ-م٢] رموز أخطاء الكتالوج (Errors::ErrorCode)
 
@@ -184,6 +180,20 @@ namespace Sad
             void visitIndexExpr(AST::IndexExpr &expr) override;
             void visitMemberExpr(AST::MemberExpr &expr) override;
             void visitMemberAssignExpr(AST::MemberAssignExpr &expr) override;
+            // (AR) 🔑 الصفُّ **الفارغُ** وحدَه يُستنتَجُ ههنا — وهو قيمةُ الوحدة
+            //      «خالي». وكان الفاحصُ **لا يزورُ الصفَّ إطلاقًا**، فيسقطُ `()`
+            //      إلى `Unknown` فيُقرَأُ «لا أعرف» فيوافقُ كلَّ نوع. والأثرُ مقيسٌ
+            //      (2026-09-07): «رقم س = ()» يُقبَلُ ويطبعُ **صفرًا**، و«نص س = ()»
+            //      يُقبَلُ ويطبعُ «لاشيء» — أي أنّ اللغةَ كانت **تختلقُ قيمةً** من
+            //      لا شيءٍ في خانةٍ مكتوبةِ النوع. ⚠️ والصفُّ غيرُ الفارغِ يبقى
+            //      بلا استنتاجٍ عمدًا: عقدُ الصفوفِ المملوءةِ مشروعٌ مستقلٌّ
+            //      (مقيس: «رقم س = (1، 2)» يطبعُ عنوانًا في الذاكرة) فلا يُدَسُّ
+            //      إصلاحُه في رقعةِ نوعِ الوحدة.
+            // (EN) Only the EMPTY tuple is inferred here — it is the unit value.
+            //      The checker never visited tuples at all, so `()` fell back to
+            //      Unknown and matched every type: «رقم س = ()» was accepted and
+            //      printed 0. Non-empty tuples stay uninferred on purpose.
+            void visitTupleExpr(AST::TupleExpr &expr) override;
             void visitArrayExpr(AST::ArrayExpr &expr) override;
             void visitMapExpr(AST::MapExpr &expr) override;
             void visitWalrusExpr(AST::WalrusExpr &expr) override;
@@ -270,28 +280,28 @@ namespace Sad
              * @brief (AR) تحويل SadTypeKind إلى TypePtr من نظام الأنواع المتقدم (S-TS-P2: المحور SadTypeKind)
              * @brief (EN) Convert SadTypeKind to advanced type system TypePtr (S-TS-P2: SadTypeKind-centric)
              *
-             * (AR) قراءات الـAST (DataType) تُجسَّر عبر Types::fromDataType عند نقطة الاستدعاء؛
-             *      هذا الجسر يُحذف في S-TS-P2.5a عند ترحيل حقول الـAST إلى SadTypeKind.
+             * (AR) 🔑 وكان معه غلافٌ اسمُه `dataTypeToTypePtr` لا يفعلُ إلّا نداءَ
+             *      هذه، مكتوبٌ عليه «يُحذف في S-TS-P2.5a» — و`DataType` نفسُه
+             *      حُذف، فبقيَ الغلافُ يحملُ اسمَ نظامٍ لا وجودَ له في عشرين
+             *      موضعَ نداء. حُذف، ونُودِيَت هذه مباشرةً: **صفرُ تغييرٍ في
+             *      السلوك** (الغلافُ كان `return sadKindToTypePtr(dt);` حرفيًّا).
+             * (EN) A wrapper named after the deleted DataType system did nothing
+             *      but call this, at twenty call sites, under a comment saying it
+             *      would be removed. Removed; behaviour identical by inspection.
              */
-            TypeSystem::TypePtr sadKindToTypePtr(Types::SadTypeKind kind) const;
-
-            /**
-             * @brief (AR) جسر حدود الـAST: DataType → SadTypeKind → TypePtr (يُحذف في S-TS-P2.5a)
-             * @brief (EN) AST-boundary bridge: DataType → SadTypeKind → TypePtr (removed in S-TS-P2.5a)
-             */
-            TypeSystem::TypePtr dataTypeToTypePtr(Types::SadTypeKind dt) const;
+            Sad::Types::SadTypePtr sadKindToTypePtr(Types::SadTypeKind kind) const;
 
             /**
              * @brief (AR) التحقق من توافق نوعين
              * @brief (EN) Check if two types are compatible
              */
-            bool areTypesCompatible(TypeSystem::TypePtr expected, TypeSystem::TypePtr actual) const;
+            bool areTypesCompatible(Sad::Types::SadTypePtr expected, Sad::Types::SadTypePtr actual) const;
 
             /**
              * @brief (AR) استنتاج نوع تعبير
              * @brief (EN) Infer expression type
              */
-            TypeSystem::TypePtr inferExprType(AST::Expression *expr);
+            Sad::Types::SadTypePtr inferExprType(AST::Expression *expr);
 
             /**
              * @brief (AR) الحصول على موقع من عقدة
@@ -303,6 +313,44 @@ namespace Sad
              * @brief (AR) تسجيل خطأ نوع
              * @brief (EN) Record type error
              */
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 وحدةٌ في موضعِ شرط: **رفضٌ لا سقوطٌ صامتٌ إلى «خطأ»**.
+            //
+            //      كان `اذا (())` يُترجَمُ ويأخذُ فرعَ `والا` بلا تشخيصٍ البتّة
+            //      (مقيسٌ 2026-09-07) — أي أنّ نوعَ الوحدةِ كان **كاذبًا
+            //      صامتًا**، مُصنَّفًا مع `لاشيء` لا مع القيم. وهو نوعُ قيمةٍ
+            //      لا غياب، ولا معلومةَ فيه تُصدَّقُ أو تُكذَّب.
+            //
+            //   ⚠️ **والحارسُ خارجَ `strictMode_` عمدًا.** فوقَه بأسطرٍ حارسٌ
+            //      يفحصُ «أهو منطقيّ؟» **معطَّلٌ خلفَ ذلك العَلَم** — وقد عاشَ
+            //      العَلَمُ سنتَينِ بلا مُنادٍ، وهو الدرسُ المُدوَّنُ في
+            //      CLAUDE.md: **عَلَمٌ بلا مُنادٍ يبقى غيرَ مقيسٍ لا أخضر**.
+            //      فلو وُضِعَ هذا الحكمُ خلفَه لَبقيَ الرفضُ نصًّا لا سلوكًا.
+            //
+            //   🔑 ولا يُوسَّعُ المقبولُ ولا المرفوض: `اذا (5)` و`اذا ("ن")`
+            //      تبقيانِ كما هما حرفًا بحرف — والوحدةُ وحدَها تُرفَض، لأنّها
+            //      وحدَها **لا تحملُ شيئًا يُقرَأُ صدقًا أو كذبًا**. وتوسيعُ
+            //      الصرامةِ إلى سائرِ الأنواعِ قرارُ لغةٍ يُقاسُ وحدَه.
+            // (EN) A unit in a condition: rejected, not silently falsy. `if (())` compiled
+            //      and took the else branch with no diagnostic at all — the unit type was
+            //      a SILENT FALSE, classified with null rather than with values, though it
+            //      is a value type carrying nothing to be true or false about. The guard
+            //      deliberately sits OUTSIDE strictMode_: a few lines above, the "is it
+            //      boolean?" check is disabled behind that flag, which lived two years
+            //      without a caller — the documented lesson that a flag with no caller is
+            //      unmeasured, not green. Nothing else changes: `if (5)` and `if ("s")`
+            //      behave exactly as before; only the unit is rejected, because only the
+            //      unit carries nothing to read as true or false.
+            // ════════════════════════════════════════════════════════════════
+            // (AR) وكلمةُ العمليّةِ **رمزُ معجمٍ** لا سلسلةً نصّيّة: النصُّ يُقرَأُ
+            //      من `KeywordTable` فلا تدخلُ عربيّةٌ مؤلَّفةٌ شفرةَ المترجِم ولا
+            //      يُحشى المخرَجُ الإنجليزيُّ بلفظٍ عربيّ.
+            // (EN) The operation is a KEYWORD TOKEN, not a string: its text is read
+            //      from the keyword table, so no composed Arabic enters compiler code
+            //      and the English rendering is not filled with an Arabic word.
+            void rejectUnitCondition(const Sad::Types::SadTypePtr &condType, AST::ASTNode *node,
+                                     Lexer::TokenType operationKeyword);
+
             void recordTypeError(const std::string &varName,
                                  const std::string &expected,
                                  const std::string &actual,
@@ -320,7 +368,7 @@ namespace Sad
              * @brief (AR) تسجيل متغير في النطاق الحالي
              * @brief (EN) Register variable in current scope
              */
-            void declareVariable(const std::string &name, TypeSystem::TypePtr type);
+            void declareVariable(const std::string &name, Sad::Types::SadTypePtr type);
 
             /**
              * @brief (AR) هل أعلنَ كاتبُ هذا التعبيرِ إشارتَه صراحةً؟ — مرساةُ SEM048
@@ -336,7 +384,7 @@ namespace Sad
              * @brief (AR) البحث عن نوع متغير
              * @brief (EN) Look up variable type
              */
-            TypeSystem::TypePtr lookupVariable(const std::string &name) const;
+            Sad::Types::SadTypePtr lookupVariable(const std::string &name) const;
 
         private:
             // ==================================================================
@@ -356,23 +404,23 @@ namespace Sad
             bool strictMode_ = false;
 
             /// سجل الأنواع / Type registry
-            TypeSystem::TypeRegistry &registry_;
+            Sad::Types::SadTypeRegistry &registry_;
 
             /// آخر نوع مُستنتج (للتمرير بين visitor calls)
             /// Last inferred type (for passing between visitor calls)
-            TypeSystem::TypePtr lastInferredType_;
+            Sad::Types::SadTypePtr lastInferredType_;
 
             /// بيئة الأنواع الحالية / Current type environment
-            std::shared_ptr<TypeSystem::TypeEnvironment> currentEnv_;
+            std::shared_ptr<Sad::Types::TypeEnvironment> currentEnv_;
 
             /// مكدس النطاقات / Scope stack
-            std::vector<std::shared_ptr<TypeSystem::TypeEnvironment>> scopeStack_;
+            std::vector<std::shared_ptr<Sad::Types::TypeEnvironment>> scopeStack_;
 
             /// اسم الدالة الحالية / Current function name
             std::string currentFunction_;
 
             /// نوع الإرجاع المتوقع للدالة الحالية / Expected return type
-            TypeSystem::TypePtr expectedReturnType_;
+            Sad::Types::SadTypePtr expectedReturnType_;
 
             // ==================================================================
             // [Phase 5 — Template Constraints] سجلات القوالب والسمات
@@ -454,9 +502,7 @@ namespace Sad
             // ==================================================================
             // (AR) أسماء الأصناف المعرفة في الوحدة الحالية. نستخدمها كمرجع
             //      احتياطي عند الاستدلال النوعي بدل الاعتماد الكامل على
-            //      StructRegistry الذي قد لا يكون محدثاً في بعض المسارات.
             // (EN) Class names declared in current compilation unit. Used as
-            //      a fallback source for inference when StructRegistry is not
             //      fully populated in some semantic paths.
             // ==================================================================
             std::unordered_set<std::string> userClassNames_;
@@ -483,13 +529,11 @@ namespace Sad
 
             // ==================================================================
             // (AR) SEM045 (حقول الأصناف): تصنيفُ كلِّ حقلٍ مُصرَّحٍ — صنف ← (حقل ←
-            //      SadTypeKind). قِيس أنّ StructRegistry **لا يملؤه أحد** (لا نداءَ
             //      لـregisterStruct خارج بانيه الميّت)، فقراءةُ أنواعِ الحقول منه
             //      شرطٌ لا يصدق أبدًا — «أخضر لأنّ الشرط لا يمكن أن يكون صادقًا».
             //      هذا الجدولُ يُملأ من تصريحِ الصنفِ نفسِه في المسارَين
             //      (ClassDeclStmt وClassDecl) ويقرؤه حارسُ إسنادِ الأعضاء.
             // (EN) SEM045 (class fields): declared kind of every field — class →
-            //      (field → SadTypeKind). Measured: StructRegistry is NEVER
             //      populated (no registerStruct call outside its dead builder), so
             //      reading field types from it is a condition that can never hold.
             //      Filled from the class declaration itself on BOTH AST shapes and
@@ -670,7 +714,7 @@ namespace Sad
              *        (SEM_WRONG_ARG_COUNT) and types vs fieldTypes (SEM_TYPE_MISMATCH for
              *        typed args). Returns the constructed enum type (Class placeholder).
              */
-            TypeSystem::TypePtr checkEnumConstruction(
+            Sad::Types::SadTypePtr checkEnumConstruction(
                 const std::string &variantName,
                 const EnumVariantInfo &info,
                 const std::vector<AST::ExprPtr> &args,

@@ -28,7 +28,7 @@ namespace {
     // Convert Sad Value to JsonValue
     JsonValue value_to_json(const Value& value) {
         switch (value.get_type()) {
-            case ::Sad::Types::SadTypeKind::Void:
+            case ::Sad::Types::SadTypeKind::Unit:
                 return JsonValue();
             
             case ::Sad::Types::SadTypeKind::Boolean:

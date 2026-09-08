@@ -19,6 +19,31 @@ if(NOT DEFINED SAD_SHARED_DIR)
  endif()
 endif()
 
+# ============================================================================
+# (AR) نظامُ الأنواعِ الغنيّ نُقِلَ إلى `shared/type_system/`.
+#      🔑 والمسارُ يُذكَرُ **ههنا** لا في جذرِ المشروع: `include_directories`
+#      في الجذرِ يقعُ **بعدَ** `core_components.cmake` الذي يُضيفُ هذا المجلّد،
+#      فلا تبلغُه أهدافُ المترجّم. كُذِّبَ الظنُّ بأوّلِ بناء:
+#      `call_method_dispatch.cpp(36): error C1083: types/type.h`.
+# (EN) The rich type system moved to shared/type_system/. This path must be
+#      declared HERE: the root include_directories() call runs after the
+#      subdirectory is added, so compiler targets never see it. The first build
+#      falsified the assumption that the root block sufficed.
+# ============================================================================
+# (AR) ⚠️ **والترتيبُ حاكمٌ لا تجميل.** في الشجرةِ ملفّانِ اسمُهما `type.h`:
+#      `shared/types/include/type.h` (`Sad::Data::Type`) و`types/type.h`
+#      (`Sad::TypeSystem::Type`). و`class_nodes.h` يضمُّ `"type.h"` مُجرَّدًا،
+#      فأيُّهما يفوزُ تحكمُه رتبةُ المجلَّد. ولمّا وُضِعَ مجلَّدُ `types` أوّلًا
+#      انقلبَ المقصودُ وأخفقَ البناءُ بـ`C2653: 'Data' is not a class`.
+#      فسبقَ `shared/types/include` كما كان في جذرِ المشروعِ قبلَ النقل.
+# (EN) Order is load-bearing: two headers are named type.h, and class_nodes.h
+#      includes the bare name. Listing the types/ dir first flipped which one
+#      won and broke the build. shared/types/include precedes it, as the root
+#      CMakeLists ordered them before the move.
+include_directories(
+ ${SAD_SHARED_DIR}/shared/types/include
+)
+
 # Find LLVM (use the same path from main CMakeLists.txt)
 if(NOT LLVM_FOUND)
  # (AR) ?? ?????? LLVM_DIR ??? — ???? ?? cmake/llvm.cmake ?? ?? ??? ???????
@@ -161,6 +186,21 @@ if(LLVM_FOUND)
  # - ffi_wrapper.cpp: c_abi.h c_types.h headers
  # - inline_asm.cpp: IRBuilder template
  # - llvm_compiler_pipeline.cpp: include
+ # (AR) المولّداتُ النصّيّةُ الثلاثةُ حُذفت (٢٠٢٦-٠٩-٠٨) — **ميّتةٌ في الإنتاجِ
+ #      بقياسٍ لا بظنّ**: صفرُ مستهلكٍ لكلِّ رمزٍ فيها في المستودعِ كلِّه
+ #      (`ExtensionTable` · `PipelineCodegen` · `AsyncCodeGen` وإخوتُها = ٠)،
+ #      و`extension_codegen` و`pipeline_codegen` **بلا ترويسةٍ أصلًا** فلا سبيلَ
+ #      إلى وصلِهما، و`async_codegen.hpp` **بلا مُضمِّنٍ واحد**. وكان
+ #      `extension_codegen` نصفُه تحتَ `#ifdef EXTENSION_CODEGEN_TEST`.
+ #      🔑 وقد سجَّلَ المستودعُ موتَها بنفسِه في `DISCOVERED_ISSUES.md:139`
+ #      («ميّتةٌ في الإنتاج») ثمّ **أبقاها تُصرَّف** — وخطرُها ليس ثمنَ الترجمةِ
+ #      بل أنّ قارئَ الاسمِ يظنُّ الميزةَ ههنا فيُصلحُ عطبًا لا يظهرُ أثرُه أبدًا.
+ #      والميزةُ الحيّةُ في `frontend/builders/statement_extension.cpp`.
+ # (EN) The three textual generators were deleted: measured dead in production —
+ #      zero consumers for every symbol, two of them with NO header at all (so
+ #      unreachable by construction), and async_codegen.hpp with no includer. The
+ #      repo had already recorded them as dead and kept compiling them. The danger
+ #      is not build cost but that a reader fixes a defect that can never surface.
  set(BACKEND_COMMON_SOURCES
  src/backend/linker_script.cpp
  src/backend/linker_script_x86_template.cpp
@@ -169,18 +209,15 @@ if(LLVM_FOUND)
  src/backend/solidity_ffi.cpp
  src/backend/pattern_codegen.cpp
  src/backend/pattern_codegen_api.cpp
- src/backend/async_codegen.cpp
  src/backend/ffi_wrapper.cpp
  src/backend/arm64_codegen.cpp
  src/backend/compose_emitter.cpp
  # (AR) evm_codegen.cpp حُذف في م5 (RFC sadlang-rfcs#10) — كان معزولًا، لم يُربط بعقد AST مطلقًا
  # (EN) evm_codegen.cpp deleted in phase 5 (RFC #10) — was isolated, never linked to AST nodes
- src/backend/extension_codegen.cpp
  src/backend/html_emitter.cpp
  src/backend/pipeline_chain.cpp
  src/backend/pipeline_chain_ops.cpp
  src/backend/pipeline_chain_fusion.cpp
- src/backend/pipeline_codegen.cpp
  # (AR) كلّ مسارات WASM حُذفت في م5 (RFC sadlang-rfcs#10) — المسار الحيّ: cmake/wasm.cmake (Emscripten → sad_wasm)
  # (EN) All WASM paths deleted in phase 5 (RFC #10) — live path: cmake/wasm.cmake (Emscripten → sad_wasm)
  )
@@ -390,66 +427,17 @@ endif()
 # ============================================================================
 
 # ============================================================================
-# Type System Library
+# Type System Library — نُقلت إلى shared/type_system/
 # ============================================================================
-# (AR) ????? ????? ?????? ???? ??????? — ?? ????? 19 ??? ??? ?? ???
-#      ?????? ?? ?? ???? ???? compiler/src/types (???? ????? ????? ?????).
-#      ??????? ???????? ??????? ?? shared/semantic/include/semantic/type_checker.h
-#      ?????? (10 ?????) ?? ????? ??? type_inferencer/constraint_solver (5 ?????).
-# (EN) Explicit list of type-system sources after removing 19 dead files
-#      that were never referenced outside compiler/src/types. Remaining files
-#      are consumed by shared/semantic (directly or transitively).
-set(TYPE_SYSTEM_SOURCES
-    src/types/arabic_types.cpp
-    src/types/constraint.cpp
-    src/types/constraint_solver.cpp
-    src/types/enum_types.cpp
-    src/types/future_type.cpp
-    src/types/generator_type.cpp
-    src/types/generics.cpp
-    src/types/primitive_type.cpp
-    src/types/struct_types.cpp
-    src/types/substitution.cpp
-    src/types/trait_system.cpp
-    src/types/type.cpp
-    src/types/type_inferencer.cpp
-    src/types/type_registry.cpp
-    src/types/type_variable.cpp
-    src/types/unification.cpp
-    src/types/union_type.cpp
-    src/types/union_types.cpp
-)
-file(GLOB TYPE_SYSTEM_HEADERS "include/types/*.h")
-
-add_library(sad_type_system STATIC ${TYPE_SYSTEM_SOURCES})
-
-# (AR) ?????? ??????? ???????? (assertSafeCast<int> ?? constraint_solver).
-# (EN) Shared security primitives.
-if(TARGET sad_security_core)
-    target_link_libraries(sad_type_system PUBLIC sad_security_core)
-endif()
-
-# Unicode / Disable Unicode warnings for Arabic text
-if(MSVC)
- target_compile_options(sad_type_system PRIVATE /utf-8 /wd4819 /FS)
-endif()
-
-target_include_directories(sad_type_system
- PUBLIC
- ${CMAKE_CURRENT_SOURCE_DIR}/include
- ${CMAKE_CURRENT_SOURCE_DIR}/include/types
- ${CMAKE_SOURCE_DIR}/include
- ${SAD_SHARED_DIR}/shared/lexer/include
- ${SAD_SHARED_DIR}/shared/ast/include
- ${SAD_SHARED_DIR}/shared/types/include
- ${SAD_SHARED_DIR}/shared/errors/include
-)
-
-# (AR) ?????? ??????? ???????? (assertSafeCast<int> ?? constraint_solver).
-# (EN) Shared security primitives.
-if(TARGET sad_security_core)
-    target_link_libraries(sad_type_system PUBLIC sad_security_core)
-endif()
+# (AR) 🔑 هدفُ `sad_shared` لم يعُدْ يُعرَّفُ ههنا. كانت الطبقةُ المشتركةُ
+#      `sad_semantic_shared` تربطُه وتُضمِّنُ ترويساتِه من `compiler/include/types/`،
+#      فكان «المشترَك» لا يُبنى بلا المترجّم. عُرِّفَ الهدفُ الآنَ في
+#      `shared/type_system/CMakeLists.txt` فانقلبَ اتّجاهُ التبعيّةِ إلى
+#      compiler ← shared. وبقيَ في `compiler/include/types/` ملفّان عمدًا:
+#      `c_types.h` (يضمّ `ffi/c_abi.h`) و`atomic_types.h` (خلفيّةُ LLVM وحدَها).
+# (EN) The sad_shared target now lives in shared/type_system/; the shared
+#      semantic layer no longer depends on a compiler-owned target.
+# ============================================================================
 
 # ============================================================================
 # Tools Library ( : )
@@ -673,7 +661,7 @@ target_link_libraries(sad_compiler_no_llvm
  INTERFACE
  sad_frontend
  sad_optimizer
- sad_type_system
+
  sad_semantic
  sad_memory_gc
  sad_memory_policy
@@ -702,7 +690,6 @@ target_include_directories(sad_compiler_no_llvm
  ${CMAKE_SOURCE_DIR}/compiler/backends/llvm
  ${CMAKE_SOURCE_DIR}/compiler/jit/include
  ${CMAKE_SOURCE_DIR}/compiler/bytecode/include
- ${CMAKE_SOURCE_DIR}/compiler/type_system/include
 )
 
 # ============================================================================
@@ -870,7 +857,7 @@ endif()
 
 # (AR) جسر SIR→المحرّك السياديّ: يبني SIR من مصدر ص فعليّ (Lexer→Parser→SIRBuilder)
 #      ثمّ يخفّضه إلى x86-64 أصليّ عبر المحرّك الجدوليّ ⇒ أوّل ترجمة ص→أصليّ حقيقيّة.
-#      يربط sad_frontend (SIRBuilder) + sad_shared (Lexer/Parser/AST) + sad_type_system.
+#      يربط sad_frontend (SIRBuilder) + sad_shared (Lexer/Parser/AST) + sad_shared.
 if(TARGET sad_frontend AND TARGET sad_shared)
  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_sir_bridge.cpp")
  add_executable(test_native_sir_bridge tests/test_native_sir_bridge.cpp)
@@ -885,8 +872,8 @@ if(TARGET sad_frontend AND TARGET sad_shared)
  ${CMAKE_SOURCE_DIR}/tests/framework
  )
  target_link_libraries(test_native_sir_bridge PRIVATE sad_frontend sad_shared)
- if(TARGET sad_type_system)
- target_link_libraries(test_native_sir_bridge PRIVATE sad_type_system)
+ if(TARGET sad_shared)
+ target_link_libraries(test_native_sir_bridge PRIVATE sad_shared)
  endif()
  target_compile_features(test_native_sir_bridge PRIVATE cxx_std_17)
  if(MSVC)
